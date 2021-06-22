@@ -1,3 +1,0 @@
-
-
-/// :DOCUMENTATION-COMMENT.

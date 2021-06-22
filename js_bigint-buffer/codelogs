@@ -1,0 +1,1 @@
+npx browserify node_modules/bigint-buffer/dist/browser.js > bigint_buffer.js --standalone=bigint_buffer
