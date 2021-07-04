@@ -1,0 +1,26 @@
+[package]
+name = "rust_wasm_bls12381"
+version = "0.1.0"
+authors = ["levi <levifeldman37@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = "0.4.3"
+wasm-bindgen = "0.2.74"
+
+# miracl_core_bls12381 = { path = "/home/STARLAB/Docs/DFINITY/miracl_core_bls12381" }
+# miracl_core_bls12381 = "4.1.0"
+# ic-agent = "0.5.2"
+# ic-agent = { path = "/home/STARLAB/Docs/DFINITY/agent-rs/ic-agent"}
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+lto = true
+opt-level = 'z'
+
+

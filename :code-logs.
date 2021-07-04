@@ -1,2 +1,4 @@
 dart pub publish --dry-run
 
+cargo test -- --nocapture
+

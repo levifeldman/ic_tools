@@ -1,0 +1,14 @@
+
+cargo build --target wasm32-unknown-unknown --release
+
+wasm-bindgen --target no-modules --no-modules-global rust_wasm_bls12381 --no-typescript --out-dir wasm_bindgen target/wasm32-unknown-unknown/release/rust_wasm_bls12381.wasm
+
+put this at the bottom of the rust_wasm_bls12381.js -file:
+async function rust_wasm_bls12381_load(wasm_path) {
+    await rust_wasm_bls12381(wasm_path);
+    bls_stantiate = rust_wasm_bls12381.bls_stantiate;
+    bls_verify = rust_wasm_bls12381.bls_verify;
+}
+
+
+

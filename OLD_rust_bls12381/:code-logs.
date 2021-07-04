@@ -1,0 +1,29 @@
+--------------
+wasm-pack build --release --target web --no-typescript --out-dir wasm_pack 
+
+add this to the rbls12381.js:
+window.load_rbls12381_wasm = init;
+
+
+
+in the console: 
+b = await load_rbls12381_wasm();
+b.sumtest(4,5)  # 9
+b.verify(Uint8Array.from([1,2,3]),Uint8Array.from([1,2,3]),Uint8Array.from([1,2,3]));
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
