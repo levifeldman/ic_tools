@@ -1,4 +1,4 @@
-let rbls12381;
+let rust_wasm_bls12381;
 (function() {
     const __exports = {};
     let wasm;
@@ -6,8 +6,8 @@ let rbls12381;
     /**
     * @returns {boolean}
     */
-    __exports.loadbls = function() {
-        var ret = wasm.loadbls();
+    __exports.bls_stantiate = function() {
+        var ret = wasm.bls_stantiate();
         return ret !== 0;
     };
 
@@ -30,38 +30,18 @@ let rbls12381;
     /**
     * @param {Uint8Array} autograph
     * @param {Uint8Array} message
-    * @param {Uint8Array} key
+    * @param {Uint8Array} public_key
     * @returns {boolean}
     */
-    __exports.verify = function(autograph, message, key) {
+    __exports.bls_verify = function(autograph, message, public_key) {
         var ptr0 = passArray8ToWasm0(autograph, wasm.__wbindgen_malloc);
         var len0 = WASM_VECTOR_LEN;
         var ptr1 = passArray8ToWasm0(message, wasm.__wbindgen_malloc);
         var len1 = WASM_VECTOR_LEN;
-        var ptr2 = passArray8ToWasm0(key, wasm.__wbindgen_malloc);
+        var ptr2 = passArray8ToWasm0(public_key, wasm.__wbindgen_malloc);
         var len2 = WASM_VECTOR_LEN;
-        var ret = wasm.verify(ptr0, len0, ptr1, len1, ptr2, len2);
+        var ret = wasm.bls_verify(ptr0, len0, ptr1, len1, ptr2, len2);
         return ret !== 0;
-    };
-
-    /**
-    * @param {number} x
-    * @param {number} y
-    * @returns {number}
-    */
-    __exports.sumtest = function(x, y) {
-        var ret = wasm.sumtest(x, y);
-        return ret;
-    };
-
-    /**
-    * @param {number} x
-    * @param {number} y
-    * @returns {number}
-    */
-    __exports.minustest = function(x, y) {
-        var ret = wasm.minustest(x, y);
-        return ret;
     };
 
     async function load(module, imports) {
@@ -122,6 +102,13 @@ let rbls12381;
         return wasm;
     }
 
-    rbls12381 = Object.assign(init, __exports);
+    rust_wasm_bls12381 = Object.assign(init, __exports);
 
 })();
+
+
+async function rust_wasm_bls12381_load(wasm_path) {
+    await rust_wasm_bls12381(wasm_path);
+    bls_stantiate = rust_wasm_bls12381.bls_stantiate;
+    bls_verify = rust_wasm_bls12381.bls_verify;
+}
