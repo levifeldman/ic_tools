@@ -1,11 +1,7 @@
 // FOR THE DO: 
 
-// candid (:use: rust-package with the dart-ffi?)
-// check icdatahash (questId-maker)
-// parse certificate-tree (soon-done)
-// validate certificate tree values
 // create Authorization-keys, call with an authorization. 
-
+// bls on the liinux
 
 
 
