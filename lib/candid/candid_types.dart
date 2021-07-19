@@ -567,6 +567,7 @@ class Record extends RecordAndVariantMap {
             Tuple2<Uint8List, CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, next_field_start_candidbytes_i);
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128flutter.decodeUnsigned(field_id_hash_leb128_bytes);
+            // throw here and in variant fieldtypes if field-id-hash is less than any of the field hashes already in the record_types
             CandidBytes_i field_type_code_byte_candidbytes_i = leb128_bytes_tuple.item2;
             TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             M_func m_func = t_func_tuple.item1;
@@ -622,7 +623,7 @@ class Variant extends RecordAndVariantMap {
         Uint8List variant_field_i_leb128_bytes = leb128_bytes_tuple.item1;
         int variant_field_i = leb128flutter.decodeUnsigned(variant_field_i_leb128_bytes);
         List<int> variant_fields_hashs = this.keys.toList(); 
-        print('variant_fields_hashs: ${variant_fields_hashs}');
+        // print('variant_fields_hashs: ${variant_fields_hashs}');
         int variant_field_hash = variant_fields_hashs[variant_field_i];
         M_func field_m_func = this[variant_field_hash];
         MfuncTuple field_m_func_tuple = field_m_func(candidbytes, leb128_bytes_tuple.item2);

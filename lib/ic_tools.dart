@@ -334,9 +334,9 @@ void verifycertificate(Map certificate) {
     } else {
         derKey = icrootkey; }
     Uint8List blskey = derkeyasablskey(derKey);
-    print("sig len: ${certificate['signature'].length}, pk len: ${blskey.length}");
+    // print("sig len: ${certificate['signature'].length}, pk len: ${blskey.length}");
     bool certificatevalidity = bls12381flutter.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
-    print(certificatevalidity);
+    // print(certificatevalidity);
     if (certificatevalidity == false) { 
         // print(':CERTIFICATE IS: VOID.');
         throw Exception(':CERTIFICATE IS: VOID.'); 

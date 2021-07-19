@@ -10,7 +10,7 @@ class bls12381_linux extends Bls12381Flutter {
     
     @override
     bool verify(Uint8List autograph, Uint8List message, Uint8List blskey) {
-        print(':WARNING IS: A LACK OF THE CHECK OF THE AUTOGRAPH');
+        print(':WARNING, plement linux rust-ffi bls-function. ');
         // throw Exception('make this work');
         return true;
     }
