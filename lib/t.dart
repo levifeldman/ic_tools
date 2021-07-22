@@ -8,12 +8,8 @@ import 'candid/candid_types.dart';
 
 
 
+
 Future<void> main() async {
-    await t();
-}
-
-
-Future<void> t() async {
     print('trying ic');
     Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');
     List candid_sponse = await can.call(calltype: 'call', methodName: 'account_balance_dfx'); // List<CandidType>

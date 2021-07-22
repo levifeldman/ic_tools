@@ -10,7 +10,8 @@ abstract class onthewebcheck {
     late bool isontheweb;
 }
 
-final bool isontheweb = getonthewebcheckstance().isontheweb;
+onthewebcheck onthewebcheckstance = getonthewebcheckstance();
+final bool isontheweb = onthewebcheckstance.isontheweb;
 
 
 

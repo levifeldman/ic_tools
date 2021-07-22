@@ -4,13 +4,14 @@ import 'dart:typed_data';
 
 class bls12381_linux extends Bls12381Flutter {
     @override
-    Future<void> load() async {
-        return;
+    Future<bool> load() async {
+        print(':do: make bls_verify_ffi function on the linux');
+        return true;
     }
     
     @override
-    bool verify(Uint8List autograph, Uint8List message, Uint8List blskey) {
-        print(':WARNING, plement linux rust-ffi bls-function. ');
+    bool verify_ffi(Uint8List autograph, Uint8List message, Uint8List blskey) {
+        print(':WARNING IS: A LACK OF THE CHECK OF THE AUTOGRAPH');
         // throw Exception('make this work');
         return true;
     }

@@ -6,7 +6,7 @@ import 'package:js/js_util.dart';
 import 'leb128_jslib.dart' as leb128jslib;
 import '../js/jslib.dart';
 import '../js/bigint_buffer/main.dart';
-import '../tools.dart';
+import '../../tools.dart';
 
 class leb128js extends Leb128Flutter {
     @override

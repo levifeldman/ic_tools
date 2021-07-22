@@ -276,8 +276,9 @@ These measures allow the serialisation format to be extended with new types in t
 import 'dart:typed_data';
 import 'dart:convert';
 import '../tools.dart';
-import '../leb128/main.dart' show leb128flutter;
+// import '../leb128/main.dart' show leb128flutter;
 import 'candid_types.dart';
+import '../cross_platform_tools/cross_platform_tools.dart';
 
 
 
@@ -326,34 +327,26 @@ List<dynamic> candidsponsebytesasthedarttypes(Uint8List candidbytes) {
     }
     List<dynamic> candid_sponse = [];
 
-    // CandidBytesTypeTable type_table = CandidBytesTypeTable(candidbytes);
-    // int param_count = candidbytes[type_table.candidbytes_i];
     CandidBytes_i param_count_i = crawl_type_table(candidbytes);
     int param_count = candidbytes[param_count_i];
     
     if (param_count > 0) {
-        // CandidBytes_i params_types_start_i = type_table.candidbytes_i + 1;
         CandidBytes_i params_types_start_i = param_count_i + 1;
         CandidBytes_i params_types_finish_i = params_types_start_i + param_count;
         List params_types = candidbytes.sublist(params_types_start_i, params_types_finish_i);
         CandidBytes_i next_param_start_candidbytes_i = params_types_finish_i.toInt(); // .toInt()==.copy()
         for (int p=0;p<param_count;p++) {
-            
             int type_code = params_types[p];
-
             late M_func m_func;
             if (isPrimitiveCandidTypeCode(type_code)) {
                 m_func = candidtypecodesastheTfunc[type_code]();
             } else { // type_table_lookup
-                // m_func = type_table.table[type_code]; 
                 m_func = type_table[type_code]; 
-
             }
             // print('calling M func');
             MfuncTuple m_func_tuple = m_func(candidbytes, next_param_start_candidbytes_i);
             candid_sponse.add(m_func_tuple.item1);
             next_param_start_candidbytes_i = m_func_tuple.item2;
-
         }
     } 
 

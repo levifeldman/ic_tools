@@ -15,10 +15,13 @@ import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 import 'tools.dart';
-import 'onthewebcheck/main.dart' show isontheweb;
-import 'cbor/main.dart';
-import 'leb128/main.dart' show leb128flutter;
-import 'bls12381/main.dart' show bls12381flutter;
+
+// import 'onthewebcheck/main.dart' show isontheweb;
+// import 'cbor/main.dart';
+// import 'leb128/main.dart' show leb128flutter;
+// import 'bls12381/main.dart' show bls12381flutter;
+import 'cross_platform_tools/cross_platform_tools.dart';
+
 import 'candid/candid.dart';
 
 
@@ -86,7 +89,7 @@ class Canister {
         if (statesponse.statusCode==200) {
             Map systemstatesponsemap = cborflutter.cborbytesasadart(statesponse.bodyBytes);
             Map certificate = cborflutter.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
-            verifycertificate(certificate); // will throw an exception if certificate is not valid.
+            await verifycertificate(certificate); // will throw an exception if certificate is not valid.
             // print(certificate['tree']);
             List pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
             return pathsvalues;
@@ -324,18 +327,18 @@ Uint8List derkeyasablskey(Uint8List derkey) {
 
 }
 
-void verifycertificate(Map certificate) {
+Future<void> verifycertificate(Map certificate) async {
     Uint8List treeroothash = constructicsystemstatetreeroothash(certificate['tree']);
     Uint8List derKey;
     if (certificate.containsKey('delegation')) {
         Map legation_certificate = cborflutter.cborbytesasadart(Uint8List.fromList(certificate['delegation']['certificate']));
-        verifycertificate(legation_certificate);
+        await verifycertificate(legation_certificate);
         derKey = lookuppathvalueinaniccertificatetree(legation_certificate['tree'], ['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']);
     } else {
         derKey = icrootkey; }
     Uint8List blskey = derkeyasablskey(derKey);
     // print("sig len: ${certificate['signature'].length}, pk len: ${blskey.length}");
-    bool certificatevalidity = bls12381flutter.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
+    bool certificatevalidity = await bls12381flutter.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
     // print(certificatevalidity);
     if (certificatevalidity == false) { 
         // print(':CERTIFICATE IS: VOID.');
