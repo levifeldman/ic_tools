@@ -10,5 +10,9 @@ build/
 **/node_modules/
 
 
-**/target/
+**/target/*
+!**/target/release/
+
+**/target/release/*
+!**/target/release/librust_bls12381.so
 

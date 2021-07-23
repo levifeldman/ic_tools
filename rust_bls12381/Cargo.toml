@@ -1,0 +1,15 @@
+[package]
+name = "rust_bls12381"
+version = "0.1.0"
+authors = ["levi <levifeldman37@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hex = "0.4.3"
+
+
+[lib]
+name = "rust_bls12381"
+crate-type = ["cdylib"]
