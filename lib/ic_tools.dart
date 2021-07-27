@@ -6,14 +6,15 @@
 
 
 import 'dart:core';
-import 'package:http/http.dart' as http;
-import 'package:cbor/cbor.dart';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+import 'package:cbor/cbor.dart';
 import 'package:typed_data/typed_data.dart';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
+
 import 'tools.dart';
 
 // import 'onthewebcheck/main.dart' show isontheweb;
@@ -22,7 +23,7 @@ import 'tools.dart';
 // import 'bls12381/main.dart' show bls12381flutter;
 import 'cross_platform_tools/cross_platform_tools.dart';
 
-import 'candid/candid.dart';
+import 'candid.dart';
 
 
 
@@ -98,7 +99,7 @@ class Canister {
         }
     }
 
-
+    // return canister_sponse_bytes(?)
     Future<dynamic> call({required String calltype, required String methodName}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
@@ -149,7 +150,7 @@ class Canister {
             }
             print(pathsvalues);
             if (callstatus=='replied') {
-                canistersponse = candidsponsebytesasthedarttypes(pathsvalues[2]);
+                canistersponse = candid_bytes_as_the_candid_types(pathsvalues[2]);
             }
         } 
         else 

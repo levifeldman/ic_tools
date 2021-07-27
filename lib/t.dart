@@ -2,8 +2,7 @@ import 'dart:typed_data';
 import 'package:cbor/cbor.dart';
 import 'tools.dart';
 import 'ic_tools.dart';
-import 'candid/candid.dart';
-import 'candid/candid_types.dart';
+import 'candid.dart';
 
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed25519;
 import 'dart:convert';

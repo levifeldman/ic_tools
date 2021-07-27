@@ -7,12 +7,12 @@ import 'dart:collection';
 import 'dart:math';
 // import '../leb128/main.dart' show leb128flutter;
 import 'package:tuple/tuple.dart';
-
+import '../tools.dart';
 import '../cross_platform_tools/cross_platform_tools.dart';
 
 
 
-Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x4449444C
+final Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x4449444C
 
 
 // Map<dynamic,int> candid_type_codes = {
@@ -191,6 +191,47 @@ CandidBytes_i crawl_type_table(Uint8List candidbytes) {
     }
     return next_type_start_candidbytes_i;
 }
+
+List<CandidType> crawl_memory_bytes(CandidBytes_i param_count_i, Uint8List candidbytes) {
+    List<CandidType> candids = [];
+    int param_count = candidbytes[param_count_i];   
+    if (param_count > 0) {
+        CandidBytes_i params_types_start_i = param_count_i + 1;
+        CandidBytes_i params_types_finish_i = params_types_start_i + param_count;
+        List params_types = candidbytes.sublist(params_types_start_i, params_types_finish_i);
+        CandidBytes_i next_param_start_candidbytes_i = params_types_finish_i.toInt(); // .toInt()==.copy()
+        for (int p=0;p<param_count;p++) {
+            int type_code = params_types[p];
+            late M_func m_func;
+            if (isPrimitiveCandidTypeCode(type_code)) {
+                m_func = candidtypecodesastheTfunc[type_code]();
+            } else { // type_table_lookup
+                m_func = type_table[type_code]; 
+            }
+            // print('calling M func');
+            MfuncTuple m_func_tuple = m_func(candidbytes, next_param_start_candidbytes_i);
+            candids.add(m_func_tuple.item1);
+            next_param_start_candidbytes_i = m_func_tuple.item2;
+        }
+    } 
+    return candids;
+}
+
+
+ 
+List<CandidType> candid_bytes_as_the_candid_types(Uint8List candidbytes) {
+    print(bytesasahexstring(candidbytes));
+    if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
+    CandidBytes_i param_count_i = crawl_type_table(candidbytes);
+    List<CandidType> candids = crawl_memory_bytes(param_count_i, candidbytes);
+    return candids;
+}
+
+
+
+
+
+
 
 
 
