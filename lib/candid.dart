@@ -519,37 +519,48 @@ class Empty extends PrimitiveCandidType {
 
 // Option(CandidType-stance or TFunction) // 
 class Option extends ConstructType {
-    CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
-    M_func? _opt_value_m_func;
-    Option([this.value], {this._opt_value_m_func}) {
-        if (this.isTypeStance==true && this._opt_value_m_func == null) { throw Exception('a value_type must be given when isTypeStance is set to true'); }
+    final CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
+    final CandidType? value_type;
+    final bool isTypeStance;
+    // get bool isTypeStance => isTypeStance;
+    Option([this.value], {this.value_type, this.isTypeStance=false}) { 
+        if (isTypeStance==true) {
+            if (this.value_type==null) {
+                throw Exception('for an Option as a type-stance is with the value_type-parameter-quirement by the class-rules.');
+            } else if (this.value!=null) {
+                throw Exception('for an Option as a type-stance is with the value-parameter-null-quirement by the class-rules.');
+            }
+        } else {
+            if (this.value==null && this.value_type==null) {
+                throw Exception('an Option needs either a CandidType value, or if the value is null: an Option needs the value_type-parameter set to a CandidType-[in]stance with the isTypeStance=true');
+            }
+        }
     }
-    get bool isTypeStance => isTypeStance;
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
         // 110
         // type_code-cursion
-        TfuncTuple opt_value_t_func_tuple = TfuncWhirlpool(candidbytes, start_i);
-        Option opt_type = Option(_opt_value_m_func: opt_value_t_func_tuple.item1, isTypeStance: true);
-        return TfuncTuple(opt_type.M, opt_value_t_func_tuple.item2);
+        TfuncTuple value_t_func_tuple = TfuncWhirlpool(candidbytes, start_i);
+        Option opt_type = Option(value_type: value_t_func_tuple.item1, isTypeStance: true);
+        return TfuncTuple(opt_type, value_t_func_tuple.item2);
     }
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-        // can either be Null or the value
-        // throw UnimplementedError('');
         int opt_first_byte = candidbytes[start_i];
         late CandidBytes_i next_i;
+        late CandidType? val; 
         if (opt_first_byte==0) {
-            value = null;
+            val = null;
             next_i = start_i + 1;
         } else if (opt_first_byte==1) {
-            MfuncTuple opt_value_m_func_tuple = _opt_value_m_func(candidbytes, start_i + 1)!;
-            value = opt_value_m_func_tuple.item1;
-            next_i = opt_value_m_func_tuple.item2;
+            MfuncTuple value_type_m_func_tuple = this.value_type.M(candidbytes, start_i + 1)!;
+            val = value_type_m_func_tuple.item1;
+            next_i = value_type_m_func_tuple.item2;
         }
         else {
             throw Exception('candid Option M func must start with a 0 or 1 byte.');
         }
-        return MfuncTuple(this, next_i);
+        Option opt = Option(val, value_type: this.value_type);
+        return MfuncTuple(opt, next_i);
     }
 }
 
