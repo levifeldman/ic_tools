@@ -82,8 +82,8 @@ final Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x44494
 
 typedef CandidBytes_i = int;     
 typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_function gives back a CandidType-stance with the values and a Candidbytes_i
-typedef M_func = MfuncTuple Function(Uint8List candidbytes, int start_i);
-typedef TfuncTuple = Tuple2<M_func,CandidBytes_i>; //T-function gives back a M_func of a CandidType-stance with isTypeStance = true , and if the T-function is: happening in the non-primitive-type: { a Tuple with a candidbytes_i }
+// typedef M_func = MfuncTuple Function(Uint8List candidbytes, int start_i);
+typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; //T-function gives back a CandidType-stance with isTypeStance = true with a m_func
 
 // :primtypes-T-functions are:
 //      in the type_table: with the lack of the cept of the candidbytes-parameters with the lack of the give-back of a candidbytes_i
@@ -163,31 +163,35 @@ Tuple2<Uint8List, CandidBytes_i> find_leb128bytes(Uint8List candidbytes, CandidB
 TfuncTuple TfuncWhirlpool(Uint8List candidbytes, CandidBytes_i type_code_candidbytes_i) {
     int type_code = candidbytes[type_code_candidbytes_i];
     if (isPrimitiveCandidTypeCode(type_code)) {
-        M_func m_func = candidtypecodesastheTfunc[type_code](); 
-        return TfuncTuple(m_func, type_code_candidbytes_i + 1);
+        CandidType primctype = candidtypecodesastheTfunc[type_code](); 
+        return TfuncTuple(primctype, type_code_candidbytes_i + 1);
     } else if (isCandidTypeCode(type_code)) {
         TfuncTuple t_func_tuple = candidtypecodesastheTfunc[type_code](candidbytes, type_code_candidbytes_i + 1);
         return t_func_tuple;
     } else {
         // type_table_index
-        M_func m_func = (Uint8List candidbytes_, CandidBytes_i start_i){
-            return type_table[type_code](candidbytes, start_i);
-        };
-        return TfuncTuple(m_func, type_code_candidbytes_i + 1);
+        return TfuncTuple(TypeTableReference(type_code), type_code_candidbytes_i + 1);
     }
 }
 
 
-List<M_func> type_table = []; 
+List<CandidType> type_table = []; 
+class TypeTableReference {
+    int type_table_i; 
+    MfuncTuple Function M;
+    TypeTableReference(this.type_table_i) {
+        M = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
+    }
+}
 CandidBytes_i crawl_type_table(Uint8List candidbytes) {
     type_table.clear();
     int type_table_length = candidbytes[4]; // chack what happens if there is greater than 255 itmes in the type table, is this number max 255 or is it a leb128-code[ed]-number
     CandidBytes_i next_type_start_candidbytes_i = 5;
     for (int t=0;t<type_table_length;t++) {
         TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, next_type_start_candidbytes_i);
-        M_func m_func = t_func_tuple.item1;
+        CandidType ctype = t_func_tuple.item1;
         next_type_start_candidbytes_i = t_func_tuple.item2;
-        type_table.add(m_func);
+        type_table.add(ctype);
     }
     return next_type_start_candidbytes_i;
 }
@@ -202,14 +206,13 @@ List<CandidType> crawl_memory_bytes(CandidBytes_i param_count_i, Uint8List candi
         CandidBytes_i next_param_start_candidbytes_i = params_types_finish_i.toInt(); // .toInt()==.copy()
         for (int p=0;p<param_count;p++) {
             int type_code = params_types[p];
-            late M_func m_func;
+            late CandidType ctype;
             if (isPrimitiveCandidTypeCode(type_code)) {
-                m_func = candidtypecodesastheTfunc[type_code]();
+                ctype = candidtypecodesastheTfunc[type_code]();
             } else { // type_table_lookup
-                m_func = type_table[type_code]; 
+                ctype = type_table[type_code]; 
             }
-            // print('calling M func');
-            MfuncTuple m_func_tuple = m_func(candidbytes, next_param_start_candidbytes_i);
+            MfuncTuple m_func_tuple = ctype.M(candidbytes, next_param_start_candidbytes_i);
             candids.add(m_func_tuple.item1);
             next_param_start_candidbytes_i = m_func_tuple.item2;
         }
@@ -270,45 +273,35 @@ abstract class FunctionAnnotation extends NonPrimitiveCandidType {}
 
 class Null extends PrimitiveCandidType {
     get value => throw Exception('CandidType: Null is with the lack of a value.'); // should i make the value null?
-
-    static M_func T() {
-        return Null.M;
+    
+    static Null T() => Null();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        MfuncTuple(Null(), start_i);
     }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
-        return MfuncTuple(Null(), start_i);
-    };
-
 }
 
 
 class Bool extends PrimitiveCandidType {
     bool value;
     Bool(this.value);
-    static M_func T() {
-        return Bool.M;
+    
+    static Bool T() => Bool();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        MfuncTuple(Bool(candidbytes[start_i]==1), start_i + 1);
     }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
-        return MfuncTuple(Bool(candidbytes[start_i]==1), start_i + 1);
-    };
-
 }
 
 
 class Nat extends PrimitiveCandidType {
     dynamic value;// can be int or BigInt
     Nat(this.value);
-    
-    static M_func T() {
-        return Nat.M;
-    }
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Nat T() => Nat();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         Tuple2<Uint8List, CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic leb128_nat = leb128flutter.decodeUnsigned(leb128_bytes_tuple.item1); // can be int or BigInt
         return MfuncTuple(Nat(leb128_nat), leb128_bytes_tuple.item2);
-    };
+    }
 
 } 
 
@@ -317,15 +310,12 @@ class Int extends PrimitiveCandidType {
     dynamic value;// can be int or BigInt
     Int(this.value);
 
-    static M_func T() {
-        return Int.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Int T() => Int();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         Tuple2<Uint8List, CandidBytes_i> sleb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic sleb128_int = leb128flutter.decodeSigned(sleb128_bytes_tuple.item1); // can be int or BigInt
         return MfuncTuple(Int(sleb128_int), sleb128_bytes_tuple.item2);
-    };
+    }
 
 } 
 
@@ -333,11 +323,8 @@ class Nat8 extends PrimitiveCandidType {
     int value;
     Nat8(this.value);
 
-    static M_func T() {
-        return Nat8.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Nat8 T() => Nat8();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat8_asabitstring = '';
         // for (CandidBytes_i nat8_byte_i=start_i;nat8_byte_i<start_i+1;nat8_byte_i++) {
         //     nat8_asabitstring += candidbytes[nat8_byte_i].toRadixString(2); 
@@ -347,7 +334,7 @@ class Nat8 extends PrimitiveCandidType {
         int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getUint8(0);
         MfuncTuple m_func_tuple = MfuncTuple(Nat8(value), start_i+1);
         return m_func_tuple;    
-    };
+    }
 
 } 
 
@@ -355,11 +342,8 @@ class Nat16 extends PrimitiveCandidType {
     int value;
     Nat16(this.value);
     
-    static M_func T() {
-        return Nat16.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Nat16 T() => Nat16();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat16_asabitstring = '';
         // for (CandidBytes_i nat16_byte_i=start_i;nat16_byte_i<start_i+2;nat16_byte_i++) {
         //     nat16_asabitstring += candidbytes[nat16_byte_i].toRadixString(2); 
@@ -369,7 +353,7 @@ class Nat16 extends PrimitiveCandidType {
         int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getUint16(0);
         MfuncTuple m_func_tuple = MfuncTuple(Nat16(value), start_i+2);
         return m_func_tuple;          
-    };
+    }
 
 } 
 
@@ -377,11 +361,9 @@ class Nat32 extends PrimitiveCandidType {
     int value;
     Nat32(this.value);
     
-    static M_func T() {
-        return Nat32.M;
-    }
+    static Nat32 T() => Nat32();
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat32_asabitstring = '';
         // for (CandidBytes_i nat32_byte_i=start_i;nat32_byte_i<start_i+4;nat32_byte_i++) {
         //     nat32_asabitstring += candidbytes[nat32_byte_i].toRadixString(2); 
@@ -391,8 +373,7 @@ class Nat32 extends PrimitiveCandidType {
         int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getUint32(0);
         MfuncTuple m_func_tuple = MfuncTuple(Nat32(value), start_i+4);
         return m_func_tuple;                 
-    };
-
+    }
 } 
 
 
@@ -401,11 +382,8 @@ class Nat64 extends PrimitiveCandidType {
     dynamic value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
     Nat64(this.value);
     
-    static M_func T() {
-        return Nat64.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Nat64 T() => Nat64();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // get BigInt/int from candid_nat64 
         String nat64_asabitstring = '';
         for (int nat64_byte_i=start_i;nat64_byte_i<start_i+8;nat64_byte_i++) {
@@ -418,23 +396,19 @@ class Nat64 extends PrimitiveCandidType {
         }
         MfuncTuple m_func_tuple = MfuncTuple(Nat64(value), start_i+8);
         return m_func_tuple;                 
-    };
-
+    }
 } 
 
 class Int8 extends PrimitiveCandidType {
     int value;
     Int8(this.value);
     
-    static M_func T() {
-        return Int8.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Int8 T() => Int8();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getInt8(0);
         MfuncTuple m_func_tuple = MfuncTuple(Int8(value), start_i+1);
         return m_func_tuple;                  
-    };
+    }
 
 } 
 
@@ -442,32 +416,25 @@ class Int16 extends PrimitiveCandidType {
     int value;
     Int16(this.value);
     
-    static M_func T() {
-        return Int16.M;
-    }
+    static Int16 T() => Int16();
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0);
         MfuncTuple m_func_tuple = MfuncTuple(Int16(value), start_i+2);
         return m_func_tuple;           
-    };
-
+    }
 } 
 
 class Int32 extends PrimitiveCandidType {
     int value;
     Int32(this.value);
     
-    static M_func T() {
-        return Int32.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Int32 T() => Int32();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0);
         MfuncTuple m_func_tuple = MfuncTuple(Int32(value), start_i+4);
         return m_func_tuple;            
-    };
-
+    }
 } 
 
 // test on the web 
@@ -475,31 +442,23 @@ class Int64 extends PrimitiveCandidType {
     int value;
     Int64(this.value);
     
-    static M_func T() {
-        return Int64.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Int64 T() => Int64();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int value = ByteData.sublistView(candidbytes, start_i, start_i+8).getInt64(0);
         return MfuncTuple(Int64(value), start_i+8);    // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
-    };
+    }
 
 } 
-
-
 
 class Float32 extends PrimitiveCandidType {
     double value;
     Float32(this.value);
 
-    static M_func T() {
-        return Float32.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Float32 T() => Float32();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         double value = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0);
         return MfuncTuple(Float32(value), start_i+4);     
-    };
+    }
 
 } 
 
@@ -507,14 +466,12 @@ class Float64 extends PrimitiveCandidType {
     double value;
     Float64(this.value);
 
-    static M_func T() {
-        return Float64.M;
-    }
+    static Float64 T() => Float64();
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0);
         return MfuncTuple(Float64(value), start_i+8);    
-    };
+    }
 
 } 
 
@@ -522,54 +479,49 @@ class Text extends PrimitiveCandidType {
     String value;
     Text(this.value);
 
-    static M_func T() {
-        return Text.M;
-    }
+    static Text T() => Text();
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         int len_utf8_bytes = leb128flutter.decodeUnsigned(leb128_bytes_tuple.item1);
         CandidBytes_i next_i = leb128_bytes_tuple.item2 + len_utf8_bytes;
         Uint8List utf8_bytes = candidbytes.sublist(leb128_bytes_tuple.item2, next_i);
         return MfuncTuple(Text(utf8.decode(utf8_bytes)), next_i);
-
-    };
-
+    }
 } 
 
 class Reserved extends PrimitiveCandidType {
     get value => throw Exception('CandidType: Reserved is with the lack of a value.');
-    static M_func T() {
-        return Reserved.M;
-    }
-
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    static Reserved T() => Reserved();
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         return MfuncTuple(Reserved(), start_i);      
-    };
-
+    }
 } 
 
 class Empty extends PrimitiveCandidType {
     get value => throw Exception('CandidType: Empty is with the lack of a value.');
 
-    static M_func T() {
-        return Empty.M;
-    }
+    static Empty T() => Empty();
 
-    static M_func M = (Uint8List candidbytes, CandidBytes_i start_i){ 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
-    };
-
+    }
 } 
 
 // ------------------------------------
+
+// have to start store of the stances themselves 
+// m_funcs must give-back a new stance.
+
+
+// :do: backwards: constypes need tfuncs to give back ctypes and mfuncs to give back a new stance of themselves with the value
+
 
 // Option(CandidType-stance or TFunction) // 
 class Option extends ConstructType {
     CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
     M_func? _opt_value_m_func;
-    final bool isTypeStance;
-    Option([this.value], {this._opt_value_m_func, this.isTypeStance= false}) {
+    Option([this.value], {this._opt_value_m_func}) {
         if (this.isTypeStance==true && this._opt_value_m_func == null) { throw Exception('a value_type must be given when isTypeStance is set to true'); }
     }
     get bool isTypeStance => isTypeStance;
@@ -603,17 +555,18 @@ class Option extends ConstructType {
 
 class Vector extends ConstructType with ListMixin<CandidType> { // mixin List? or just valuate to a list.
     M_func? _vector_type_m_function;
-
-    Vector(List<CandidType>? candids, {this._vector_type_m_function}) {
-        if (candids != null) { vec.addAll(candids); }
+    Vector({this._vector_type_m_function});
+    void add(CandidType ct) { 
+        if (this.isNotEmpty) {
+            if (ct.runtimeType != this[0].runtimeType) {
+                throw Exception('CandidType: Vector can only contain one Candid Type at a time. vector now: ${this}');
+            }
+        }
+        super.add(ct);
     }
     get bool isTypeStance {
         bool g = true;
-        for (CandidType ct in this) {
-            if (ct.isTypeStance==false) {
-                g = false; 
-            }
-        }
+        for (CandidType ct in this) { if (ct.isTypeStance==false) { g = false; } }
         return g;
     }
 
@@ -640,10 +593,11 @@ class Vector extends ConstructType with ListMixin<CandidType> { // mixin List? o
 
 
 
-class RecordAndVariantMap extends ConstructType with MapMixin<int, dynamic> {
-    Map<int, dynamic> _map = {}; // values are M_functions when its a record_type in a type_table
+class RecordAndVariantMap extends ConstructType with MapMixin<int, CandidType> {
+    Map<int, CandidType> _map = {}; // values are M_functions when its a record_type in a type_table
     Iterable<int> get keys => _map.keys.toList()..sort();
-    dynamic operator [](dynamic key) {
+    Iterable<CandidType> get values => this.keys.map((int k)=>this[k]);
+    CandidType operator [](dynamic key) { // String or int
         late int k;
         if (key is String) {
             k = candid_text_hash(key);
@@ -655,7 +609,7 @@ class RecordAndVariantMap extends ConstructType with MapMixin<int, dynamic> {
         }
         return _map[k];
     }
-    void operator []=(dynamic key, dynamic value) { // key can be String or a nat(int). if key is String it gets hashed with the candid-hash for the lookup which is: nat. 
+    void operator []=(dynamic key, CandidType value) { // key can be String or a nat(int). if key is String it gets hashed with the candid-hash for the lookup which is: nat. 
         late int k;
         if (key is String) {
             k = candid_text_hash(key);
@@ -671,7 +625,7 @@ class RecordAndVariantMap extends ConstructType with MapMixin<int, dynamic> {
         }
         _map[k] = value;
     }
-    dynamic remove(Object? key) {
+    CandidType remove(Object? key) {
         return _map.remove(key);
     }
     void clear() {
@@ -681,8 +635,13 @@ class RecordAndVariantMap extends ConstructType with MapMixin<int, dynamic> {
 
 
 class Record extends RecordAndVariantMap {
+    get bool isTypeStance {
+        bool g = true;
+        for (CandidType ct in this.values) { if (ct.isTypeStance==false) { g = false; } }
+        return g;
+    }
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
-        Record record_types = Record();
+        Record record_type = Record();
         int record_len = candidbytes[start_i];
         CandidBytes_i next_field_start_candidbytes_i = start_i + 1;
         for (int i=0;i<record_len;i++) {
@@ -694,9 +653,9 @@ class Record extends RecordAndVariantMap {
             TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             M_func m_func = t_func_tuple.item1;
             next_field_start_candidbytes_i = t_func_tuple.item2;
-            record_types[field_id_hash] = m_func; 
+            record_type[field_id_hash] = m_func; 
         }
-        return TfuncTuple(record_types.M, next_field_start_candidbytes_i);
+        return TfuncTuple(record_type.M, next_field_start_candidbytes_i);
     }
 
     MfuncTuple M(Uint8List candidbytes, int start_i) {
