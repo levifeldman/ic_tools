@@ -178,9 +178,10 @@ TfuncTuple TfuncWhirlpool(Uint8List candidbytes, CandidBytes_i type_code_candidb
 List<CandidType> type_table = []; 
 class TypeTableReference extends CandidType { // extends Candidype , more custom?
     int type_table_i; 
-    MfuncTuple M;
+    late MfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i) m;
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) => m(candidbytes, start_i);
     TypeTableReference(this.type_table_i) {
-        M = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
+        m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
     }
     final bool isTypeStance = true;
 }
@@ -217,7 +218,7 @@ List<CandidType> crawl_memory_bytes(CandidBytes_i param_count_i, Uint8List candi
             MfuncTuple m_func_tuple = ctype.M(candidbytes, next_param_start_candidbytes_i);
             CandidType candid_value = m_func_tuple.item1;
             if (candid_value.isTypeStance==true) { throw Exception('M functions need to return a CandidType with an isTypeStance=false'); }
-            candids.add();
+            candids.add(candid_value);
             next_param_start_candidbytes_i = m_func_tuple.item2;
         }
     } 
@@ -255,9 +256,8 @@ abstract class CandidType {
 }
 
 abstract class PrimitiveCandidType extends CandidType {
-    bool get isTypeStance {
-        return value == null;
-    }
+    dynamic value;
+    bool get isTypeStance => this.value == null;
 
     // static M_func T();
     // static M_func M;
@@ -281,25 +281,25 @@ class Null extends PrimitiveCandidType {
     
     static Null T() => Null();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-        MfuncTuple(Null(), start_i);
+        return MfuncTuple(Null(), start_i);
     }
 }
 
 
 class Bool extends PrimitiveCandidType {
-    bool? value;
-    Bool(this.value);
+    covariant bool? value;
+    Bool([this.value]);
     
     static Bool T() => Bool();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-        MfuncTuple(Bool(candidbytes[start_i]==1), start_i + 1);
+        return MfuncTuple(Bool(candidbytes[start_i]==1), start_i + 1);
     }
 }
 
 
 class Nat extends PrimitiveCandidType {
-    dynamic? value;// can be int or BigInt
-    Nat(this.value);
+    covariant dynamic? value;// can be int or BigInt
+    Nat([this.value]);
 
     static Nat T() => Nat();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -312,8 +312,8 @@ class Nat extends PrimitiveCandidType {
 
 // test this 
 class Int extends PrimitiveCandidType {
-    dynamic? value;// can be int or BigInt
-    Int(this.value);
+    covariant dynamic? value;// can be int or BigInt
+    Int([this.value]);
 
     static Int T() => Int();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -325,8 +325,8 @@ class Int extends PrimitiveCandidType {
 } 
 
 class Nat8 extends PrimitiveCandidType {
-    int? value;
-    Nat8(this.value);
+    covariant int? value;
+    Nat8([this.value]);
 
     static Nat8 T() => Nat8();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -344,8 +344,8 @@ class Nat8 extends PrimitiveCandidType {
 } 
 
 class Nat16 extends PrimitiveCandidType {
-    int? value;
-    Nat16(this.value);
+    covariant int? value;
+    Nat16([this.value]);
     
     static Nat16 T() => Nat16();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -363,8 +363,8 @@ class Nat16 extends PrimitiveCandidType {
 } 
 
 class Nat32 extends PrimitiveCandidType {
-    int? value;
-    Nat32(this.value);
+    covariant int? value;
+    Nat32([this.value]);
     
     static Nat32 T() => Nat32();
 
@@ -384,8 +384,8 @@ class Nat32 extends PrimitiveCandidType {
 
 
 class Nat64 extends PrimitiveCandidType {
-    dynamic? value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
-    Nat64(this.value);
+    covariant dynamic? value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
+    Nat64([this.value]);
     
     static Nat64 T() => Nat64();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -405,8 +405,8 @@ class Nat64 extends PrimitiveCandidType {
 } 
 
 class Int8 extends PrimitiveCandidType {
-    int? value;
-    Int8(this.value);
+    covariant int? value;
+    Int8([this.value]);
     
     static Int8 T() => Int8();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -418,8 +418,8 @@ class Int8 extends PrimitiveCandidType {
 } 
 
 class Int16 extends PrimitiveCandidType {
-    int? value;
-    Int16(this.value);
+    covariant int? value;
+    Int16([this.value]);
     
     static Int16 T() => Int16();
 
@@ -431,8 +431,8 @@ class Int16 extends PrimitiveCandidType {
 } 
 
 class Int32 extends PrimitiveCandidType {
-    int? value;
-    Int32(this.value);
+    covariant int? value;
+    Int32([this.value]);
     
     static Int32 T() => Int32();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -444,8 +444,8 @@ class Int32 extends PrimitiveCandidType {
 
 // test on the web 
 class Int64 extends PrimitiveCandidType {
-    int? value;
-    Int64(this.value);
+    covariant int? value;
+    Int64([this.value]);
     
     static Int64 T() => Int64();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -456,8 +456,8 @@ class Int64 extends PrimitiveCandidType {
 } 
 
 class Float32 extends PrimitiveCandidType {
-    double? value;
-    Float32(this.value);
+    covariant double? value;
+    Float32([this.value]);
 
     static Float32 T() => Float32();
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -468,8 +468,8 @@ class Float32 extends PrimitiveCandidType {
 } 
 
 class Float64 extends PrimitiveCandidType {
-    double? value;
-    Float64(this.value);
+    covariant double? value;
+    Float64([this.value]);
 
     static Float64 T() => Float64();
 
@@ -481,8 +481,8 @@ class Float64 extends PrimitiveCandidType {
 } 
 
 class Text extends PrimitiveCandidType {
-    String? value;
-    Text(this.value);
+    covariant String? value;
+    Text([this.value]);
 
     static Text T() => Text();
 
@@ -525,27 +525,27 @@ class Empty extends PrimitiveCandidType {
 
 // Option(CandidType-stance or TFunction) // 
 class Option extends ConstructType {
-    final CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
-    final CandidType? value_type;
-    final bool isTypeStance;
-    Option(CandidType? value, {CandidType? value_type, bool isTypeStance=false}) { 
-        this.value = value;
-        this.value_type = value_type;
-        this.isTypeStance = isTypeStance;
+    late final CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
+    late final CandidType? value_type;
+    late final bool isTypeStance;
+    Option({this.value, this.value_type, this.isTypeStance=false}) { // why cant this.value be an optional positional param?
+        // this.value = val;
+        // this.value_type = val_type;
+        // this.isTypeStance = is_type_stance;
         if (isTypeStance==true) {
-            if (this.value_type==null) {
+            if (value_type==null) {
                 throw Exception('for an Option as a type-stance is with the value_type-parameter-quirement by the class-rules.');
             }
-            if (this.value!=null) {
+            if (value!=null) {
                 throw Exception('for an Option as a type-stance is with the value-parameter-null-quirement by the class-rules.');
             }
         } else {
-            if (this.value==null && this.value_type==null) {
+            if (value==null && value_type==null) {
                 throw Exception('an Option needs either a CandidType value, or if the value is null: an Option needs the value_type-parameter set to a CandidType-[in]stance with the isTypeStance=true');
             }
         }
-        if (this.value_type != null) {
-            if (value_type.isTypeStance==false) {
+        if (value_type!=null) {
+            if (value_type!.isTypeStance==false) {
                 throw Exception('The Option value_type CandidType must have .isTypeStance == true');
             }           
         }
@@ -566,14 +566,14 @@ class Option extends ConstructType {
             val = null;
             next_i = start_i + 1;
         } else if (opt_first_byte==1) {
-            MfuncTuple value_type_m_func_tuple = this.value_type.M(candidbytes, start_i + 1);
+            MfuncTuple value_type_m_func_tuple = this.value_type!.M(candidbytes, start_i + 1);
             val = value_type_m_func_tuple.item1;
             next_i = value_type_m_func_tuple.item2;
         }
         else {
             throw Exception('candid Option M func must start with a 0 or 1 byte.');
         }
-        Option opt = Option(val, value_type: this.value_type);
+        Option opt = Option(value: val, value_type: this.value_type);
         return MfuncTuple(opt, next_i);
     }
 }
@@ -593,7 +593,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
         }
     }
     int get length => _list.length;
-    set length => throw Exception('why are you setting the length of the vector here?');
+    set length(int l) => throw Exception('why are you setting the length of the vector here?');
     CandidType operator [](int i) => _list[i];
     void operator []=(int i, CandidType v) { 
         _canputinthevectortypecheck(v);
@@ -603,9 +603,9 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
         _canputinthevectortypecheck(c);
         _list.add(c);
     }
-    void addAll(List<CandidType> candids) {    
+    void addAll(Iterable<CandidType> candids) {    
         candids.forEach((CandidType c){
-            if (c.runtimeType != candids[0].runtimeType) {
+            if (c.runtimeType != candids.first.runtimeType) {
                 throw Exception('each list-value in an addAll of a Vector must be the same type');
             }
             _canputinthevectortypecheck(c);
@@ -618,7 +618,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
     bool get isTypeStance => values_type != null;
     Vector({this.values_type}) {
         if (values_type!=null) {
-            if (values_type.isTypeStance==false) {
+            if (values_type!.isTypeStance==false) {
                 throw Exception('The Vector values_type CandidType must have .isTypeStance == true');
             }
         } 
@@ -626,7 +626,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         TfuncTuple values_type_t_func_tuple = TfuncWhirlpool(candidbytes, start_i);
         Vector vec = Vector(values_type: values_type_t_func_tuple.item1);
-        return TfuncTuple(vec, vector_type_t_func_tuple.item2);
+        return TfuncTuple(vec, values_type_t_func_tuple.item2);
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
@@ -634,7 +634,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
         CandidBytes_i next_vec_item_start_i = leb128_bytes_tuple.item2;
         Vector vec = Vector();
         for (int i=0;i<vec_len;i++) {
-            MfuncTuple m_func_tuple = this.values_type.M(candidbytes, next_vec_item_start_i);
+            MfuncTuple m_func_tuple = this.values_type!.M(candidbytes, next_vec_item_start_i);
             vec.add(m_func_tuple.item1);
             next_vec_item_start_i = m_func_tuple.item2;
         }
@@ -652,8 +652,8 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
     RecordAndVariantMap({this.isTypeStance=false});
     Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when its a record_type in a type_table
     Iterable<int> get keys => _map.keys.toList()..sort();
-    Iterable<CandidType> get values => this.keys.map((int k)=>this[k]);
-    CandidType operator [](dynamic key) { // String or int
+    Iterable<CandidType> get values => this.keys.map((int k)=>this[k]!);
+    CandidType? operator [](dynamic key) { // String or int
         late int k;
         if (key is String) {
             k = candid_text_hash(key);
@@ -684,7 +684,7 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
         }
         _map[k] = value;
     }
-    CandidType remove(Object? key) {
+    CandidType? remove(Object? key) {
         late int k;
         if (key is String) {
             k = candid_text_hash(key);
@@ -735,7 +735,7 @@ class Record extends RecordAndVariantMap {
         Record record = Record();
         CandidBytes_i next_i = start_i;
         for (int hash_key in this.keys) { // .toList()..sort() -> should be sorting on the keys property
-            CandidType ctype = this[hash_key];
+            CandidType ctype = this[hash_key]!;
             MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_i);
             record[hash_key]= ctype_m_func_tuple.item1;
             next_i =        ctype_m_func_tuple.item2;
@@ -776,7 +776,7 @@ class Variant extends RecordAndVariantMap {
         List<int> variant_fields_hashs = this.keys.toList(); // .keys are with the sort in the RecordAndVariantMap class
         // print('variant_fields_hashs: ${variant_fields_hashs}');
         int variant_field_hash = variant_fields_hashs[variant_field_i];
-        CandidType field_ctype = this[variant_field_hash];
+        CandidType field_ctype = this[variant_field_hash]!;
         MfuncTuple field_m_func_tuple = field_ctype.M(candidbytes, leb128_bytes_tuple.item2);
         variant[variant_field_hash]= field_m_func_tuple.item1;
         return MfuncTuple(variant, field_m_func_tuple.item2);   
