@@ -100,7 +100,7 @@ class Canister {
     }
 
     // return canister_sponse_bytes(?)
-    Future<dynamic> call({required String calltype, required String methodName}) async {
+    Future<dynamic> call({required String calltype, required String methodName, Uint8List? put_bytes}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
         canistercallquest.headers['Content-Type'] = 'application/cbor';
@@ -112,7 +112,7 @@ class Canister {
                 "request_type": calltype,//(text)
                 "canister_id": canisterIdBlob, //(blob)(29-bytes)
                 "method_name": methodName,//(text)(:name: canister-method.),
-                "arg": Uint8List.fromList([68, 73, 68, 76, 1, 108, 1, 173, 249, 231, 138, 10, 113, 1, 0, 64, 99, 52, 50, 101, 54, 55, 53, 101, 56, 48, 52, 57, 56, 51, 50, 100, 99, 52, 97, 100, 56, 101, 102, 48, 99, 55, 55, 100, 54, 98, 56, 101, 56, 97, 99, 102, 51, 51, 97, 98, 99, 53, 53, 97, 100, 55, 52, 48, 53, 50, 53, 51, 53, 55, 101, 49, 57, 54, 97, 99, 53, 50, 97, 102]), //createcandidparams(),// (blob), (in the candid?)	
+                "arg": put_bytes!=null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
                 "sender": Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
@@ -150,7 +150,7 @@ class Canister {
             }
             print(pathsvalues);
             if (callstatus=='replied') {
-                canistersponse = candid_bytes_as_the_candid_types(pathsvalues[2]);
+                canistersponse = Uint8List.fromList(pathsvalues[2]);
             }
         } 
         else 

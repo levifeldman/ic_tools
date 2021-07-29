@@ -227,7 +227,7 @@ List<CandidType> crawl_memory_bytes(CandidBytes_i param_count_i, Uint8List candi
 
 
 // backwards
-List<CandidType> candid_bytes_as_the_candid_types(Uint8List candidbytes) {
+List<CandidType> c_backwards(Uint8List candidbytes) {
     print(bytesasahexstring(candidbytes));
     if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
     CandidBytes_i param_count_i = crawl_type_table(candidbytes);
@@ -237,7 +237,7 @@ List<CandidType> candid_bytes_as_the_candid_types(Uint8List candidbytes) {
 
 
 // forwards
-Uint8List candid_types_as_the_candid_bytes(List<CandidType> candids) {
+Uint8List c_forwards(List<CandidType> candids) {
     throw UnimplementedError('');
 }
 
@@ -259,6 +259,10 @@ abstract class PrimitiveCandidType extends CandidType {
     dynamic value;
     bool get isTypeStance => this.value == null;
 
+    @override
+    String toString() {
+        return super.toString() + ': ${this.value}';
+    }
     // static M_func T();
     // static M_func M;
 }
@@ -708,11 +712,11 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
 
 class Record extends RecordAndVariantMap {
     Record({isTypeStance=false}) : super(isTypeStance: isTypeStance);
-    // bool get isTypeStance {
-    //     bool g = true;
-    //     for (CandidType ct in this.values) { if (ct.isTypeStance==false) { g = false; } }
-    //     return g;
-    // }
+    static fromMap(Map<dynamic, CandidType> record_map, {isTypeStance=false}) { // Map<String or int, CandidType>
+        Record record = Record(isTypeStance: isTypeStance);
+        for (MapEntry mkv in record_map.entries) { record[mkv.key] = mkv.value; }
+        return record;
+    }
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
         Record record_type = Record(isTypeStance: true);
         int record_len = candidbytes[start_i];
@@ -749,6 +753,11 @@ class Record extends RecordAndVariantMap {
 
 class Variant extends RecordAndVariantMap {
     Variant({isTypeStance=false}) : super(isTypeStance: isTypeStance);
+    static fromMap(Map<dynamic, CandidType> variant_map, {isTypeStance=false}) { // Map<String or int, CandidType>
+        Variant variant = Variant(isTypeStance: isTypeStance);
+        for (MapEntry mkv in variant_map.entries) { variant[mkv.key] = mkv.value; }
+        return variant;
+    }
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
         Variant variant_type = Variant(isTypeStance: true);
         int variant_len = candidbytes[start_i];
