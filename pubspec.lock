@@ -21,14 +21,14 @@ packages:
       name: base32
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "1.1.0"
+    version: "2.0.0"
   cbor:
     dependency: "direct main"
     description:
       name: cbor
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "4.0.2"
+    version: "4.0.1"
   characters:
     dependency: transitive
     description:
@@ -215,6 +215,5 @@ packages:
     source: hosted
     version: "2.1.0"
 sdks:
-  convert: ">=2.0.0"
   dart: ">=2.13.0 <3.0.0"
   flutter: ">=1.20.0"
