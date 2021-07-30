@@ -148,7 +148,7 @@ class Canister {
                 ); 
                 callstatus = pathsvalues[1];            
             }
-            print(pathsvalues);
+            // print(pathsvalues);
             if (callstatus=='replied') {
                 canistersponse = Uint8List.fromList(pathsvalues[2]);
             }

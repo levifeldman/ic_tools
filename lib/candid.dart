@@ -136,8 +136,8 @@ const Map<int, dynamic> candidtypecodesastheTfunc = {  // primitivetype-T-functi
     // 'oneway': 2    // T(oneway) = i8(2)
 };
 
-bool isCandidTypeCode(int type_code) => 127 >= type_code && type_code >=104; 
-bool isPrimitiveCandidTypeCode(int type_code) => 127 >= type_code && type_code >=111; 
+bool isCandidTypeCodeByte(int type_code) => 127 >= type_code && type_code >=104; 
+bool isPrimitiveCandidTypeCodeByte(int type_code) => 127 >= type_code && type_code >=111; 
 
 int candid_text_hash(String text) { 
     // hash(id) = ( Sum_(i=0..k) utf8(id)[i] * 223^(k-i) ) mod 2^32 where k = |utf8(id)|-1
@@ -159,69 +159,82 @@ Tuple2<Uint8List, CandidBytes_i> find_leb128bytes(Uint8List candidbytes, CandidB
     return Tuple2<Uint8List, CandidBytes_i>(field_id_hash_leb128_bytes, next_i);
 }
 
-// backwards
-TfuncTuple TfuncWhirlpool(Uint8List candidbytes, CandidBytes_i type_code_candidbytes_i) {
-    int type_code = candidbytes[type_code_candidbytes_i];
-    if (isPrimitiveCandidTypeCode(type_code)) {
-        CandidType primctype = candidtypecodesastheTfunc[type_code](); 
-        return TfuncTuple(primctype, type_code_candidbytes_i + 1);
-    } else if (isCandidTypeCode(type_code)) {
-        TfuncTuple t_func_tuple = candidtypecodesastheTfunc[type_code](candidbytes, type_code_candidbytes_i + 1);
-        return t_func_tuple;
-    } else {
-        // type_table_index
-        return TfuncTuple(TypeTableReference(type_code), type_code_candidbytes_i + 1);
-    }
-}
-
 
 List<CandidType> type_table = []; 
+
 class TypeTableReference extends CandidType { // extends Candidype , more custom?
+    final bool isTypeStance = true;
     int type_table_i; 
     late MfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i) m;
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) => m(candidbytes, start_i);
     TypeTableReference(this.type_table_i) {
         m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
     }
-    final bool isTypeStance = true;
 }
+
+// backwards
+TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_code_start_candidbytes_i) {
+    Tuple2<Uint8List, CandidBytes_i> type_code_sleb128bytes_tuple = find_leb128bytes(candidbytes, type_code_start_candidbytes_i);
+    int type_code = leb128flutter.decodeSigned(type_code_sleb128bytes_tuple.item1);
+    late TfuncTuple t_func_tuple;
+    if (type_code >= 0) {
+        t_func_tuple = TfuncTuple(TypeTableReference(type_code), type_code_sleb128bytes_tuple.item2);
+    } else {
+        int ctypecodebyte = leb128flutter.encodeSigned(type_code)[0];     // i should store the type_code on the class in the decoded int form -sleb , it can be more than one byte so this is not good to lookup by the type-code-byte 
+        if (isPrimitiveCandidTypeCodeByte(ctypecodebyte)) {
+            CandidType prim_ctype = candidtypecodesastheTfunc[ctypecodebyte](); 
+            t_func_tuple = TfuncTuple(prim_ctype, type_code_sleb128bytes_tuple.item2);
+        } else if (isCandidTypeCodeByte(ctypecodebyte)) {
+            t_func_tuple = candidtypecodesastheTfunc[ctypecodebyte](candidbytes, type_code_sleb128bytes_tuple.item2);
+        }
+    }
+    if (t_func_tuple.item1.isTypeStance==false) { throw Exception('T_backwards functions need to return a CandidType with an isTypeStance=true'); }
+    return t_func_tuple;
+}
+
 CandidBytes_i crawl_type_table(Uint8List candidbytes) {
     type_table.clear();
     int type_table_length = candidbytes[4]; // chack what happens if there is greater than 255 itmes in the type table, is this number max 255 or is it a leb128-code[ed]-number
     CandidBytes_i next_type_start_candidbytes_i = 5;
     for (int t=0;t<type_table_length;t++) {
-        TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, next_type_start_candidbytes_i);
+        TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, next_type_start_candidbytes_i); // first layer should never be a type_table_reference
         CandidType ctype = t_func_tuple.item1;
         if (ctype.isTypeStance==false) { throw Exception('T functions need to return a ctype with an isTypeStance=true'); }
-        next_type_start_candidbytes_i = t_func_tuple.item2;
+        if (ctype is TypeTableReference) { throw Exception('first level type_table type cannot be a typetablereference'); }
         type_table.add(ctype);
+        next_type_start_candidbytes_i = t_func_tuple.item2;
     }
     return next_type_start_candidbytes_i;
 }
 
-List<CandidType> crawl_memory_bytes(CandidBytes_i param_count_i, Uint8List candidbytes) {
+List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_count_start_i) {
     List<CandidType> candids = [];
-    int param_count = candidbytes[param_count_i];   
-    if (param_count > 0) {
-        CandidBytes_i params_types_start_i = param_count_i + 1;
-        CandidBytes_i params_types_finish_i = params_types_start_i + param_count;
-        List params_types = candidbytes.sublist(params_types_start_i, params_types_finish_i);
-        CandidBytes_i next_param_start_candidbytes_i = params_types_finish_i.toInt(); // .toInt()==.copy()
-        for (int p=0;p<param_count;p++) {
-            int type_code = params_types[p];
-            late CandidType ctype;
-            if (isPrimitiveCandidTypeCode(type_code)) {
-                ctype = candidtypecodesastheTfunc[type_code]();
-            } else { // type_table_lookup
-                ctype = type_table[type_code]; 
-            }
-            MfuncTuple m_func_tuple = ctype.M(candidbytes, next_param_start_candidbytes_i);
-            CandidType candid_value = m_func_tuple.item1;
-            if (candid_value.isTypeStance==true) { throw Exception('M functions need to return a CandidType with an isTypeStance=false'); }
-            candids.add(candid_value);
-            next_param_start_candidbytes_i = m_func_tuple.item2;
+    int param_count = candidbytes[param_count_start_i]; // is this leb128-coded?   
+    CandidBytes_i params_types_next_i = param_count_start_i + 1; // should this be the CandidBytes_i of the leb128coded length of the params?
+    List<int> params_type_codes = [];
+    for (int i=0;i<param_count;i++) {
+        Tuple2<Uint8List, CandidBytes_i> type_code_sleb128bytes_tuple = find_leb128bytes(candidbytes, params_types_next_i);
+        int type_code = leb128flutter.decodeSigned(type_code_sleb128bytes_tuple.item1);
+        params_type_codes.add(type_code);
+        params_types_next_i = type_code_sleb128bytes_tuple.item2;
+    }
+    CandidBytes_i next_param_value_start_i = params_types_next_i;
+    for (int type_code in params_type_codes) {
+        late CandidType ctype;
+        if (type_code >= 0) {
+            ctype = type_table[type_code];
+        } else {
+            int primtypecodebyte = leb128flutter.encodeSigned(type_code)[0]; // i should store the type_code on the class in the decoded int form -sleb , it can be more than one byte so this is not good to lookup by the type-code-byte
+            if (isPrimitiveCandidTypeCodeByte(primtypecodebyte)==false) {throw Exception('params_list_types codes can either be a type table i or a primtypecode');}
+            ctype = candidtypecodesastheTfunc[primtypecodebyte]();
         }
-    } 
+        MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_param_value_start_i);
+        CandidType cvalue = ctype_m_func_tuple.item1;
+        if (cvalue.isTypeStance==true) { throw Exception('M functions need to return a CandidType with an isTypeStance=false'); }
+        candids.add(cvalue);
+        next_param_value_start_i = ctype_m_func_tuple.item2;
+    }
+    type_table.clear();
     return candids;
 }
 
@@ -231,18 +244,48 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
     print(bytesasahexstring(candidbytes));
     if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
     CandidBytes_i param_count_i = crawl_type_table(candidbytes);
-    List<CandidType> candids = crawl_memory_bytes(param_count_i, candidbytes);
+    List<CandidType> candids = crawl_memory_bytes(candidbytes, param_count_i);
     return candids;
 }
 
+// forwards
+List<Uint8List> T_forward_whirlpool(List<List<int>> type_table_bytes, ConstructType candid) {
+    // only call within a constype T_forward func. not in the c_forwards func (?)
+    
+    
+    return type_table_bytes;
+}
 
 // forwards
 Uint8List c_forwards(List<CandidType> candids) {
-    throw UnimplementedError('');
+    candids.forEach((CandidType c){ if (c.isTypeStance==true) { throw Exception('c_forwards must be with the candids of the isTypeStance=false'); }});
+    List<int> candidbytes = magic_bytes.toList();
+
+    List<List<int>? type_table_bytes = []; // each [inner] list is a candid(cons)types.T_forward() 
+    List<int> params_list_types_bytes_section = [];
+    List<int> params_list_values_bytes_section = [];
+    
+    for (CandidType candid in candids) {
+
+
+        if (candid.isPrimType) {
+            params_list_types_bytes_section.addAll(candid.T_forward()); // candid.type_code should be a -opcode
+            params_list_bytes_section.addAll(candid.M_forward());
+        } else if (candid.isConsType) { 
+            params_list_types_bytes_section.addAll(candid.T_forward());
+
+            type_table_bytes = candid.T_forward(type_table_bytes: type_table_bytes);
+            type_table_bytes.add(candid.T_forward()); // this section may or may not clude more than one type in this type table so what do we do?
+            params_list_types_bytes_section.addAll(leb128flutter type_table_bytes.length); // leb-coded?
+        
+        }
+    }
+
+
 }
 
 
-
+// primtypes dont need forward or backwards T function? or do 
 
 
 
@@ -258,6 +301,8 @@ abstract class CandidType {
 abstract class PrimitiveCandidType extends CandidType {
     dynamic value;
     bool get isTypeStance => this.value == null;
+    int type_code;
+    Uint8List T_forward() => leb128flutter.encodeSigned(this.type_code);
 
     @override
     String toString() {
@@ -558,7 +603,7 @@ class Option extends ConstructType {
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
         // 110
         // type_code-cursion
-        TfuncTuple value_t_func_tuple = TfuncWhirlpool(candidbytes, start_i);
+        TfuncTuple value_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Option opt_type = Option(value_type: value_t_func_tuple.item1, isTypeStance: true);
         return TfuncTuple(opt_type, value_t_func_tuple.item2);
     }
@@ -628,7 +673,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
         } 
     }
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        TfuncTuple values_type_t_func_tuple = TfuncWhirlpool(candidbytes, start_i);
+        TfuncTuple values_type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Vector vec = Vector(values_type: values_type_t_func_tuple.item1);
         return TfuncTuple(vec, values_type_t_func_tuple.item2);
     } 
@@ -727,7 +772,7 @@ class Record extends RecordAndVariantMap {
             int field_id_hash = leb128flutter.decodeUnsigned(field_id_hash_leb128_bytes);
             // throw here and in variant fieldtypes if field-id-hash is less than any of the field hashes already in the record_types
             CandidBytes_i field_type_code_byte_candidbytes_i = leb128_bytes_tuple.item2;
-            TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, field_type_code_byte_candidbytes_i);
+            TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             CandidType ctype = t_func_tuple.item1;
             next_field_start_candidbytes_i = t_func_tuple.item2;
             record_type[field_id_hash] = ctype; 
@@ -767,7 +812,7 @@ class Variant extends RecordAndVariantMap {
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128flutter.decodeUnsigned(field_id_hash_leb128_bytes);
             CandidBytes_i field_type_code_byte_candidbytes_i = leb128_bytes_tuple.item2;
-            TfuncTuple t_func_tuple = TfuncWhirlpool(candidbytes, field_type_code_byte_candidbytes_i);
+            TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             CandidType ctype = t_func_tuple.item1;
             variant_type[field_id_hash] = ctype; 
             next_field_start_candidbytes_i = t_func_tuple.item2;
