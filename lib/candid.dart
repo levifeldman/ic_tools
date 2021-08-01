@@ -330,7 +330,7 @@ make M_forward on the CandidTypes
 
 i think this is good to get everything done
 
-
+// test leb128 bigint and int unsigned and signed
 
 
 
@@ -429,7 +429,6 @@ class Nat extends PrimitiveCandidType {
 
 } 
 
-// test this 
 class Int extends PrimitiveCandidType {
     static const int type_code = -4;
     final covariant dynamic? value;// can be int or BigInt
@@ -452,7 +451,7 @@ class Nat8 extends PrimitiveCandidType {
     final covariant int? value;
     Nat8([this.value]) {
         if (value!=null && (value<0 || value > pow(2, 8)-1) ) {
-            throw Exception('CandidType: Nat8 value can be between value>=0 && value <= 255 ');
+            throw Exception('CandidType: Nat8 value can be between 0<=value && value <= 255 ');
         }
     }
  
@@ -479,7 +478,7 @@ class Nat16 extends PrimitiveCandidType {
     final covariant int? value;
     Nat16([this.value]) {
         if (value!=null && (value<0 || value > pow(2, 16)-1) ) {
-            throw Exception('CandidType: Nat16 value can be between value>=0 && value <= ${pow(2, 16)-1} ');
+            throw Exception('CandidType: Nat16 value can be between 0<=value && value <= ${pow(2, 16)-1} ');
         }
     }
     
@@ -490,7 +489,7 @@ class Nat16 extends PrimitiveCandidType {
         // }
         // int value = int.parse(nat16_asabitstring, radix: 2);
         
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getUint16(0);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getUint16(0, endian: Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Nat16(value), start_i+2);
         return m_func_tuple;          
     }
@@ -516,7 +515,7 @@ class Nat32 extends PrimitiveCandidType {
     final covariant int? value;
     Nat32([this.value]) {
         if (value!=null && (value<0 || value > pow(2, 32)-1) ) {
-            throw Exception('CandidType: Nat32 value can be between value>=0 && value <= ${pow(2, 32)-1} ');
+            throw Exception('CandidType: Nat32 value can be between 0<=value && value <= ${pow(2, 32)-1} ');
         }
     }
     
@@ -527,7 +526,7 @@ class Nat32 extends PrimitiveCandidType {
         // }
         // int value = int.parse(nat32_asabitstring, radix: 2);
         
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getUint32(0);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getUint32(0, endian: Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Nat32(value), start_i+4);
         return m_func_tuple;                 
     }
@@ -559,7 +558,7 @@ class Nat64 extends PrimitiveCandidType {
             late BigInt bigintvalue;
             if (value is int)) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
             if (bigintvalue < BigInt.from(0) || bigintvalue > BigInt.from(2).pow(64)-1) ) {
-                throw Exception('CandidType: Nat64 value can be between value>=0 && value <= ${BigInt.from(2).pow(64)-1)} ');
+                throw Exception('CandidType: Nat64 value can be between 0<=value && value <= ${BigInt.from(2).pow(64)-1)} ');
             }
         }
     }
@@ -597,7 +596,11 @@ class Nat64 extends PrimitiveCandidType {
 class Int8 extends PrimitiveCandidType {
     static const int type_code = -9;
     final covariant int? value;
-    Int8([this.value]);
+    Int8([this.value]) {
+        if (value!=null && (value<-128 || value > 127 )) {
+            throw Exception('CandidType: Int8 value must be between -128<=value && value <=127');
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getInt8(0);
@@ -605,41 +608,89 @@ class Int8 extends PrimitiveCandidType {
         return m_func_tuple;                  
     }
 
+    Uint8List M_forward() {
+        ByteData bytedata = ByteData(1);
+        bytedata.setInt8(0, this.value);
+        return Uint8List.view(bytedata.buffer);
+    }
+
 } 
 
 class Int16 extends PrimitiveCandidType {
     static const int type_code = -10;
     final covariant int? value;
-    Int16([this.value]);
+    Int16([this.value]) {
+        if (value!=null && (value<pow(-2,15) || value > pow(2,15)-1 )) {
+            throw Exception('CandidType: Int16 value must be between ${pow(-2,15)} <= value && value <= ${pow(2,15)-1}');
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0, endian: Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int16(value), start_i+2);
         return m_func_tuple;           
+    }
+
+    Uint8List M_forward() {
+        ByteData bytedata = ByteData(2);
+        bytedata.setInt16(0, this.value, endian: Endian.little);
+        return Uint8List.view(bytedata.buffer);
     }
 } 
 
 class Int32 extends PrimitiveCandidType {
     static const int type_code = -11;
     final covariant int? value;
-    Int32([this.value]);
+    Int32([this.value]) {
+        if (value!=null && (value<pow(-2,31) || value > pow(2,31)-1 )) {
+            throw Exception('CandidType: Int32 value must be between ${pow(-2,31)} <= value && value <= ${pow(2,31)-1}');
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0, endian: Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int32(value), start_i+4);
         return m_func_tuple;            
+    }
+
+    Uint8List M_forward() {
+        ByteData bytedata = ByteData(4);
+        bytedata.setInt32(0, this.value, endian: Endian.little);
+        return Uint8List.view(bytedata.buffer);
     }
 } 
 
 // test on the web 
 class Int64 extends PrimitiveCandidType {
     static const int type_code = -12;
-    final covariant int? value;
-    Int64([this.value]);
+    final covariant dynamic? value;
+    Int64([this.value]) {
+        if (!(value is BigInt) && !(value is int) && value!=null) {
+            throw Exception('CandidType: Int64 value must be either a dart-int or a dart-BigInt.');
+        }
+        if (value != null) {
+            late BigInt bigintvalue;
+            if (value is int)) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
+            if (bigintvalue < BigInt.from(-2).pow(63) || bigintvalue > BigInt.from(2).pow(63)-1) ) {
+                throw Exception('CandidType: Int64 value can be between ${BigInt.from(-2).pow(63)}<=value && value <= ${BigInt.from(2).pow(63)-1)} ');
+            }
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+8).getInt64(0);
+
+        // int value = ByteData.sublistView(candidbytes, start_i, start_i+8).getInt64(0, endian: Endian.little);
         return MfuncTuple(Int64(value), start_i+8);    // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
+    }
+
+    Uint8List M_forward() {
+        if (this.value is int) {
+            ByteData bytedata = ByteData(8);
+            bytedata.setInt64(0, this.value, endian: Endian.little);
+            return Uint8List.view(bytedata.buffer);
+        } else if (this.value is BigInt) {
+
+        }
     }
 
 } 
@@ -650,7 +701,7 @@ class Float32 extends PrimitiveCandidType {
     Float32([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0);
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0, endian: Endian.little);
         return MfuncTuple(Float32(value), start_i+4);     
     }
 
@@ -662,7 +713,7 @@ class Float64 extends PrimitiveCandidType {
     Float64([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0);
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, endian: Endian.little); // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
         return MfuncTuple(Float64(value), start_i+8);    
     }
 
@@ -984,7 +1035,8 @@ class Variant extends RecordAndVariantMap {
     }
 }
 
-
+// for the forward of a vec { variant {A,B,C }  } create a vec and for each vec-item: create: new Variant with that item's-specific variant-fieldtype-id and value. Vector() 
+// Vector()..addAll([Variant.fromMap({'A':a_value}), Variant.fromMap({'B':b_value}), Variant.fromMap({'C':c_value})]);
 
 
 
