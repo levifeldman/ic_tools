@@ -498,9 +498,14 @@ class Nat16 extends PrimitiveCandidType {
     Uint8List M_forward() {
         String rstr = this.value.toRadixString(2);
         List<String> bytes_bitstrings = [];
-        for (int i=0;i<2;i++) {
-            
+        while (rstr.length<16) {
+            rstr = '0' + rstr;
         }
+        List<int> bytes = [];
+        for (int i=0;i<2;i++) {
+            bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
+        }
+        return bytes.cast();// as Uint8List;
     }
 
 
@@ -509,7 +514,11 @@ class Nat16 extends PrimitiveCandidType {
 class Nat32 extends PrimitiveCandidType {
     static const int type_code = -7;
     final covariant int? value;
-    Nat32([this.value]);
+    Nat32([this.value]) {
+        if (value!=null && (value<0 || value > pow(2, 32)-1) ) {
+            throw Exception('CandidType: Nat32 value can be between value>=0 && value <= ${pow(2, 32)-1} ');
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat32_asabitstring = '';
@@ -522,6 +531,19 @@ class Nat32 extends PrimitiveCandidType {
         MfuncTuple m_func_tuple = MfuncTuple(Nat32(value), start_i+4);
         return m_func_tuple;                 
     }
+
+    Uint8List M_forward() {
+        String rstr = this.value.toRadixString(2);
+        List<String> bytes_bitstrings = [];
+        while (rstr.length<32) {
+            rstr = '0' + rstr;
+        }
+        List<int> bytes = [];
+        for (int i=0;i<4;i++) {
+            bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
+        }
+        return bytes.cast();// as Uint8List;
+    }
 } 
 
 
@@ -529,7 +551,18 @@ class Nat32 extends PrimitiveCandidType {
 class Nat64 extends PrimitiveCandidType {
     static const int type_code = -8;
     final covariant dynamic? value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
-    Nat64([this.value]);
+    Nat64([this.value]) {
+        if (!(value is BigInt) && !(value is int) && value!=null) {
+            throw Exception('CandidType: Nat64 value must be either a dart-int or a dart-BigInt.');
+        }
+        if (value != null) {
+            late BigInt bigintvalue;
+            if (value is int)) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
+            if (bigintvalue < BigInt.from(0) || bigintvalue > BigInt.from(2).pow(64)-1) ) {
+                throw Exception('CandidType: Nat64 value can be between value>=0 && value <= ${BigInt.from(2).pow(64)-1)} ');
+            }
+        }
+    }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // get BigInt/int from candid_nat64 
@@ -545,6 +578,20 @@ class Nat64 extends PrimitiveCandidType {
         MfuncTuple m_func_tuple = MfuncTuple(Nat64(value), start_i+8);
         return m_func_tuple;                 
     }
+
+    Uint8List M_forward() {
+        String rstr = this.value.toRadixString(2);
+        List<String> bytes_bitstrings = [];
+        while (rstr.length<64) {
+            rstr = '0' + rstr;
+        }
+        List<int> bytes = [];
+        for (int i=0;i<8;i++) {
+            bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
+        }
+        return bytes.cast();// as Uint8List;
+    }
+
 } 
 
 class Int8 extends PrimitiveCandidType {

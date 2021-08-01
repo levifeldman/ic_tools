@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math';
 import 'package:cbor/cbor.dart';
 import 'tools.dart';
 // import 'ic_tools.dart';
@@ -14,7 +15,7 @@ Future<void> main() async {
 }
 
 Future<void> ictest() async {
-    print('trying ic');
+    // print('trying ic');
     // Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');
     // Record record = Record.fromMap({'account': Text('c50accaa515fe677f04d6a608d306dce10ed0d46048aa5105cb549256f3c4433')});
     // Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record])); // List<CandidType>
@@ -23,10 +24,10 @@ Future<void> ictest() async {
 
 // variant isTypeStance=falsec can  only contain one map item
 
-    t t_test = t();
-    t_test.test();
-
-
+    BigInt big64 = BigInt.from(2).pow(64);
+    print(big64);
+    print(pow(2,64));
+    print(BigInt.from(32000000000) < big64);
 
 
     // print('\nparsing test candidbytes: ');
@@ -50,12 +51,3 @@ Future<void> ictest() async {
 
 
 
-
-class t {
-    static const n = 24;
-    test() {
-        // print(this.n);
-        print(n);
-        // print(this.runtimeType.n);
-    }
-}
