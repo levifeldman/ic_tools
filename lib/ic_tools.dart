@@ -1,7 +1,6 @@
 // FOR THE DO: 
 
 // create Authorization-keys, call with an authorization. 
-// bls on the liinux
 
 
 
@@ -14,15 +13,8 @@ import 'package:typed_data/typed_data.dart';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
-
 import 'tools.dart';
-
-// import 'onthewebcheck/main.dart' show isontheweb;
-// import 'cbor/main.dart';
-// import 'leb128/main.dart' show leb128flutter;
-// import 'bls12381/main.dart' show bls12381flutter;
 import 'cross_platform_tools/cross_platform_tools.dart';
-
 import 'candid.dart';
 
 
@@ -31,36 +23,55 @@ String icbaseurl = 'https://ic0.app';
 Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 1, 2, 1, 6, 12, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 2, 1, 3, 97, 0, 129, 76, 14, 110, 199, 31, 171, 88, 59, 8, 189, 129, 55, 60, 37, 92, 60, 55, 27, 46, 132, 134, 60, 152, 164, 241, 224, 139, 116, 35, 93, 20, 251, 93, 156, 12, 213, 70, 217, 104, 95, 145, 58, 12, 11, 44, 197, 52, 21, 131, 191, 75, 67, 146, 228, 103, 219, 150, 214, 91, 155, 180, 203, 113, 113, 18, 248, 71, 46, 13, 90, 77, 20, 80, 95, 253, 116, 132, 176, 18, 145, 9, 28, 95, 135, 185, 136, 131, 70, 63, 152, 9, 26, 11, 170, 174]);
 // String icversion ?
 
+
 Future<Map> ic_status() async {
     http.Response statussponse = await http.get(Uri.parse(icbaseurl + '/api/v2/status'));
     return cborflutter.cborbytesasadart(statussponse.bodyBytes);
 }
 
 
+
+class Caller {
+    late final Principal principal; //late?
+
+    Uint8List authorize_call(Uint8List quest_id) // ? maybe put on an ed25519 class? think
+
+    Caller() {
+
+    }
+}
+
+class Principal {
+    final Uint8List blob;
+    final String text;
+    Principal(this.text) {
+        this.blob = icidtextasablob(this.text);
+    }
+    static Principal ofBlob(Uint8List blob) => Principal(icidblobasatext(blob));
+}
+
+
 class Canister {
-    Uint8List canisterIdBlob;
-    String canisterIdText;
-    String canisterbaseurl;
-    Canister(this.canisterIdText) : canisterIdBlob= icidtextasablob(canisterIdText), canisterbaseurl= icbaseurl + '/api/v2/canister/$canisterIdText/';
+    final Principal principal;
+    final String canisterbaseurl;
+
+    Canister(this.principal) {
+        canisterbaseurl= icbaseurl + '/api/v2/canister/${principal.text}/';   
+    }
 
     Future<Uint8List> module_hash() async {
-        List<dynamic> paths_values = await state(paths: [['canister', canisterIdBlob, 'module_hash']]);
-        return paths_values[0];
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.blob, 'module_hash']]);
+        return paths_values[0] as Uint8List;
     }
-    Future<List<Uint8List>> controllers() async {
-        List<dynamic> paths_values = await state(paths: [['canister', canisterIdBlob, 'controllers']]);
+    Future<List<Principal>> controllers() async {
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.blob, 'controllers']]);
         List<dynamic> controllers_list = cborflutter.cborbytesasadart(paths_values[0]); //?buffer? orr List
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
-        return controllers_list_uint8list;
+        List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.ofBlob(controller_bytes)).toList();
+        return controllers_list_principals;
     }
-    // make a principal/id class that has a .bytes and .text
-    Future<List<String>> controllers_as_text() async {
-        List<Uint8List> controllers_list = await controllers();
-        return controllers_list.map((controller_bytes)=>icidblobasatext(controller_bytes)).toList();
-    }    
     
     // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
-    
     
 
     Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient}) async {        
@@ -110,7 +121,7 @@ class Canister {
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
-                "canister_id": canisterIdBlob, //(blob)(29-bytes)
+                "canister_id": principal.blob, //(blob)(29-bytes)
                 "method_name": methodName,//(text)(:name: canister-method.),
                 "arg": put_bytes!=null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
                 "sender": Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
@@ -187,25 +198,6 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
 }
 
 
-
-// Uint8List icquestbodymapcborcode(Map questbodymap) {
-//     // Cbor cborcoder = Cbor(); 
-//     // cborcoder.encoder.writeTag(tagSelfDescribedCbor);
-//     // cborcoder.encoder.writeMap(questbodymap);
-//     // return Uint8List.fromList(cborcoder.output.getData());
-    
-//     return Uint8List.fromList(Uint8List.fromList([217,217,247]) + cbor.encodeOne(dartmapasajsstruct(questbodymap), dartmapasajsstruct({'canonical': true, 'collapseBigIntegers': true})));
-// }
-
-// Map iccborsponsebytesasamap(Uint8List cborbytes) {
-//     Cbor cborcoder = Cbor();
-//     cborcoder.decodeFromList(cborbytes);
-//     List? datalist = cborcoder.getDecodedData();
-//     if (datalist==null) { throw Exception('cbor transform is null'); }
-//     if (datalist.length<1 || datalist.length>1) { print(datalist); throw Exception('getdecodeddata gives ${datalist.length} items in the getdecodeddata-list'); }
-//     return datalist[0];
-// }
-
 Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     var valueforthehash = <int>[];
     if (datastructure is String) {
@@ -240,28 +232,6 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     return Uint8List.fromList(sha256.convert(valueforthehash).bytes);
 }
  
-String icidblobasatext(Uint8List idblob) {
-    // Grouped(Base32(CRC32(b) · b)) 
-    // The textual representation is conventionally printed with lower case letters, but parsed case-insensitively.
-    Crc32 crc32 = Crc32();
-    crc32.add(idblob);
-    List<int> crc32checksum = crc32.close();
-    Uint8List idblobwiththecrc32 = Uint8List.fromList(crc32checksum + idblob);
-    String base32string = base32.encode(idblobwiththecrc32);
-    String finalstring = '';
-    for (int i=0;i<base32string.length; i++) {
-        if (base32string[i]=='=') { break; } // base32 without the padding-char: '='
-        finalstring+= base32string[i];
-        if ((i+1)%5==0 && i!=base32string.length-1) { finalstring+= '-'; }
-    }
-    return finalstring.toLowerCase();
-}
-
-Uint8List icidtextasablob(String idtext) {
-    String idbase32code = idtext.replaceAll('-', '');
-    if (idbase32code.length%2!=0) { idbase32code+='='; }
-    return Uint8List.fromList(base32.decode(idbase32code).sublist(4));
-}
 
 // "The recommended textual representation of a request id is a hexadecimal string with lower-case letters prefixed with '0x'. E.g., request id consisting of bytes [00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 1A, 1B, 1C, 1D, 1E, 1F] should be displayed as 0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f. ""
 String questidbytesasastring(Uint8List questIdBytes) {
@@ -405,12 +375,6 @@ List flattentreeforks(List tree) {
     }
     return [tree];
 }
-    
-dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path) {
-    Uint8List? valuebytes = lookuppathbvaluebinaniccertificatetree(tree, pathasapathbyteslist(path));
-    if (valuebytes==null) { return valuebytes; }
-    return systemstatepathvaluetypetransform[getstatetreepathvaluetype(path)]!(valuebytes);
-}
 
 Uint8List? lookuppathbvaluebinaniccertificatetree(List tree, List<Uint8List> pathb) {
     if (pathb.length > 0) {
@@ -429,9 +393,37 @@ Uint8List? lookuppathbvaluebinaniccertificatetree(List tree, List<Uint8List> pat
         }
     }
 }
+    
+dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path) {
+    Uint8List? valuebytes = lookuppathbvaluebinaniccertificatetree(tree, pathasapathbyteslist(path));
+    if (valuebytes==null) { return valuebytes; }
+    return systemstatepathvaluetypetransform[getstatetreepathvaluetype(path)]!(valuebytes);
+}
 
 
 
+String icidblobasatext(Uint8List idblob) {
+    // Grouped(Base32(CRC32(b) · b)) 
+    // The textual representation is conventionally printed with lower case letters, but parsed case-insensitively.
+    Crc32 crc32 = Crc32();
+    crc32.add(idblob);
+    List<int> crc32checksum = crc32.close();
+    Uint8List idblobwiththecrc32 = Uint8List.fromList(crc32checksum + idblob);
+    String base32string = base32.encode(idblobwiththecrc32);
+    String finalstring = '';
+    for (int i=0;i<base32string.length; i++) {
+        if (base32string[i]=='=') { break; } // base32 without the padding-char: '='
+        finalstring+= base32string[i];
+        if ((i+1)%5==0 && i!=base32string.length-1) { finalstring+= '-'; }
+    }
+    return finalstring.toLowerCase();
+}
+
+Uint8List icidtextasablob(String idtext) {
+    String idbase32code = idtext.replaceAll('-', '');
+    if (idbase32code.length%2!=0) { idbase32code+='='; }
+    return Uint8List.fromList(base32.decode(idbase32code).sublist(4));
+}
 
 
 
