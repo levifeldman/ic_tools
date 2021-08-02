@@ -5,15 +5,15 @@ import 'package:leb128/leb128.dart';
 
 
 class leb128dart extends Leb128Flutter {
-    @override
-    Uint8List encodeUnsigned(x) {
-        return Uint8List.fromList(Leb128.encodeUnsigned(x));
-    }
+    // @override
+    // Uint8List encodeUnsigned(x) {
+    //     return Uint8List.fromList(Leb128.encodeUnsigned(x));
+    // }
     
-    @override
-    dynamic decodeUnsigned(bytes) {
-        return Leb128.decodeUnsigned(bytes);
-    }
+    // @override
+    // dynamic decodeUnsigned(bytes) {
+    //     return Leb128.decodeUnsigned(bytes);
+    // }
 
     @override
     Uint8List encodeSigned(x) {

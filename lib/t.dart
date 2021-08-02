@@ -9,6 +9,8 @@ import 'package:ed25519_edwards/ed25519_edwards.dart' as ed25519;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
+import 'cross_platform_tools/cross_platform_tools.dart';
+
 
 Future<void> main() async {
     await ictest();    
@@ -24,11 +26,11 @@ Future<void> ictest() async {
 
 // variant isTypeStance=falsec can  only contain one map item
 
-    BigInt big64 = BigInt.from(2).pow(64);
-    print(big64);
-    print(pow(2,64));
-    print(BigInt.from(32000000000) < big64);
-
+    //leb128 test
+    BigInt bi = BigInt.parse('62448888888888888888888888888885', radix: 10);
+    print(bi);
+    print(leb128flutter.encodeUnsigned(bi));
+    print(leb128flutter.decodeUnsigned(Uint8List.fromList([181, 156, 142, 199, 207, 219, 215, 245, 245, 167, 168, 241, 243, 134, 197, 1])));
 
     // print('\nparsing test candidbytes: ');
     // // Uint8List candidbytes = Uint8List.view(hexToBytes('4449444C016C01800175020071DEADBEEF03466F6F')!);
