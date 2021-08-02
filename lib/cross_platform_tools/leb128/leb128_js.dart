@@ -22,10 +22,10 @@ class leb128js extends Leb128Flutter {
     //     return bi.isValidInt ? bi.toInt() : bi;
     // }
     
-    @override
-    Uint8List encodeSigned(x) {
-        return Uint8List.fromList(leb128jslib.leb128.encodeIntBuffer(bigint_buffer.toBufferLE(x.toRadixString(16), (x.toRadixString(16).length/2).round())));
-    }
+    // @override
+    // Uint8List encodeSigned(x) {
+    //     return Uint8List.fromList(leb128jslib.leb128.encodeIntBuffer(bigint_buffer.toBufferLE(x.toRadixString(16), (x.toRadixString(16).length/2).round())));
+    // }
     
     @override
     dynamic decodeSigned(bytes) {

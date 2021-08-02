@@ -3,6 +3,20 @@ import 'package:http/http.dart';
 import 'dart:typed_data';
 
 
+Uint8List hexstringasabytes(String hex) {
+    List<int> bytes = [];
+    if (hex.substring(0,2)=='0x') {
+        hex = hex.substring(2);
+    }
+    if (hex.length % 2 != 0) {
+        hex = '0' + hex;
+    }
+    for (int i=0;i<hex.length/2;i++) {
+        bytes.add(int.parse(hex.substring(i*2,i*2+2), radix: 16));
+    }
+    return Uint8List.fromList(bytes);
+}
+
 String bytesasahexstring(List<int> bytes) {    
     String s = '';
     for (int i in bytes) {
@@ -40,40 +54,6 @@ bool aresamebytes(List<int> b1, List<int> b2) {
 }
 
 
-// BigInt bytesasabigint(Uint8List bytes) {
-//   BigInt read(int start, int end) {
-//     if (end - start <= 4) {
-//       int result = 0;
-//       for (int i = end - 1; i >= start; i--) {
-//         result = result * 256 + bytes[i];
-//       }
-//       return new BigInt.from(result);
-//     }
-//     int mid = start + ((end - start) >> 1);
-//     var result = read(start, mid) + read(mid, end) * (BigInt.one << ((mid - start) * 8));
-//     return result;
-//   }
-//   return read(0, bytes.length);
-// }
-
-// Uint8List bigintasabytes(BigInt number) {
-//   // Not handling negative numbers. Decide how you want to do that.
-//   int bytes = (number.bitLength + 7) >> 3;
-//   var b256 = new BigInt.from(256);
-//   var result = new Uint8List(bytes);
-//   for (int i = 0; i < bytes; i++) {
-//     result[i] = number.remainder(b256).toInt();
-//     number = number >> 8;
-//   }
-//   return result;
-// }
-
-
-
-
-
-
-
 
 // String placeUrlVariablesIntoUrlPathString({required String mainString, required Map<String,String>map}) {
 //     map.forEach((key,value) {
@@ -84,23 +64,44 @@ bool aresamebytes(List<int> b1, List<int> b2) {
 // }
 
 
-
-void main() {
-    // Map map = {
-    //     '<vf>': 'levi'
-    // };
-    // print(placeUrlVariablesIntoUrlPathString(mainString: 'hello, <vf>. i am going to the store.', map: {'<vf>': '123'}));
-    // print(null.toString());
-    // 
-    // 
-    // 
-    // 
-    
+String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_size}) { // bit_size can technically be BigInt or Int
+    if (!(x is int) && !(x is BigInt)) {
+        throw Exception('must give either int or a BigInt.');
+    }
+    if (!(x is BigInt)) { x = BigInt.from(x); }
+    final BigInt max_size = BigInt.from(2).pow(bit_size-1)-BigInt.from(1);
+    final BigInt min_size = BigInt.from(-2).pow(bit_size-1);
+    if (x > max_size || x < min_size) {
+        throw Exception('value must be >= ${min_size} and value <= ${max_size} for a ${bit_size} bit integers. ');
+    }
+    String bitstring = '';
+    if (x >= BigInt.from(0)) {
+        bitstring = x.toRadixString(2);
+        while (bitstring.length < bit_size) { bitstring = '0' + bitstring; }
+    }
+    else if (x < BigInt.from(0)) {
+        bitstring = '1';
+        String bitstring_part2  =  (min_size.abs() - x.abs()).toRadixString(2);
+        while (bitstring_part2.length < bit_size-1) { bitstring_part2 = '0' + bitstring_part2; }
+        bitstring += bitstring_part2;
+    }
+    if (bitstring.length < bit_size) {
+        throw Exception('something happen');
+    }
+    return bitstring;
 }
 
 
-
-
+Uint8List bitstring_as_the_bytes(String bitstring) {
+    if (bitstring.length % 8 != 0) {
+        throw Exception('bitstring.length must be a multiple of 8 in this funcion');
+    }
+    List<int> bytes = [];
+    for (int i=0;i<bitstring.length/8;i++) {
+        bytes.add(int.parse(bitstring.substring(i*8,i*8+8), radix:2));
+    }
+    return Uint8List.fromList(bytes);
+}
 
 
 
