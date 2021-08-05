@@ -1,17 +1,10 @@
 import 'dart:typed_data';
-import 'package:leb128/leb128.dart';
 import '../../tools.dart';
 
-import 'stub.dart'
-    if (dart.library.io) 'leb128_dart.dart'
-    if (dart.library.js) 'leb128_js.dart';
 
+class leb128flutter {
 
-
-
-abstract class Leb128Flutter {
-
-    Uint8List encodeUnsigned(x) {
+    static Uint8List encodeUnsigned(x) {
         if (!(x is int) && !(x is BigInt)) {
             throw Exception('leb128 encodeunsigned have either an int or a BigInt.');
         }
@@ -37,8 +30,7 @@ abstract class Leb128Flutter {
         return Uint8List.fromList(leb128_bytes);
     }
 
-    // :give-back: BigInt or int
-    dynamic decodeUnsigned(List<int> bytes) {
+    static dynamic decodeUnsigned(List<int> bytes) {
         String bitstring = '';
         bitstring += bytes[bytes.length-1].toRadixString(2);
         for (int byte in bytes.reversed.toList().sublist(1)) {
@@ -50,9 +42,7 @@ abstract class Leb128Flutter {
         return givebackvaluebigint.isValidInt ? givebackvaluebigint.toInt() : givebackvaluebigint;
     }
 
-    // Uint8List encodeSigned(x);
-
-    Uint8List encodeSigned(x) {
+    static Uint8List encodeSigned(x) {
         if (!(x is int) && !(x is BigInt)) {
             throw Exception('leb128 encodesigned have either an int or a BigInt.');
         }
@@ -77,23 +67,17 @@ abstract class Leb128Flutter {
         return Uint8List.fromList(bytes.reversed.toList());        
     }
 
-    dynamic decodeSigned(bytes) {
+    static dynamic decodeSigned(bytes) {
         String bitstring = '';
-        bitstring += bytes[bytes.length-1].toRadixString(2);
+        int first_byte = bytes[bytes.length-1];
+        bitstring = first_byte.toRadixString(2);
         for (int byte in bytes.reversed.toList().sublist(1)) {
             String bitstring_7_part = byte.toRadixString(2).substring(1);
             bitstring = bitstring + bitstring_7_part;
         }
-
-
-        dynamic givebackvaluebigint = BigInt.parse(bitstring, radix: 2);
-        
-        
-        // return tc_int.isValidInt ? tc_int.toInt() : tc_int;
+        return twos_compliment_bitstring_as_the_integer(bitstring, bit_size: bytes.length*7);
     }
     
 }
 
-
-Leb128Flutter leb128flutter = getLeb128Lib(); 
 
