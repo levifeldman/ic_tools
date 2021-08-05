@@ -20,10 +20,10 @@ class leb128dart extends Leb128Flutter {
     //     return Uint8List.fromList(Leb128.encodeSigned(x));
     // }
     
-    @override
-    dynamic decodeSigned(bytes) {
-        return Leb128.decodeSigned(bytes);
-    }
+    // @override
+    // dynamic decodeSigned(bytes) {
+    //     return Leb128.decodeSigned(bytes);
+    // }
     
 }
 

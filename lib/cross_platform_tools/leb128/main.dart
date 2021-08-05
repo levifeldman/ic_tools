@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:leb128/leb128.dart';
-
+import '../../tools.dart';
 
 import 'stub.dart'
     if (dart.library.io) 'leb128_dart.dart'
@@ -60,26 +60,12 @@ abstract class Leb128Flutter {
 
         late String tc_bitstring;
         if (x < BigInt.from(0)) {
-            String abs_bitstring = x.abs().toRadixString(2);
-            while (abs_bitstring.length % 7 != 0) { abs_bitstring = '0' + abs_bitstring; }
-            List<String> oc_bitstring_list = abs_bitstring.split('');
-            // print(oc_bitstring_list);
-            for (int i=0;i<oc_bitstring_list.length;i++) {
-                if (oc_bitstring_list[i]=='1') {
-                    oc_bitstring_list[i] = '0';
-                } else if (oc_bitstring_list[i]=='0') {
-                    oc_bitstring_list[i] = '1';
-                }
-            }
-            // print(oc_bitstring_list);
-            String oc_bitstring = oc_bitstring_list.join();
-            // print(oc_bitstring);
-            BigInt oc_int = BigInt.parse(oc_bitstring, radix: 2);
-            BigInt tc_int = oc_int + BigInt.from(1);
-            tc_bitstring =  tc_int.toRadixString(2);
+            int bit_size = x.abs().toRadixString(2).length + 1; // + 1 for the sign-bit
+            while (bit_size % 7 != 0) { bit_size += 1; }
+            tc_bitstring = integers_as_the_twos_compliment_bitstring(x, bit_size: bit_size);
         }
         else if (x >= BigInt.from(0)) {
-            tc_bitstring = x.toRadixString(2);
+            tc_bitstring = '0' + x.toRadixString(2); // '0' +  for the sign-bit
         }
         while (tc_bitstring.length % 7 != 0) { tc_bitstring = '0' + tc_bitstring; }
         List<String> bytes_bitstrings = [];
@@ -92,7 +78,18 @@ abstract class Leb128Flutter {
     }
 
     dynamic decodeSigned(bytes) {
+        String bitstring = '';
+        bitstring += bytes[bytes.length-1].toRadixString(2);
+        for (int byte in bytes.reversed.toList().sublist(1)) {
+            String bitstring_7_part = byte.toRadixString(2).substring(1);
+            bitstring = bitstring + bitstring_7_part;
+        }
+
+
+        dynamic givebackvaluebigint = BigInt.parse(bitstring, radix: 2);
         
+        
+        // return tc_int.isValidInt ? tc_int.toInt() : tc_int;
     }
     
 }

@@ -27,13 +27,13 @@ class leb128js extends Leb128Flutter {
     //     return Uint8List.fromList(leb128jslib.leb128.encodeIntBuffer(bigint_buffer.toBufferLE(x.toRadixString(16), (x.toRadixString(16).length/2).round())));
     // }
     
-    @override
-    dynamic decodeSigned(bytes) {
-        BigIntJS bijs = bigint_buffer.toBigIntLE(getProperty(leb128jslib.leb128.decodeIntBuffer(bytes), 'value'));
-        String bijs_string = bijs.toString();
-        BigInt bi = BigInt.parse(bijs_string);
-        return bi.isValidInt ? bi.toInt() : bi;
-    }
+    // @override
+    // dynamic decodeSigned(bytes) {
+    //     BigIntJS bijs = bigint_buffer.toBigIntLE(getProperty(leb128jslib.leb128.decodeIntBuffer(bytes), 'value'));
+    //     String bijs_string = bijs.toString();
+    //     BigInt bi = BigInt.parse(bijs_string);
+    //     return bi.isValidInt ? bi.toInt() : bi;
+    // }
 }
 
 

@@ -47,7 +47,13 @@ class Principal {
     Principal(this.text) {
         this.blob = icidtextasablob(this.text);
     }
-    static Principal ofBlob(Uint8List blob) => Principal(icidblobasatext(blob));
+    static Principal ofBlob(Uint8List blob) {
+        Principal p = Principal(icidblobasatext(blob));
+        if (p.blob != blob) {
+            throw Exception('ic id functions look ');
+        }
+        return p;
+    }
 }
 
 

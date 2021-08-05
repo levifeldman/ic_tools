@@ -70,7 +70,7 @@ String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_si
     }
     if (!(x is BigInt)) { x = BigInt.from(x); }
     final BigInt max_size = BigInt.from(2).pow(bit_size-1)-BigInt.from(1);
-    final BigInt min_size = BigInt.from(-2).pow(bit_size-1);
+    final BigInt min_size = -BigInt.from(2).pow(bit_size-1);
     if (x > max_size || x < min_size) {
         throw Exception('value must be >= ${min_size} and value <= ${max_size} for a ${bit_size} bit integers. ');
     }
@@ -91,6 +91,11 @@ String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_si
     return bitstring;
 }
 
+
+dynamic twos_compliment_bitstring_as_the_integer(String bit_string, {required int bit_size}) { // bit_size can technically be BigInt or Int
+
+
+}
 
 Uint8List bitstring_as_the_bytes(String bitstring) {
     if (bitstring.length % 8 != 0) {
