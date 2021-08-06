@@ -739,6 +739,12 @@ class Text extends PrimitiveCandidType {
         Uint8List utf8_bytes = candidbytes.sublist(leb128_bytes_tuple.item2, next_i);
         return MfuncTuple(Text(utf8.decode(utf8_bytes)), next_i);
     }
+
+    Uint8List M_forward() {
+        Uint8List bytes = leb128flutter.encodeUnsigned(this.value.length);
+        bytes.addAll(utf8.encode(this.value));
+        return bytes;
+    }
 } 
 
 class Reserved extends PrimitiveCandidType {
@@ -748,6 +754,10 @@ class Reserved extends PrimitiveCandidType {
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         return MfuncTuple(Reserved(), start_i);      
     }
+    
+    Uint8List M_forward() {
+        return Uint8List(0);
+    }
 } 
 
 class Empty extends PrimitiveCandidType {
@@ -755,6 +765,10 @@ class Empty extends PrimitiveCandidType {
     get value => throw Exception('CandidType: Empty is with the lack of a value.');
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
+    }
+
+    Uint8List M_forward () {
         throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
     }
 } 
