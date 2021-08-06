@@ -412,6 +412,9 @@ class Nat extends PrimitiveCandidType {
     static const int type_code = -3;
     final covariant dynamic? value;// can be int or BigInt
     Nat([this.value]) {
+        if (!(value is BigInt) && !(value is int) && value!=null) {
+            throw Exception('CandidType: Nat value must be either a dart-int or a dart-BigInt.');
+        }
         if (value !=null && value<0) {
             throw Exception('CandidType: Nat can only hold a value >=0 ');
         }
@@ -432,7 +435,11 @@ class Nat extends PrimitiveCandidType {
 class Int extends PrimitiveCandidType {
     static const int type_code = -4;
     final covariant dynamic? value;// can be int or BigInt
-    Int([this.value]);
+    Int([this.value]) {
+        if (!(value is BigInt) && !(value is int) && value!=null) {
+            throw Exception('CandidType: Int value must be either a dart-int or a dart-BigInt.');
+        }
+    }
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         FindLeb128BytesTuple sleb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
@@ -504,7 +511,7 @@ class Nat16 extends PrimitiveCandidType {
         for (int i=0;i<2;i++) {
             bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
         }
-        return bytes.cast();// as Uint8List;
+        return Uint8List.fromList(bytes.reversed.toList());// as Uint8List;
     }
 
 
@@ -541,7 +548,7 @@ class Nat32 extends PrimitiveCandidType {
         for (int i=0;i<4;i++) {
             bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
         }
-        return bytes.cast();// as Uint8List;
+        return Uint8List.fromList(bytes.reversed.toList());
     }
 } 
 
@@ -564,17 +571,10 @@ class Nat64 extends PrimitiveCandidType {
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        // get BigInt/int from candid_nat64 
-        String nat64_asabitstring = '';
-        for (int nat64_byte_i=start_i;nat64_byte_i<start_i+8;nat64_byte_i++) {
-            nat64_asabitstring += candidbytes[nat64_byte_i].toRadixString(2); 
-        }
-        // checks for bigint here bc of the javascript ints are only up to 2^53
-        dynamic value = BigInt.parse(nat64_asabitstring, radix: 2);
-        if (value.isValidInt) {
-            value = value.toInt();
-        }
-        MfuncTuple m_func_tuple = MfuncTuple(Nat64(value), start_i+8);
+        // get BigInt/int of the candid_nat64 
+        String nat64_asabitstring = bytes_as_the_bitstring(candidbytes.sublist(start_i, start_i + 8).reversed);
+        BigInt va = BigInt.parse(nat64_asabitstring, radix: 2);
+        MfuncTuple m_func_tuple = MfuncTuple(Nat64(va.isValidInt ? va.toInt() : va), start_i+8);
         return m_func_tuple;                 
     }
 
@@ -588,7 +588,7 @@ class Nat64 extends PrimitiveCandidType {
         for (int i=0;i<8;i++) {
             bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
         }
-        return bytes.cast();// as Uint8List;
+        return Uint8List.fromList(bytes.reversed.toList());
     }
 
 } 
@@ -678,21 +678,15 @@ class Int64 extends PrimitiveCandidType {
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-
-        // int value = ByteData.sublistView(candidbytes, start_i, start_i+8).getInt64(0, endian: Endian.little);
-        return MfuncTuple(Int64(value), start_i+8);    // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
+        String int64_asabitstring = bytes_as_the_bitstring(candidbytes.sublist(start_i, start_i + 8).reversed); // .reverse for the little-endian
+        dynamic v = twos_compliment_bitstring_as_the_integer(int64_asabitstring, bit_size: 64); // int or BigInt
+        return MfuncTuple(Int64(v), start_i+8);
     }
 
     Uint8List M_forward() {
-        if (this.value is int) {
-            ByteData bytedata = ByteData(8);
-            bytedata.setInt64(0, this.value, endian: Endian.little);
-            return Uint8List.view(bytedata.buffer);
-        } else if (this.value is BigInt) {
-
-        }
-    }
-
+        String tc_bitstring = integers_as_the_twos_compliment_bitstring(this.value, bit_size: 64);
+        Uint8List bytes = bitstring_as_the_bytes(tc_bitstring);
+        return Uint8List(bytes.reversed.toList());        
 } 
 
 class Float32 extends PrimitiveCandidType {
@@ -705,8 +699,16 @@ class Float32 extends PrimitiveCandidType {
         return MfuncTuple(Float32(value), start_i+4);     
     }
 
+    Uint8List M_forward() {
+        ByteData bytedata = ByteData(4);
+        bytedata.setFloat32(0, this.value, endian: Endian.little);
+        return Uint8List.view(bytedata.buffer);
+    }
+
 } 
 
+
+// : DO. [ make sure the floats can handle js and linux the same ]
 class Float64 extends PrimitiveCandidType {
     static const int type_code = -14;
     final covariant double? value;
@@ -715,6 +717,12 @@ class Float64 extends PrimitiveCandidType {
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, endian: Endian.little); // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
         return MfuncTuple(Float64(value), start_i+8);    
+    }
+
+    Uint8List M_forward() {
+        ByteData bytedata = ByteData(8);
+        bytedata.setFloat64(0, this.value, endian: Endian.little);
+        return Uint8List.view(bytedata.buffer);
     }
 
 } 

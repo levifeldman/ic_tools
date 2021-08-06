@@ -121,7 +121,15 @@ Uint8List bitstring_as_the_bytes(String bitstring) {
 }
 
 
-
+String bytes_as_the_bitstring(Uint8List bytes) {
+    String bitstring = '';
+    for (int byte in bytes) {
+        String byte_bitstring = byte.toRadixString(2);
+        while (byte_bitstring.length < 8) { byte_bitstring = '0' + byte_bitstring; }
+        bitstring = bitstring + byte_bitstring;
+    }
+    return bitstring;
+}
 
 
 

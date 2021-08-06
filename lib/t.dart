@@ -29,11 +29,11 @@ Future<void> ictest() async {
 // variant isTypeStance=falsec can  only contain one map item
 
     //leb128 test
-    BigInt bi = BigInt.parse('-110010001010110', radix:2); // BigInt.parse('-6244888888885', radix: 10);
+    BigInt bi = BigInt.parse('10010001010110', radix:2); // BigInt.parse('-6244888888885', radix: 10);
     print(bi);
     print(leb128flutter.encodeSigned(bi));
     print(Leb128.encodeSigned(bi.toInt()));
-    Uint8List b_u8_l = Uint8List.fromList([170, 183, 126]);
+    Uint8List b_u8_l = Uint8List.fromList([214, 200, 0]);
     print(leb128flutter.decodeSigned(b_u8_l));
     print(Leb128.decodeSigned(b_u8_l));
     
