@@ -332,6 +332,7 @@ i think this is good to get everything done
 
 // test leb128 bigint and int unsigned and signed
 
+// check if there is same type in the type table already with the aresamebytes-function for the construct-types T_forward functions
 
 
 abstract class CandidType {
@@ -350,6 +351,7 @@ abstract class PrimitiveCandidType extends CandidType {
     // static const int type_code;  // uncomment this if its not in the scope?
     Uint8List T_forward() => leb128flutter.encodeSigned(type_code);
 
+    // this if still not work?
     // Uint8List T_forward() {
     //     for (MapEntry me in backwards_primtypes_opcodes_for_the_primtype_type_stances) {
     //         if (this.runtimeType == me.value.runtimeType) {
@@ -783,6 +785,25 @@ class Empty extends PrimitiveCandidType {
 // figure out if primtype .value should be final or not
 // make sure constypes with a isTypeStance=true have their value_type with the isTypeStance=true
 
+
+int put_t_in_the_type_table_forward(List<int> t_bytes) {
+    int? same_type_i;
+    for (int i=0; i < type_table_forward.length;i++) {
+        if (aresamebytes(t_bytes, type_table_forward[i])) {
+            same_type_i = i;
+        }
+    }
+    if (same_type_i != null) {
+        return same_type_i; 
+    } else {
+        type_table_forward.add(t_bytes);
+        return type_table_forward.length - 1;
+    }
+}
+
+
+
+
 // Option(CandidType-stance or TFunction) // 
 class Option extends ConstructType {
     static const int type_code = -18;
@@ -837,15 +858,35 @@ class Option extends ConstructType {
         Option opt = Option(value: val, value_type: this.value_type);
         return MfuncTuple(opt, next_i);
     }
+
+    Uint8List T_forward() {
+        // is with the give-back of a sleb128-bytes of a type-table-i
+        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
+        Uint8List value_type_t_forward_bytes = this.value != null ? this.value.T_forward() : this.value_type.T_forward();
+        t_bytes.addAll(value_type_t_forward_bytes);
+        int type_table_i = put_t_in_the_type_table_forward(t_bytes);
+        return leb128flutter.encodeSigned(type_table_i); 
+    }
+
+    Uint8List M_forward() {
+        List<int> bytes = [];
+        if (this.value == null) {
+            bytes.add(0);
+        } else if (this.value != null) {
+            bytes.add(1);
+            bytes.addAll(this.value.M_forward());
+        }
+        return Uint8List.fromList(bytes);
+    }
 }
 
 
-// :test of this class is with the lack of the List.of and List.from constructors
-class Vector extends ConstructType with ListMixin<CandidType> {         // mixin List? or just valuate to a list.
+// :test if the List.of and List.from constructors are on this class. careful that they void-possible for the bypass of the _canputinthevectortypecheck.
+class Vector extends ConstructType with ListMixin<CandidType> {         
     static const int type_code = -19;
-    final CandidType? values_type;
-    bool get isTypeStance => values_type != null;
-    Vector({this.values_type}) {
+    final CandidType? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
+    final bool isTypeStance;
+    Vector({this.values_type, this.isTypeStance= false}) {
         if (values_type!=null) {
             if (values_type!.isTypeStance==false) {
                 throw Exception('The Vector values_type CandidType must have .isTypeStance == true');
@@ -855,11 +896,17 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
 
     List<CandidType> _list = [];
     _canputinthevectortypecheck(CandidType new_c) {
-        if (this.values_type != null) { // test this throw 
-            throw Exception('a Vector with a values_type is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
+        if (this.isTypeStance == true) { // test this throw 
+            throw Exception('a Vector with a isTypeStance=true is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
+        }
+        if (this.values_type != null) {
+            if (this.values_type.runtimeType != new_c.runtimeType) {
+                throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field');
+            }
         }
         if (_list.length > 0) {
             _list.forEach((CandidType list_c) { 
+                // test this if
                 if (list_c.runtimeType != new_c.runtimeType) { throw Exception(':CandidType-values in a Vector-list are with the quirement of the same-specific-candidtype-type. :type of the vector-values-now: ${this[0].runtimeType}.'); }
             });
         }
@@ -902,6 +949,26 @@ class Vector extends ConstructType with ListMixin<CandidType> {         // mixin
             next_vec_item_start_i = m_func_tuple.item2;
         }
         return MfuncTuple(vec, next_vec_item_start_i);
+    }
+
+    Uint8List T_forward() {
+        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
+        if (this.values_type == null && this.length == 0) {
+            throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs a vector-values-type to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-param when creating this vector. Vector(values_type: Int64()/Text()/...)');
+        }
+        Uint8List values_type_t_forward_bytes = this.values_type != null ? this.values_type.T_forward() : this[0].T_forward();
+        t_bytes.addAll(values_type_t_forward_bytes);
+        int type_table_i = put_t_in_the_type_table_forward(t_bytes);
+        return leb128flutter.encodeSigned(type_table_i);
+    }
+
+    Uint8List M_forward() {
+        List<int> bytes = [];
+        bytes.addAll(leb128flutter.encodeUnsigned(this.length));
+        for (CandidType c in this) {
+            bytes.addAll(c.M_forward());
+        }
+        return Uint8List.fromList(bytes);
     }
 }
 
