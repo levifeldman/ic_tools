@@ -31,15 +31,15 @@ Future<Map> ic_status() async {
 
 
 
-class Caller {
-    late final Principal principal; //late?
+// class Caller {
+//     late final Principal principal; //late?
 
-    Uint8List authorize_call(Uint8List quest_id) // ? maybe put on an ed25519 class? think
+//     Uint8List authorize_call(Uint8List quest_id) // ? maybe put on an ed25519 class? think
 
-    Caller() {
+//     Caller() {
 
-    }
-}
+//     }
+// }
 
 class Principal {
     final Uint8List blob;

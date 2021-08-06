@@ -2,8 +2,8 @@ import 'dart:typed_data';
 import 'dart:math';
 import 'package:cbor/cbor.dart';
 import 'tools.dart';
-// import 'ic_tools.dart';
-// import 'candid.dart';
+import 'ic_tools.dart';
+import 'candid.dart';
 
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed25519;
 import 'dart:convert';
@@ -19,23 +19,23 @@ Future<void> main() async {
 }
 
 Future<void> ictest() async {
-    // print('trying ic');
-    // Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');
-    // Record record = Record.fromMap({'account': Text('c50accaa515fe677f04d6a608d306dce10ed0d46048aa5105cb549256f3c4433')});
-    // Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record])); // List<CandidType>
-    // List<CandidType> candids = c_backwards(sponse_bytes);
-    // print(candids);
+    print('trying ic');
+    Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');
+    Record record = Record.fromMap({'account': Text('c50accaa515fe677f04d6a608d306dce10ed0d46048aa5105cb549256f3c4433')});
+    Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record])); // List<CandidType>
+    List<CandidType> candids = c_backwards(sponse_bytes);
+    print(candids);
 
 // variant isTypeStance=falsec can  only contain one map item
 
     //leb128 test
-    BigInt bi = BigInt.parse('10010001010110', radix:2); // BigInt.parse('-6244888888885', radix: 10);
-    print(bi);
-    print(leb128flutter.encodeSigned(bi));
-    print(Leb128.encodeSigned(bi.toInt()));
-    Uint8List b_u8_l = Uint8List.fromList([214, 200, 0]);
-    print(leb128flutter.decodeSigned(b_u8_l));
-    print(Leb128.decodeSigned(b_u8_l));
+    // BigInt bi = BigInt.parse('10010001010110', radix:2); // BigInt.parse('-6244888888885', radix: 10);
+    // print(bi);
+    // print(leb128flutter.encodeSigned(bi));
+    // print(Leb128.encodeSigned(bi.toInt()));
+    // Uint8List b_u8_l = Uint8List.fromList([214, 200, 0]);
+    // print(leb128flutter.decodeSigned(b_u8_l));
+    // print(Leb128.decodeSigned(b_u8_l));
     
     // print(leb128flutter.decodeSigned(Uint8List.fromList([181, 140, 137, 131, 224, 181, 1])));
 
