@@ -203,6 +203,9 @@ class TypeTableReference extends CandidType { // extends Candidype , more custom
     TypeTableReference(this.type_table_i) {
         m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
     }
+
+    Uint8List T_forward() => throw Exception('shouldnt be calle');
+    Uint8List M_forward() => throw Exception('shouldnt-call');
 }
 
 // backwards
@@ -214,10 +217,10 @@ TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_
         t_func_tuple = TfuncTuple(TypeTableReference(type_code), type_code_sleb128bytes_tuple.item2);
     } 
     else if (isPrimTypeCode(type_code)) { 
-        t_func_tuple = TfuncTuple(backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code], type_code_sleb128bytes_tuple.item2);
+        t_func_tuple = TfuncTuple(backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!, type_code_sleb128bytes_tuple.item2);
     } 
     else if (isConsTypeCode(type_code)) { 
-        t_func_tuple = backwards_constypes_opcodes_for_the_constypes_T_function[type_code](candidbytes, type_code_sleb128bytes_tuple.item2);
+        t_func_tuple = backwards_constypes_opcodes_for_the_constypes_T_function[type_code]!(candidbytes, type_code_sleb128bytes_tuple.item2);
     }
     
     if (t_func_tuple.item1.isTypeStance==false) { throw Exception('T_backwards functions need to return a CandidType with an isTypeStance=true'); }
@@ -230,7 +233,7 @@ CandidBytes_i crawl_type_table(Uint8List candidbytes) {
     dynamic type_table_length = leb128flutter.decodeUnsigned(type_table_length_leb128bytes_tuple.item1);
     if (type_table_length is int) { type_table_length = BigInt.from(type_table_length); } 
     CandidBytes_i next_type_start_candidbytes_i = type_table_length_leb128bytes_tuple.item2;
-    for (BigInt t=BigInt.from(0);t<type_table_length;t++) {
+    for (BigInt t=BigInt.from(0);t<type_table_length;t=t+BigInt.one) {
         TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, next_type_start_candidbytes_i); // first layer should never be a type_table_reference
         CandidType ctype = t_func_tuple.item1;
         if (ctype.isTypeStance==false) { throw Exception('T functions need to return a ctype with an isTypeStance=true'); }
@@ -248,7 +251,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
     if (param_count is int) { param_count = BigInt.from(param_count); }
     CandidBytes_i params_types_next_i = param_count_leb128bytes_tuple.item2;
     List<int> params_type_codes = [];
-    for (BigInt i=BigInt.from(0);i<param_count;i++) {
+    for (BigInt i=BigInt.from(0);i<param_count;i=i+BigInt.one) {
         FindLeb128BytesTuple type_code_sleb128bytes_tuple = find_leb128bytes(candidbytes, params_types_next_i);
         int type_code = leb128flutter.decodeSigned(type_code_sleb128bytes_tuple.item1) as int;
         params_type_codes.add(type_code);
@@ -260,7 +263,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
         if (type_code >= 0) {
             ctype = type_table[type_code];
         } else if (isPrimTypeCode(type_code)) {
-            ctype = backwards_primtypes_opcodes_for_the_primtype_type_stances backwards_constypes_bytecodes_for_the_constypes_T_function[type_code]();
+            ctype = backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!;
         } else {
             throw Exception('params_list_types codes can either be a type_table_i or a primtypecode');
         }
@@ -291,8 +294,8 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
 List<Uint8List> T_forward_type_table_nests_whirlpool(List<List<int>> type_table_bytes, ConstructType candid) {
     // only call within a constype T_forward func. not in the c_forwards func (?)
     
-    
-    return type_table_bytes;
+    throw UnimplementedError('');
+    // return type_table_bytes;
 }
 
 
@@ -310,12 +313,12 @@ Uint8List c_forwards(List<CandidType> candids) {
         params_list_values_bytes_section.addAll(candid.M_forward()); 
     }
     candidbytes.addAll(leb128flutter.encodeUnsigned(type_table_forward.length));
-    for (List<int> type_bytes in type_table_forward) { candidbytes.addAll(type_bytes) }
+    for (List<int> type_bytes in type_table_forward) { candidbytes.addAll(type_bytes); }
     candidbytes.addAll(leb128flutter.encodeUnsigned(candids.length));
     candidbytes.addAll(params_list_types_bytes_section);
     candidbytes.addAll(params_list_values_bytes_section);
     type_table_forward.clear(); // we'll see
-    return candidbytes as Uint8List;
+    return Uint8List.fromList(candidbytes);
 }
 
 
@@ -336,7 +339,7 @@ Uint8List c_forwards(List<CandidType> candids) {
 
 
 abstract class CandidType {
-    static int type_code;
+    // static int type_code;
     bool get isTypeStance;
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i);
@@ -346,23 +349,25 @@ abstract class CandidType {
 }
 
 abstract class PrimitiveCandidType extends CandidType {
-    final dynamic value;
+    final value = null;
     bool get isTypeStance => this.value == null;
-    // static const int type_code;  // uncomment this if its not in the scope?
-    Uint8List T_forward() => leb128flutter.encodeSigned(type_code);
-
+    
+    // static int type_code;  // uncomment this if its not in the scope?
+    // Uint8List T_forward() => leb128flutter.encodeSigned(type_code);
     // this if still not work?
-    // Uint8List T_forward() {
-    //     for (MapEntry me in backwards_primtypes_opcodes_for_the_primtype_type_stances) {
-    //         if (this.runtimeType == me.value.runtimeType) {
-    //             return leb128flutter.encodeSigned(me.key);
-    //         } 
-    //     }
-    // }
+    Uint8List T_forward() {
+        for (MapEntry me in backwards_primtypes_opcodes_for_the_primtype_type_stances.entries) {
+            if (this.runtimeType == me.value.runtimeType) {
+                return leb128flutter.encodeSigned(me.key);
+            } 
+        }
+        throw Exception('should be a type_code of this static class in the backwards_primtypes... map');
+    }
+
 
     @override
     String toString() {
-        return super.toString() + ': ${this.value}';
+        return 'CandidType: ' + super.toString().substring(13,super.toString().length-1) + ': ${this.value}';
     }
 
 }
@@ -436,7 +441,7 @@ class Nat extends PrimitiveCandidType {
 
 class Int extends PrimitiveCandidType {
     static const int type_code = -4;
-    final covariant dynamic? value;// can be int or BigInt
+    final dynamic? value;// can be int or BigInt
     Int([this.value]) {
         if (!(value is BigInt) && !(value is int) && value!=null) {
             throw Exception('CandidType: Int value must be either a dart-int or a dart-BigInt.');
@@ -457,10 +462,12 @@ class Int extends PrimitiveCandidType {
 
 class Nat8 extends PrimitiveCandidType {
     static const int type_code = -5;
-    final covariant int? value;
+    final int? value;
     Nat8([this.value]) {
-        if (value!=null && (value<0 || value > pow(2, 8)-1) ) {
-            throw Exception('CandidType: Nat8 value can be between 0<=value && value <= 255 ');
+        if (value != null) {
+            if (value! < 0 || value! > pow(2, 8)-1 ) {
+                throw Exception('CandidType: Nat8 value can be between 0<=value && value <= 255 ');
+            }
         }
     }
  
@@ -477,18 +484,20 @@ class Nat8 extends PrimitiveCandidType {
     }
     
     Uint8List M_forward() {
-        return Uint8List.fromList([this.value]);
+        return Uint8List.fromList([this.value!]);
     }
 
 } 
 
 class Nat16 extends PrimitiveCandidType {
     static const int type_code = -6;
-    final covariant int? value;
+    final int? value;
     Nat16([this.value]) {
-        if (value!=null && (value<0 || value > pow(2, 16)-1) ) {
-            throw Exception('CandidType: Nat16 value can be between 0<=value && value <= ${pow(2, 16)-1} ');
-        }
+        if (value!=null) {
+            if (value! < 0 || value! > pow(2, 16)-1 ) {
+                throw Exception('CandidType: Nat16 value can be between 0<=value && value <= ${pow(2, 16)-1} ');            
+            }
+        }    
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -498,13 +507,13 @@ class Nat16 extends PrimitiveCandidType {
         // }
         // int value = int.parse(nat16_asabitstring, radix: 2);
         
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getUint16(0, endian: Endian.little);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getUint16(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Nat16(value), start_i+2);
         return m_func_tuple;          
     }
 
     Uint8List M_forward() {
-        String rstr = this.value.toRadixString(2);
+        String rstr = this.value!.toRadixString(2);
         List<String> bytes_bitstrings = [];
         while (rstr.length<16) {
             rstr = '0' + rstr;
@@ -521,10 +530,12 @@ class Nat16 extends PrimitiveCandidType {
 
 class Nat32 extends PrimitiveCandidType {
     static const int type_code = -7;
-    final covariant int? value;
+    final int? value;
     Nat32([this.value]) {
-        if (value!=null && (value<0 || value > pow(2, 32)-1) ) {
-            throw Exception('CandidType: Nat32 value can be between 0<=value && value <= ${pow(2, 32)-1} ');
+        if (value!=null) {
+            if (value! < 0 || value! > pow(2, 32)-1 ) {
+                throw Exception('CandidType: Nat32 value can be between 0<=value && value <= ${pow(2, 32)-1} ');
+            }
         }
     }
     
@@ -535,13 +546,13 @@ class Nat32 extends PrimitiveCandidType {
         // }
         // int value = int.parse(nat32_asabitstring, radix: 2);
         
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getUint32(0, endian: Endian.little);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getUint32(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Nat32(value), start_i+4);
         return m_func_tuple;                 
     }
 
     Uint8List M_forward() {
-        String rstr = this.value.toRadixString(2);
+        String rstr = this.value!.toRadixString(2);
         List<String> bytes_bitstrings = [];
         while (rstr.length<32) {
             rstr = '0' + rstr;
@@ -558,15 +569,15 @@ class Nat32 extends PrimitiveCandidType {
 
 class Nat64 extends PrimitiveCandidType {
     static const int type_code = -8;
-    final covariant dynamic? value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
+    final dynamic? value; // can be int or BigInt bc of the dart on the web is with the int-max-size: 2^53
     Nat64([this.value]) {
         if (!(value is BigInt) && !(value is int) && value!=null) {
             throw Exception('CandidType: Nat64 value must be either a dart-int or a dart-BigInt.');
         }
         if (value != null) {
             late BigInt bigintvalue;
-            if (value is int)) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
-            if (bigintvalue < BigInt.from(0) || bigintvalue > BigInt.from(2).pow(64)-1) ) {
+            if (value is int) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
+            if (bigintvalue < BigInt.from(0) || bigintvalue > BigInt.from(2).pow(64)-BigInt.from(1)) {
                 throw Exception('CandidType: Nat64 value can be between 0<=value && value <= ${BigInt.from(2).pow(64)-BigInt.from(1)} ');
             }
         }
@@ -574,14 +585,14 @@ class Nat64 extends PrimitiveCandidType {
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // get BigInt/int of the candid_nat64 
-        String nat64_asabitstring = bytes_as_the_bitstring(candidbytes.sublist(start_i, start_i + 8).reversed);
+        String nat64_asabitstring = bytes_as_the_bitstring(Uint8List.fromList(candidbytes.sublist(start_i, start_i + 8).reversed.toList()));
         BigInt va = BigInt.parse(nat64_asabitstring, radix: 2);
         MfuncTuple m_func_tuple = MfuncTuple(Nat64(va.isValidInt ? va.toInt() : va), start_i+8);
         return m_func_tuple;                 
     }
 
     Uint8List M_forward() {
-        String rstr = this.value.toRadixString(2);
+        String rstr = this.value!.toRadixString(2);
         List<String> bytes_bitstrings = [];
         while (rstr.length<64) {
             rstr = '0' + rstr;
@@ -597,11 +608,13 @@ class Nat64 extends PrimitiveCandidType {
 
 class Int8 extends PrimitiveCandidType {
     static const int type_code = -9;
-    final covariant int? value;
+    final int? value;
     Int8([this.value]) {
-        if (value!=null && (value<-128 || value > 127 )) {
-            throw Exception('CandidType: Int8 value must be between -128<=value && value <=127');
-        }
+        if (value!=null) {
+            if ( value! < -128 || value! > 127 ) {
+                throw Exception('CandidType: Int8 value must be between -128<=value && value <=127');
+            }
+        } 
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -612,7 +625,7 @@ class Int8 extends PrimitiveCandidType {
 
     Uint8List M_forward() {
         ByteData bytedata = ByteData(1);
-        bytedata.setInt8(0, this.value);
+        bytedata.setInt8(0, this.value!);
         return Uint8List.view(bytedata.buffer);
     }
 
@@ -620,44 +633,48 @@ class Int8 extends PrimitiveCandidType {
 
 class Int16 extends PrimitiveCandidType {
     static const int type_code = -10;
-    final covariant int? value;
+    final int? value;
     Int16([this.value]) {
-        if (value!=null && (value<pow(-2,15) || value > pow(2,15)-1 )) {
-            throw Exception('CandidType: Int16 value must be between ${pow(-2,15)} <= value && value <= ${pow(2,15)-1}');
+        if (value!=null) {
+            if (value! < pow(-2,15) || value! > pow(2,15)-1 ) {
+                throw Exception('CandidType: Int16 value must be between ${pow(-2,15)} <= value && value <= ${pow(2,15)-1}');
+            }
         }
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0, endian: Endian.little);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int16(value), start_i+2);
         return m_func_tuple;           
     }
 
     Uint8List M_forward() {
         ByteData bytedata = ByteData(2);
-        bytedata.setInt16(0, this.value, endian: Endian.little);
+        bytedata.setInt16(0, this.value!, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
 } 
 
 class Int32 extends PrimitiveCandidType {
     static const int type_code = -11;
-    final covariant int? value;
+    final int? value;
     Int32([this.value]) {
-        if (value!=null && (value<pow(-2,31) || value > pow(2,31)-1 )) {
-            throw Exception('CandidType: Int32 value must be between ${pow(-2,31)} <= value && value <= ${pow(2,31)-1}');
+        if (value!=null) { 
+            if (value! < pow(-2,31) || value! > pow(2,31)-1 ) {
+                throw Exception('CandidType: Int32 value must be between ${pow(-2,31)} <= value && value <= ${pow(2,31)-1}');
+            }
         }
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0, endian: Endian.little);
+        int value = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int32(value), start_i+4);
         return m_func_tuple;            
     }
 
     Uint8List M_forward() {
         ByteData bytedata = ByteData(4);
-        bytedata.setInt32(0, this.value, endian: Endian.little);
+        bytedata.setInt32(0, this.value!, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
 } 
@@ -665,22 +682,22 @@ class Int32 extends PrimitiveCandidType {
 // test on the web 
 class Int64 extends PrimitiveCandidType {
     static const int type_code = -12;
-    final covariant dynamic? value;
+    final dynamic? value;
     Int64([this.value]) {
         if (!(value is BigInt) && !(value is int) && value!=null) {
             throw Exception('CandidType: Int64 value must be either a dart-int or a dart-BigInt.');
         }
         if (value != null) {
             late BigInt bigintvalue;
-            if (value is int)) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
-            if (bigintvalue < BigInt.from(-2).pow(63) || bigintvalue > BigInt.from(2).pow(63)-1) ) {
+            if (value is int) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
+            if (bigintvalue < BigInt.from(-2).pow(63) || bigintvalue > BigInt.from(2).pow(63)-BigInt.from(1)) {
                 throw Exception('CandidType: Int64 value can be between ${BigInt.from(-2).pow(63)}<=value && value <= ${BigInt.from(2).pow(63)-BigInt.from(1)} ');
             }
         }
     }
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        String int64_asabitstring = bytes_as_the_bitstring(candidbytes.sublist(start_i, start_i + 8).reversed); // .reverse for the little-endian
+        String int64_asabitstring = bytes_as_the_bitstring(Uint8List.fromList(candidbytes.sublist(start_i, start_i + 8).reversed.toList())); // .reverse for the little-endian
         dynamic v = twos_compliment_bitstring_as_the_integer(int64_asabitstring, bit_size: 64); // int or BigInt
         return MfuncTuple(Int64(v), start_i+8);
     }
@@ -688,23 +705,25 @@ class Int64 extends PrimitiveCandidType {
     Uint8List M_forward() {
         String tc_bitstring = integers_as_the_twos_compliment_bitstring(this.value, bit_size: 64);
         Uint8List bytes = bitstring_as_the_bytes(tc_bitstring);
-        return Uint8List(bytes.reversed.toList());        
+        return Uint8List.fromList(bytes.reversed.toList());        
     }
 } 
 
 class Float32 extends PrimitiveCandidType {
     static const int type_code = -13;
-    final covariant double? value;
-    Float32([this.value]);
+    final double? value;
+    Float32([this.value]) {
+        // :do: make this limit the range of the values for the single-presscission
+    }
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0, endian: Endian.little);
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0, Endian.little);
         return MfuncTuple(Float32(value), start_i+4);     
     }
 
     Uint8List M_forward() {
         ByteData bytedata = ByteData(4);
-        bytedata.setFloat32(0, this.value, endian: Endian.little);
+        bytedata.setFloat32(0, this.value!, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
 
@@ -714,17 +733,17 @@ class Float32 extends PrimitiveCandidType {
 // : DO. [ make sure the floats can handle js and linux the same ]
 class Float64 extends PrimitiveCandidType {
     static const int type_code = -14;
-    final covariant double? value;
+    final double? value;
     Float64([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, endian: Endian.little); // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little); // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
         return MfuncTuple(Float64(value), start_i+8);    
     }
 
     Uint8List M_forward() {
         ByteData bytedata = ByteData(8);
-        bytedata.setFloat64(0, this.value, endian: Endian.little);
+        bytedata.setFloat64(0, this.value!, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
 
@@ -732,7 +751,7 @@ class Float64 extends PrimitiveCandidType {
 
 class Text extends PrimitiveCandidType {
     static const int type_code = -15;
-    final covariant String? value;
+    final String? value;
     Text([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -744,9 +763,10 @@ class Text extends PrimitiveCandidType {
     }
 
     Uint8List M_forward() {
-        Uint8List bytes = leb128flutter.encodeUnsigned(this.value.length);
-        bytes.addAll(utf8.encode(this.value));
-        return bytes;
+        List<int> bytes = [];
+        bytes.addAll(leb128flutter.encodeUnsigned(this.value!.length));
+        bytes.addAll(utf8.encode(this.value!));
+        return Uint8List.fromList(bytes);
     }
 } 
 
@@ -862,8 +882,8 @@ class Option extends ConstructType {
 
     Uint8List T_forward() {
         // is with the give-back of a sleb128-bytes of a type-table-i
-        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
-        Uint8List value_type_t_forward_bytes = this.value != null ? this.value.T_forward() : this.value_type.T_forward();
+        Uint8List t_bytes = leb128flutter.encodeSigned(Option.type_code);
+        Uint8List value_type_t_forward_bytes = this.value != null ? this.value!.T_forward() : this.value_type!.T_forward();
         t_bytes.addAll(value_type_t_forward_bytes);
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i); 
@@ -875,7 +895,7 @@ class Option extends ConstructType {
             bytes.add(0);
         } else if (this.value != null) {
             bytes.add(1);
-            bytes.addAll(this.value.M_forward());
+            bytes.addAll(this.value!.M_forward());
         }
         return Uint8List.fromList(bytes);
     }
@@ -945,7 +965,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {
         if (vec_len is int) { vec_len = BigInt.from(vec_len); }
         CandidBytes_i next_vec_item_start_i = leb128_bytes_tuple.item2;
         Vector vec = Vector();
-        for (BigInt i=BigInt.from(0);i<vec_len;i++) {
+        for (BigInt i=BigInt.from(0);i<vec_len;i=i+BigInt.one) {
             MfuncTuple m_func_tuple = this.values_type!.M(candidbytes, next_vec_item_start_i);
             vec.add(m_func_tuple.item1);
             next_vec_item_start_i = m_func_tuple.item2;
@@ -954,18 +974,18 @@ class Vector extends ConstructType with ListMixin<CandidType> {
     }
 
     Uint8List T_forward() {
-        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
+        Uint8List t_bytes = leb128flutter.encodeSigned(Vector.type_code);
         if (this.values_type == null && this.length == 0) {
             throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs a vector-values-type to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-param when creating this vector. Vector(values_type: Int64()/Text()/...)');
         }
-        Uint8List values_type_t_forward_bytes = this.values_type != null ? this.values_type.T_forward() : this[0].T_forward();
+        Uint8List values_type_t_forward_bytes = this.values_type != null ? this.values_type!.T_forward() : this[0].T_forward();
         t_bytes.addAll(values_type_t_forward_bytes);
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i);
     }
 
     Uint8List M_forward() {
-        Uint8List m_bytes = [];
+        Uint8List m_bytes = Uint8List(0);
         m_bytes.addAll(leb128flutter.encodeUnsigned(this.length));
         for (CandidType c in this) {
             m_bytes.addAll(c.M_forward());
@@ -1054,7 +1074,7 @@ class Record extends RecordAndVariantMap {
         dynamic record_len = leb128flutter.decodeUnsigned(record_len_find_leb128bytes_tuple.item1);
         if (record_len is int) { record_len = BigInt.from(record_len); }
         CandidBytes_i next_field_start_candidbytes_i = record_len_find_leb128bytes_tuple.item2;
-        for (BigInt i=BigInt.from(0);i<record_len;i++) {
+        for (BigInt i=BigInt.from(0);i<record_len;i=i+BigInt.one) {
             FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, next_field_start_candidbytes_i);
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128flutter.decodeUnsigned(field_id_hash_leb128_bytes) as int;
@@ -1081,23 +1101,24 @@ class Record extends RecordAndVariantMap {
     }
 
     Uint8List T_forward() {
-        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128flutter.encodeSigned(Record.type_code));
         Iterable<int> hash_keys = this.keys;
         t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length)); // make this length able to be a Bigint somehow
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128flutter.encodeUnsigned(hash_key));
-            t_bytes.addAll(this[hash_key].T_forward());
+            t_bytes.addAll(this[hash_key]!.T_forward());
         }
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i);
     }
 
     Uint8List M_forward() {
-        Uint8List m_bytes = [];
+        List<int> m_bytes = [];
         for (int hashkey in this.keys) {
-            m_bytes.addAll(this[hashkey].M_forward());
+            m_bytes.addAll(this[hashkey]!.M_forward());
         } 
-        return m_bytes;
+        return Uint8List.fromList(m_bytes);
     }
 
 }
@@ -1125,7 +1146,7 @@ class Variant extends RecordAndVariantMap {
         dynamic variant_len = leb128flutter.decodeUnsigned(variant_type_len_leb128bytes_tuple.item1);
         if (variant_len is int) { variant_len = BigInt.from(variant_len); }
         CandidBytes_i next_field_start_candidbytes_i = variant_type_len_leb128bytes_tuple.item2;
-        for (BigInt i=BigInt.from(0);i<variant_len;i++) {
+        for (BigInt i=BigInt.from(0);i < variant_len;i=i+BigInt.one) {
             FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, next_field_start_candidbytes_i);
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128flutter.decodeUnsigned(field_id_hash_leb128_bytes) as int;
@@ -1155,12 +1176,13 @@ class Variant extends RecordAndVariantMap {
     }
 
     Uint8List T_forward() {
-        Uint8List t_bytes = leb128flutter.encodeSigned(this.type_code);
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128flutter.encodeSigned(Variant.type_code));
         Iterable<int> hash_keys = this.keys;
         t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length));   // make this length able to be a Bigint somehow ?
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128flutter.encodeUnsigned(hash_key));
-            t_bytes.addAll(this[hash_key].T_forward());
+            t_bytes.addAll(this[hash_key]!.T_forward());
         }
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i);
@@ -1168,9 +1190,10 @@ class Variant extends RecordAndVariantMap {
 
     Uint8List M_forward() {
         if (this.keys.length > 1) { throw Exception('something went wrong, variant can only hold one value.'); }
-        Uint8List m_bytes = [];
+        List<int> m_bytes = [];
         m_bytes.addAll(leb128flutter.encodeUnsigned(0));
-        m_bytes.addAll(this.values[0].M_forward());
+        m_bytes.addAll(this.values.first.M_forward());
+        return Uint8List.fromList(m_bytes);
     }
 
 }

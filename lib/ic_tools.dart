@@ -42,10 +42,10 @@ Future<Map> ic_status() async {
 // }
 
 class Principal {
-    final Uint8List blob;
+    late final Uint8List blob;
     final String text;
     Principal(this.text) {
-        this.blob = icidtextasablob(this.text);
+        blob = icidtextasablob(this.text);
     }
     static Principal ofBlob(Uint8List blob) {
         Principal p = Principal(icidblobasatext(blob));
@@ -59,7 +59,7 @@ class Principal {
 
 class Canister {
     final Principal principal;
-    final String canisterbaseurl;
+    late final String canisterbaseurl;
 
     Canister(this.principal) {
         canisterbaseurl= icbaseurl + '/api/v2/canister/${principal.text}/';   

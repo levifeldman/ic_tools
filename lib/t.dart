@@ -20,11 +20,16 @@ Future<void> main() async {
 
 Future<void> ictest() async {
     print('trying ic');
-    Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');
+    Canister can = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
     Record record = Record.fromMap({'account': Text('c50accaa515fe677f04d6a608d306dce10ed0d46048aa5105cb549256f3c4433')});
     Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record])); // List<CandidType>
     List<CandidType> candids = c_backwards(sponse_bytes);
     print(candids);
+    Record rec = candids[0] as Record;
+    print(rec['e8s']);
+    print(rec.values);
+    print(rec.keys);
+
 
 // variant isTypeStance=falsec can  only contain one map item
 
