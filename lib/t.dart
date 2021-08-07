@@ -18,6 +18,8 @@ Future<void> main() async {
     await ictest();    
 }
 
+
+
 Future<void> ictest() async {
     print('trying ic');
     Canister can = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
@@ -26,9 +28,7 @@ Future<void> ictest() async {
     List<CandidType> candids = c_backwards(sponse_bytes);
     print(candids);
     Record rec = candids[0] as Record;
-    print(rec['e8s']);
-    print(rec.values);
-    print(rec.keys);
+    // print(rec['e8s']);
 
 
 // variant isTypeStance=falsec can  only contain one map item
@@ -70,7 +70,3 @@ Future<void> ictest() async {
 }
 
 
-
-tc(int c) {
-
-}

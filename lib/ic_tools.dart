@@ -8,7 +8,7 @@ import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:cbor/cbor.dart';
+// import 'package:cbor/cbor.dart';
 import 'package:typed_data/typed_data.dart';
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
@@ -40,6 +40,30 @@ Future<Map> ic_status() async {
 
 //     }
 // }
+
+
+// test this
+class ICPCountId {
+    final Principal principal;
+    late final String text;
+    late final Uint8List blob;
+    ICPCountId(this.principal, {Uint8List subaccount_bytes = Uint8List(32)}) {
+        if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.') }
+        List<int> blobl = [];    
+        blobl.addAll(hexstringasthebytes('0Aaccount-id'));
+        blobl.addAll(this.principal.blob);
+        blobl.addAll(subaccount_bytes);
+        blob = Uint8List.fromList(sha224.convert(blobl));
+        
+        Crc32 crc32 = Crc32();
+        crc32.add(blob);
+        List<int> text_l = crc32.close();
+        text_l.addAll(blob);
+        text = bytesasahexstring(text_l);
+        print(text);
+    }
+}
+
 
 class Principal {
     late final Uint8List blob;

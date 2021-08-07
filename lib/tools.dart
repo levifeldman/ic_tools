@@ -3,7 +3,7 @@ import 'package:http/http.dart';
 import 'dart:typed_data';
 
 
-Uint8List hexstringasabytes(String hex) {
+Uint8List hexstringasthebytes(String hex) {
     List<int> bytes = [];
     if (hex.substring(0,2)=='0x') {
         hex = hex.substring(2);
