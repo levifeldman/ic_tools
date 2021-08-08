@@ -4,13 +4,10 @@ import 'package:cbor/cbor.dart';
 import 'tools.dart';
 import 'ic_tools.dart';
 import 'candid.dart';
-
-import 'package:ed25519_edwards/ed25519_edwards.dart' as ed25519;
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
-
 import 'cross_platform_tools/cross_platform_tools.dart';
-import 'package:leb128/leb128.dart';
+import 'package:cryptography/dart.dart';
+import 'package:archive/archive.dart';
 
 
 
@@ -29,6 +26,9 @@ Future<void> ictest() async {
     print(candids);
     Record rec = candids[0] as Record;
     // print(rec['e8s']);
+
+    // ICPCountId icpcid = ICPCountId(Principal(''));
+
 
 
 // variant isTypeStance=falsec can  only contain one map item
@@ -68,5 +68,38 @@ Future<void> ictest() async {
 
 
 }
+
+
+
+
+// test this
+class ICPCountId {
+    final Principal principal;
+    late final String text;
+    late final Uint8List blob;
+    ICPCountId(this.principal, {List<int> subaccount_bytes = const []}) {
+        if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
+        List<int> blobl = [];    
+        blobl.addAll(hexstringasthebytes('0Aaccount-id'));
+        blobl.addAll(this.principal.blob);
+        blobl.addAll(subaccount_bytes.isEmpty ? Uint8List(32) : subaccount_bytes);
+        DartSha224 sha224 = DartSha224();
+        blob = Uint8List.fromList(sha224.hashSync(blobl).bytes);
+        
+        Crc32 crc32 = Crc32();
+        crc32.add(blob);
+        List<int> text_l = crc32.close();
+        text_l.addAll(blob);
+        text = bytesasahexstring(text_l);
+        print(text);
+    }
+}
+
+
+String principal_as_an_IcpCountId(Principal principal, {List<int> subaccount_bytes = const [] }) {
+
+}
+
+
 
 

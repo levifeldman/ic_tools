@@ -1,22 +1,23 @@
 // FOR THE DO: 
 
 // create Authorization-keys, call with an authorization. 
+// create legations-portunities
 
 // check each curance of the int/BigInt .parse(), make sure radix parameter is correct
 
 import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
-// import 'package:cbor/cbor.dart';
 import 'package:typed_data/typed_data.dart';
-import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
+import 'package:cryptography/dart.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 import 'tools.dart';
 import 'cross_platform_tools/cross_platform_tools.dart';
 import 'candid.dart';
 
+DartSha256 sha256 = DartSha256();
 
 
 String icbaseurl = 'https://ic0.app';
@@ -31,38 +32,47 @@ Future<Map> ic_status() async {
 
 
 
-// class Caller {
-//     late final Principal principal; //late?
+abstract class Caller {
+    final Uint8List public_key;
+    final Uint8List private_key;
+    late final Principal principal; 
 
-//     Uint8List authorize_call(Uint8List quest_id) // ? maybe put on an ed25519 class? think
+    Caller({required this.public_key, required this.private_key}) { 
+        this.principal = Principal.ofPublicKey(public_key); 
+    }
 
-//     Caller() {
+    Future<Uint8List> private_key_authorize_function(Uint8List message);
 
-//     }
-// }
-
-
-// test this
-class ICPCountId {
-    final Principal principal;
-    late final String text;
-    late final Uint8List blob;
-    ICPCountId(this.principal, {Uint8List subaccount_bytes = Uint8List(32)}) {
-        if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.') }
-        List<int> blobl = [];    
-        blobl.addAll(hexstringasthebytes('0Aaccount-id'));
-        blobl.addAll(this.principal.blob);
-        blobl.addAll(subaccount_bytes);
-        blob = Uint8List.fromList(sha224.convert(blobl));
-        
-        Crc32 crc32 = Crc32();
-        crc32.add(blob);
-        List<int> text_l = crc32.close();
-        text_l.addAll(blob);
-        text = bytesasahexstring(text_l);
-        print(text);
+    Future<Uint8List> authorize_call_questId(Uint8List questId) async {
+        List<int> message = []; 
+        message.addAll(hexstringasthebytes('0Aic-request'));
+        message.addAll(questId);
+        return await private_key_authorize_function(Uint8List.fromList(message));
     }
 }
+
+class CallerEd25519 extends Caller {    
+    CallerEd25519({required this.public_key, required this.private_key}) : super(public_key: public_key, private_key: private_key);
+    
+    Future<Uint8List> private_key_authorize_function(Uint8List message) async {
+        DartEd25519 ed25519 = DartEd25519();
+        SimpleKeyPairData simplekeypairdata = SimpleKeyPairData(this.private_key, publicKey: SimplePublicKey(this.public_key, type: KeyPairType.ed25519) , type: KeyPairType.ed25519 )        
+        Signature signature = await ed25519.sign(message, keyPair: simplekeypairdata ); 
+        return Uint8List.fromList(signature.bytes);
+
+
+    }
+
+    static Future<CallerEd25519> new() async {
+        DartEd25519 ed25519 = DartEd25519();
+        SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
+        List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
+        List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
+        return CallerEd25519(public_key: pub_key, private_key: pvate_key);
+    }
+
+}
+
 
 
 class Principal {
@@ -77,6 +87,12 @@ class Principal {
             throw Exception('ic id functions look ');
         }
         return p;
+    }
+    static Principal ofPublicKey(Uint8List pub_key) {
+        DartSha224 sha224 = DartSha224();
+        List<int> principal_bytes = sha224.hashSync(pub_key).bytes;
+        principal_bytes.add(2);
+        return Principal.ofBlob(Uint8List.fromList(principal_bytes));
     }
 }
 
@@ -104,7 +120,7 @@ class Canister {
     // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
     
 
-    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient}) async {        
+    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller}) async {        
         http.Request systemstatequest = http.Request('post', Uri.parse(canisterbaseurl + 'read_state'));
         systemstatequest.headers['Content-Type'] = 'application/cbor';
         List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
@@ -115,11 +131,19 @@ class Canister {
             "content": { // (quest-id is of this content-map)
                 "request_type": 'read_state',//(text)
                 "paths": pathsbytes,  // createstatequestpaths(paths, pathvariables),
-                "sender": Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "sender": caller != null ? caller.principal.blob : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
             }
         };
+        if (caller != null) {
+            getstatequestbodymap['sender_pubkey'] = caller.public_key;
+            Uint8List questId = icdatahash(canistercallquestbodymap['content']);
+            getstatequestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
+            // if (with the authority-legations) {
+            //     ...
+            // }
+        }
         systemstatequest.bodyBytes = cborflutter.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
         bool need_close_httpclient = false;
         if (httpclient==null) {
@@ -140,8 +164,7 @@ class Canister {
         }
     }
 
-    // return canister_sponse_bytes(?)
-    Future<dynamic> call({required String calltype, required String methodName, Uint8List? put_bytes}) async {
+    Future<dynamic> call({required String calltype, required String methodName, Uint8List? put_bytes, Caller? caller}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
         canistercallquest.headers['Content-Type'] = 'application/cbor';
@@ -153,15 +176,20 @@ class Canister {
                 "request_type": calltype,//(text)
                 "canister_id": principal.blob, //(blob)(29-bytes)
                 "method_name": methodName,//(text)(:name: canister-method.),
-                "arg": put_bytes!=null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
-                "sender": Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
+                "sender": caller != null ? caller.principal.blob : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
             }
         };
         Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha256.    
-        // auth fields set here if the call is with the authorization
-
+        if (caller != null) {
+            canistercallquestbodymap['sender_pubkey'] = caller.public_key;
+            canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
+            // if (with the authority-legations) {
+            //     ...
+            // }
+        }
         canistercallquest.bodyBytes = cborflutter.codeMap(canistercallquestbodymap,withaselfscribecbortag: true);
         var httpclient = http.Client();
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
@@ -244,7 +272,7 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
         List<List<int>> datafieldshashs = [];
         for (String key in datastructure.keys) {
             List<int> fieldhash = [];
-            fieldhash.addAll(sha256.convert(ascii.encode(key)).bytes);
+            fieldhash.addAll(sha256.hashSync(ascii.encode(key)).bytes);
             fieldhash.addAll(icdatahash(datastructure[key]));
             datafieldshashs.add(fieldhash);
             if (show==true) { print('fieldhash: ' + bytesasahexstring(fieldhash)); }
@@ -259,7 +287,7 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     else { 
         throw Exception('icdatahash: check: type of the datastructure: ${datastructure.runtimeType}');    
     } 
-    return Uint8List.fromList(sha256.convert(valueforthehash).bytes);
+    return Uint8List.fromList(sha256.hashSync(valueforthehash).bytes);
 }
  
 
@@ -269,7 +297,8 @@ String questidbytesasastring(Uint8List questIdBytes) {
 }
 
 Uint8List questidstringasabytes(String questIdString) {
-    return Uint8List.view(hexToBytes(questIdString.substring(2))!);
+    if (questIdString.substring(0,2)=='0x') { questIdString = questIdString.substring(2); }
+    return hexstringasthebytes(questIdString);
 }
 
 Uint8List createicquestnonce() {
@@ -295,19 +324,19 @@ Uint8List constructicsystemstatetreeroothash(List tree) {
     List<int> v;
     if (tree[0] == 0) {
         assert(tree.length==1); 
-        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-empty")).bytes;
+        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-empty")).bytes;
     } 
     if (tree[0] == 1) {
         assert(tree.length==3);
-        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-fork") + constructicsystemstatetreeroothash(tree[1]) + constructicsystemstatetreeroothash(tree[2])).bytes;
+        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-fork") + constructicsystemstatetreeroothash(tree[1]) + constructicsystemstatetreeroothash(tree[2])).bytes;
     }
     else if (tree[0] == 2) {
         assert(tree.length==3);
-        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-labeled") + tree[1] + constructicsystemstatetreeroothash(tree[2])).bytes;
+        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-labeled") + tree[1] + constructicsystemstatetreeroothash(tree[2])).bytes;
     }
     else if (tree[0] == 3) {
         assert(tree.length==2); 
-        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-leaf") + tree[1]).bytes;
+        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-leaf") + tree[1]).bytes;
     }
     else if (tree[0] == 4) {
         assert(tree.length==2);

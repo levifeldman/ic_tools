@@ -10,12 +10,10 @@ environment:
 dependencies:
   http: ^0.13.3
   cbor: 4.0.2
-  leb128: ^1.0.1
-  crypto: ^3.0.1 #maybe only 1 crypto lib
   typed_data: ^1.3.0 #check if use
-  archive: ^3.1.2 # check if use 
+  archive: ^3.1.2 # crc32 checksum functions
   base32: 2.0.0
-  # cryptography: 2.0.1 
+  cryptography: 2.0.2 
   ffi: ^1.0.0
   js: ^0.6.3
   tuple: ^2.0.0

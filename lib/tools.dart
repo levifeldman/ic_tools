@@ -5,7 +5,7 @@ import 'dart:typed_data';
 
 Uint8List hexstringasthebytes(String hex) {
     List<int> bytes = [];
-    if (hex.substring(0,2)=='0x') {
+    if (hex.substring(0,2)=='0x' || hex.substring(0,2)=='\\x') {
         hex = hex.substring(2);
     }
     if (hex.length % 2 != 0) {
