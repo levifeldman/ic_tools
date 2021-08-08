@@ -8,14 +8,17 @@
 import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
+import 'package:cryptography/cryptography.dart';
 import 'package:cryptography/dart.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 import 'tools.dart';
 import 'cross_platform_tools/cross_platform_tools.dart';
 import 'candid.dart';
+import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 
 DartSha256 sha256 = DartSha256();
 
@@ -34,42 +37,50 @@ Future<Map> ic_status() async {
 
 abstract class Caller {
     final Uint8List public_key;
+    Uint8List get public_key_DER;
     final Uint8List private_key;
     late final Principal principal; 
 
     Caller({required this.public_key, required this.private_key}) { 
-        this.principal = Principal.ofPublicKey(public_key); 
+        this.principal = Principal.ofPublicKeyDER(public_key_DER); 
     }
 
     Future<Uint8List> private_key_authorize_function(Uint8List message);
 
     Future<Uint8List> authorize_call_questId(Uint8List questId) async {
         List<int> message = []; 
-        message.addAll(hexstringasthebytes('0Aic-request'));
+        message.addAll(utf8.encode('Aic-request'));
         message.addAll(questId);
         return await private_key_authorize_function(Uint8List.fromList(message));
     }
 }
 
 class CallerEd25519 extends Caller {    
-    CallerEd25519({required this.public_key, required this.private_key}) : super(public_key: public_key, private_key: private_key);
-    
+    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key);
+    static Uint8List DER_public_key_start = Uint8List.fromList([
+        ...[48, 42], // SEQUENCE
+        ...[48, 5], // SEQUENCE
+        ...[6, 3], // OBJECT
+        ...[43, 101, 112], // Ed25519 OID
+        ...[3], // OBJECT
+        ...[32 + 1], // BIT STRING // ...[Ed25519PublicKey.RAW_KEY_LENGTH + 1],
+        ...[0], // 'no padding'
+    ]);
+    Uint8List get public_key_DER => Uint8List.fromList([ ...DER_public_key_start, ...this.public_key]);
     Future<Uint8List> private_key_authorize_function(Uint8List message) async {
         DartEd25519 ed25519 = DartEd25519();
-        SimpleKeyPairData simplekeypairdata = SimpleKeyPairData(this.private_key, publicKey: SimplePublicKey(this.public_key, type: KeyPairType.ed25519) , type: KeyPairType.ed25519 )        
+        SimpleKeyPairData simplekeypairdata = SimpleKeyPairData(this.private_key, publicKey: SimplePublicKey(this.public_key, type: KeyPairType.ed25519), type: KeyPairType.ed25519 );        
         Signature signature = await ed25519.sign(message, keyPair: simplekeypairdata ); 
         return Uint8List.fromList(signature.bytes);
-
-
     }
 
-    static Future<CallerEd25519> new() async {
-        DartEd25519 ed25519 = DartEd25519();
-        SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
-        List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
-        List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
-        return CallerEd25519(public_key: pub_key, private_key: pvate_key);
-    }
+    // static Future<CallerEd25519> new() async {
+    //     DartEd25519 ed25519 = DartEd25519();
+    //     SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
+    //     List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
+    //     List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
+    //     return CallerEd25519(public_key: pub_key, private_key: pvate_key);
+    // }
 
 }
 
@@ -83,14 +94,17 @@ class Principal {
     }
     static Principal ofBlob(Uint8List blob) {
         Principal p = Principal(icidblobasatext(blob));
-        if (p.blob != blob) {
+        if (aresamebytes(p.blob, blob) != true) {
+            print(p.blob);
+            print(blob);
             throw Exception('ic id functions look ');
         }
         return p;
     }
-    static Principal ofPublicKey(Uint8List pub_key) {
+    static Principal ofPublicKeyDER(Uint8List pub_key_der) {
         DartSha224 sha224 = DartSha224();
-        List<int> principal_bytes = sha224.hashSync(pub_key).bytes;
+        List<int> principal_bytes = [];
+        principal_bytes.addAll(sha224.hashSync(pub_key_der).bytes);
         principal_bytes.add(2);
         return Principal.ofBlob(Uint8List.fromList(principal_bytes));
     }
@@ -137,8 +151,8 @@ class Canister {
             }
         };
         if (caller != null) {
-            getstatequestbodymap['sender_pubkey'] = caller.public_key;
-            Uint8List questId = icdatahash(canistercallquestbodymap['content']);
+            getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
+            Uint8List questId = icdatahash(getstatequestbodymap['content']);
             getstatequestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
             // if (with the authority-legations) {
             //     ...
@@ -184,7 +198,7 @@ class Canister {
         };
         Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha256.    
         if (caller != null) {
-            canistercallquestbodymap['sender_pubkey'] = caller.public_key;
+            canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
             canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
             // if (with the authority-legations) {
             //     ...

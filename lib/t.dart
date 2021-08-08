@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'cross_platform_tools/cross_platform_tools.dart';
 import 'package:cryptography/dart.dart';
 import 'package:archive/archive.dart';
+import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 
 
 
@@ -20,14 +21,34 @@ Future<void> main() async {
 Future<void> ictest() async {
     print('trying ic');
     Canister can = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-    Record record = Record.fromMap({'account': Text('c50accaa515fe677f04d6a608d306dce10ed0d46048aa5105cb549256f3c4433')});
-    Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record])); // List<CandidType>
+    
+    Record record = Record.fromMap({'account': Text('6425c5ad9a44292013e75b60ab78f2f6f95ceeff4c8fceac00f06c3608ed0096')});
+    Uint8List sponse_bytes = await can.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record]));
     List<CandidType> candids = c_backwards(sponse_bytes);
-    print(candids);
-    Record rec = candids[0] as Record;
-    // print(rec['e8s']);
+    print(candids[0]);
+    
+    // Uint8List subaccount_bytes = Uint8List(32);
+    Record sendargs = Record.fromMap({
+        'memo': Nat64(123),
+        'amount': Record.fromMap({
+            'e8s': Nat64(04000000) // e8s is a nat64 number that needs to be divided by 100000000
+        }),
+        'fee': Record.fromMap({
+            'e8s': Nat64(00010000)
+        }),
+        // 'from_subaccount': Option(),
+        'to': Text('1df5c5b4f8042c2748238f6fa841b9d743f982691f6c3e84454288a8586804f5'),
+        // 'created_at_time': Option()
+    });
 
-    // ICPCountId icpcid = ICPCountId(Principal(''));
+    ed.KeyPair keypair = ed.KeyPair(ed.newKeyFromSeed(Uint8List.fromList([169, 212, 147, 120, 21, 161, 122, 213, 23, 151, 91, 115, 66, 204, 230, 203, 139, 12, 241, 243, 74, 195, 172, 239, 7, 6, 244, 68, 51, 72, 114, 7])), ed.PublicKey([45, 252, 83, 141, 240, 212, 250, 146, 217, 180, 96, 138, 121, 242, 236, 85, 211, 65, 239, 231, 172, 176, 160, 66, 21, 238, 13, 114, 136, 128, 208, 109]));    
+    CallerEd25519 caller = CallerEd25519(public_key: Uint8List.fromList(keypair.publicKey.bytes), private_key: ed.seed(keypair.privateKey));
+    
+    // print(principal_as_an_IcpCountId(caller.principal));
+    
+    Uint8List send_dfx_sponse_bytes = await can.call(calltype: 'call', methodName: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller); 
+    print(c_backwards(send_dfx_sponse_bytes));
+
 
 
 
@@ -72,32 +93,22 @@ Future<void> ictest() async {
 
 
 
-// test this
-class ICPCountId {
-    final Principal principal;
-    late final String text;
-    late final Uint8List blob;
-    ICPCountId(this.principal, {List<int> subaccount_bytes = const []}) {
-        if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
-        List<int> blobl = [];    
-        blobl.addAll(hexstringasthebytes('0Aaccount-id'));
-        blobl.addAll(this.principal.blob);
-        blobl.addAll(subaccount_bytes.isEmpty ? Uint8List(32) : subaccount_bytes);
-        DartSha224 sha224 = DartSha224();
-        blob = Uint8List.fromList(sha224.hashSync(blobl).bytes);
-        
-        Crc32 crc32 = Crc32();
-        crc32.add(blob);
-        List<int> text_l = crc32.close();
-        text_l.addAll(blob);
-        text = bytesasahexstring(text_l);
-        print(text);
-    }
-}
-
-
-String principal_as_an_IcpCountId(Principal principal, {List<int> subaccount_bytes = const [] }) {
-
+String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_bytes }) {
+    subaccount_bytes ??= Uint8List(32);
+    if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
+    List<int> blobl = [];
+    blobl.addAll(utf8.encode('Aaccount-id'));
+    blobl.addAll(principal.blob);
+    blobl.addAll(subaccount_bytes);
+    DartSha224 sha224 = DartSha224();
+    Uint8List blob = Uint8List.fromList(sha224.hashSync(blobl).bytes);
+    Crc32 crc32 = Crc32();
+    crc32.add(blob);
+    List<int> text_format_bytes = [];
+    text_format_bytes.addAll(crc32.close());
+    text_format_bytes.addAll(blob);
+    String text_format = bytesasahexstring(text_format_bytes);
+    return text_format;
 }
 
 

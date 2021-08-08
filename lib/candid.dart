@@ -914,6 +914,11 @@ class Vector extends ConstructType with ListMixin<CandidType> {
             }
         } 
     }
+    static Vector fromList(Iterable<CandidType> list ) {
+        Vector vec = Vector();
+        vec.addAll(list);
+        return vec;
+    }
 
     List<CandidType> _list = [];
     _canputinthevectortypecheck(CandidType new_c) {
