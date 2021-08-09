@@ -281,7 +281,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
 
 // backwards
 List<CandidType> c_backwards(Uint8List candidbytes) {
-    print(bytesasahexstring(candidbytes));
+    // print(bytesasahexstring(candidbytes));
     if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
     CandidBytes_i param_count_i = crawl_type_table(candidbytes);
     List<CandidType> candids = crawl_memory_bytes(candidbytes, param_count_i);

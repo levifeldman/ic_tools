@@ -49,7 +49,7 @@ abstract class Caller {
 
     Future<Uint8List> authorize_call_questId(Uint8List questId) async {
         List<int> message = []; 
-        message.addAll(utf8.encode('Aic-request'));
+        message.addAll(utf8.encode('\x0Aic-request'));
         message.addAll(questId);
         return await private_key_authorize_function(Uint8List.fromList(message));
     }
@@ -219,21 +219,29 @@ class Canister {
             int c = 0;
             while (!['replied','rejected','done'].contains(callstatus) && c <= 15) {
                 c += 1;
-                print(':poll of the system-state.');
+                // print(':poll of the system-state.');
                 await Future.delayed(Duration(seconds:2));
                 pathsvalues = await state( 
                     paths: [
                         ['time'],
                         ['request_status', questId, 'status'], 
-                        ['request_status', questId, 'reply']
+                        ['request_status', questId, 'reply'],
+                        ['request_status', questId, 'reject_code'],
+                        ['request_status', questId, 'reject_message']
                     ], 
-                    httpclient: httpclient 
+                    httpclient: httpclient,
+                    caller: caller 
                 ); 
                 callstatus = pathsvalues[1];            
             }
             // print(pathsvalues);
             if (callstatus=='replied') {
                 canistersponse = Uint8List.fromList(pathsvalues[2]);
+            } else if (callstatus=='rejected') {
+                throw Exception('Call Reject: reject_code: ${pathsvalues[3]}: ${system_call_reject_codes[pathsvalues[3]]}: ${pathsvalues[4]}.');
+            } else if (callstatus=='done') {
+                print('call-status is "done"');
+                throw Exception('');
             }
         } 
         else 
@@ -249,7 +257,13 @@ class Canister {
 
 }
 
-
+Map<int, String> system_call_reject_codes = {
+    1: 'SYS_FATAL', //, Fatal system error, retry unlikely to be useful.',
+    2: 'SYS_TRANSIENT', //, Transient system error, retry might be possible.',
+    3: 'DESTINATION_INVALID', //, Invalid destination (e.g. canister/account does not exist)',
+    4: 'CANISTER_REJECT', // , Explicit reject by the canister.',
+    5: 'CANISTER_ERROR', //, Canister error (e.g., trap, no response)' 
+};
 
 
 
