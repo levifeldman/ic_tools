@@ -8,10 +8,10 @@ import 'candid.dart';
 import 'tools.dart';
 import 'icp.dart';
 
-
+Canister management = Canister(Principal('aaaaa-aa'));
+Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
 Canister ledger = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-Canister management = Canister('aaaaa-aa');
-Canister cycles_mint = Canister('rkp4c-7iaaa-aaaaa-aaaca-cai');
+Canister governance = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
 
 
 class ICPTs extends Record {
@@ -85,7 +85,11 @@ Future<Nat64> send_dfx(Caller caller, String fortheicpid, double mount, {double?
 }
 
 
+double tcycles_for_the_icp_conversion_rate() {
+    // gives-back: 1-Tcycles/
 
+    return 
+}
 
 
 Principal create_canister(Caller caller) {
@@ -102,19 +106,35 @@ Principal create_canister(Caller caller) {
 //   CanisterCreated : principal;
 //   ToppedUp;
 // };
-Future<Variant> mint_cycles(Caller caller, {required Principal canister, double? max_fee, List<int>? from_subaccount_bytes }) async {
+Future<Variant> mint_cycles({required Caller caller, required double tcycles_mount, required String create_or_tpup, Principal? tpup_canister_principal, double? max_fee, List<int>? from_subaccount_bytes }) async {
     max_fee ??= 0.0001;
+    double tcycles_icp_mount = 
 
-    Nat64 block_height = send_dfx(caller, )
+    Nat64 block_height = send_dfx(caller, principal_as_an_IcpCountId(cycles_mint.principal), )
+    
     Record notifycanisterargs = Record.fromMap({
         'block_height' : block_height,
         'max_fee': ICPTs(max_fee),
-        'to_canister': Principal; // ledger canister candid Principal
-        'to_subaccount': Option(value: Vector.Blob(caller)) , // controller of the canister to create , or canister to top-up
+        'to_canister': Principal; // cycles-mint canister candid Principal
     });
     if (from_subaccount_bytes != null ) {
-        notifycanisterargs['from_subaccount'] = Option(value: Vector.Blob(from_subaccount_bytes)),
+        notifycanisterargs['from_subaccount'] = Option(value: Blob(from_subaccount_bytes)),
     }
+    if (create_or_tpup == 'create') {
+        if (tpup_canister_principal != null) {
+            throw Exception('if creating a new canister, leave tpup_canister_principal as a null.');
+        }
+        notifycanisterargs['to_subaccount'] = Option(value: Blob(caller.principal.bytes)); // controller of the canister to create , or canister to top-up // make this controller of the create an optional name-parameter
+    } 
+    else if (create_or_tpup == 'tpup') {
+        if (tpup_canister_principal == null) {
+            throw Exception('if tpup (top-up) of a canister, set tpup_canister_principal as the canister\'s-principal');
+        }
+        notifycanisterargs['to_subaccount'] = Option(value: Blob(tpup_canister_principal.bytes));
+    }
+    await ledger.call(calltype: 'call', methodName: 'notify_dfx', put_bytes: c_forward([notifycanisterargs]), caller: caller);
+
+    
 }
 
 

@@ -348,6 +348,7 @@ abstract class CandidType {
     Uint8List M_forward();
 }
 
+
 abstract class PrimitiveCandidType extends CandidType {
     final value = null;
     bool get isTypeStance => this.value == null;
@@ -372,13 +373,7 @@ abstract class PrimitiveCandidType extends CandidType {
 
 }
 
-abstract class ConstructType extends CandidType {
-    // static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i);
-}
 
-abstract class ReferenceType extends CandidType {}
-
-abstract class FunctionAnnotation extends CandidType {}
 
 
 
@@ -806,6 +801,13 @@ class Empty extends PrimitiveCandidType {
 // make sure constypes with a isTypeStance=true have their value_type with the isTypeStance=true
 
 
+
+abstract class ConstructType extends CandidType {
+    // static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i);
+}
+
+
+
 int put_t_in_the_type_table_forward(List<int> t_bytes) {
     int? same_type_i;
     for (int i=0; i < type_table_forward.length;i++) {
@@ -902,7 +904,7 @@ class Option extends ConstructType {
 
 
 // :test if the List.of and List.from constructors are on this class. careful that they void-possible for the bypass of the _canputinthevectortypecheck.
-class Vector extends ConstructType with ListMixin<CandidType> {         
+class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {         
     static const int type_code = -19;
     final CandidType? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
     final bool isTypeStance;
@@ -913,19 +915,13 @@ class Vector extends ConstructType with ListMixin<CandidType> {
             }
         } 
     }
-    static Vector fromList(Iterable<CandidType> list ) {
+    static Vector<T> oftheList(Iterable<T> list ) {
         Vector vec = Vector();
         vec.addAll(list);
         return vec;
     }
-    static Vector Blob(Iterable<int> bytes_list) {
-        Uint8List bytes = Uint8List.fromList(bytes_list.toList());
-        Vector vec = Vector();
-        vec.addAll(bytes.map((byte)=>Nat8(byte)));
-        return vec;
-    }
 
-    List<CandidType> _list = [];
+    List<T> _list = <T>[];
     _canputinthevectortypecheck(CandidType new_c) {
         if (this.isTypeStance == true) { // test this throw 
             throw Exception('a Vector with a isTypeStance=true is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
@@ -935,7 +931,7 @@ class Vector extends ConstructType with ListMixin<CandidType> {
                 throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field');
             }
         }
-        if (_list.length > 0) {
+        if (_list.length > 0) { // dp i need this now that i have the Vector<T extends CandidType> ? i think yes because when Vector() without a <SomeCandidType> it still must be the same specific candidtype
             _list.forEach((CandidType list_c) { 
                 // test this if
                 if (list_c.runtimeType != new_c.runtimeType) { throw Exception(':CandidType-values in a Vector-list are with the quirement of the same-specific-candidtype-type. :type of the vector-values-now: ${this[0].runtimeType}.'); }
@@ -944,17 +940,17 @@ class Vector extends ConstructType with ListMixin<CandidType> {
     }
     int get length => _list.length;
     set length(int l) => throw Exception('why are you setting the length of the vector here?');
-    CandidType operator [](int i) => _list[i];
-    void operator []=(int i, CandidType v) { 
+    T operator [](int i) => _list[i];
+    void operator []=(int i, T v) { 
         _canputinthevectortypecheck(v);
         _list[i] = v;
     }
-    void add(CandidType c) { 
+    void add(T c) { 
         _canputinthevectortypecheck(c);
         _list.add(c);
     }
-    void addAll(Iterable<CandidType> candids) {    
-        candids.forEach((CandidType c){
+    void addAll(Iterable<T> candids) {    
+        candids.forEach((T c){
             if (c.runtimeType != candids.first.runtimeType) {
                 throw Exception('each list-value in an addAll of a Vector must be the same type');
             }
@@ -1004,6 +1000,24 @@ class Vector extends ConstructType with ListMixin<CandidType> {
     }
 }
 
+
+class Blob extends Vector<Nat8> {
+    Uint8List get bytes => Uint8List.fromList(this.map((Nat8 nat8byte)=>nat8byte.value));
+    Blob(Iterable<int> bytes_list) {
+        this.addAll(bytes_list);
+    }
+    int operator [](int i) => super[i].value;
+    void operator []=(int i, int v) { 
+        super[i] = Nat8(v);
+    }
+    void add(int byte) { 
+        super.add(Nat8(byte));
+    }
+    void addAll(Iterable<int> bytes_list) {  
+        List<Nat8> nat8list = bytes_list.map((int byte)=>Nat8(byte)).toList();
+        super.addAll(nat8list);
+    }
+}
 
 
 
@@ -1072,7 +1086,7 @@ class Record extends RecordAndVariantMap {
     static const int type_code = -20;
     Record({isTypeStance=false}) : super(isTypeStance: isTypeStance);
     
-    static fromMap(Map<dynamic, CandidType> record_map, {isTypeStance=false}) { // Map<String or int, CandidType>
+    static oftheMap(Map<dynamic, CandidType> record_map, {isTypeStance=false}) { // Map<String or int, CandidType>
         Record record = Record(isTypeStance: isTypeStance);
         for (MapEntry mkv in record_map.entries) { record[mkv.key] = mkv.value; }
         return record;
@@ -1144,7 +1158,7 @@ class Variant extends RecordAndVariantMap {
         }
         super[key] = value;
     }
-    static fromMap(Map<dynamic, CandidType> variant_map, {isTypeStance=false}) { // Map<String or int, CandidType>
+    static oftheMap(Map<dynamic, CandidType> variant_map, {isTypeStance=false}) { // Map<String or int, CandidType>
         Variant variant = Variant(isTypeStance: isTypeStance);
         for (MapEntry mkv in variant_map.entries) { variant[mkv.key] = mkv.value; }
         return variant;
@@ -1212,10 +1226,68 @@ class Variant extends RecordAndVariantMap {
 // Vector()..addAll([Variant.fromMap({'A':a_value}), Variant.fromMap({'B':b_value}), Variant.fromMap({'C':c_value})]);
 
 
-class CFunctionReference extends ReferenceType {
+// ----------------------------------------------
+
+
+abstract class ReferenceType extends CandidType {
+    bool get isOpaque;
+}
+
+
+
+class FunctionReference extends ReferenceType {
     static const int type_code = -22;
 
     bool get isTypeStance => ;
+    bool get isOpaque;
+
+    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+        
+    } 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+
+    }
+    
+    Uint8List T_forward() {
+
+    }
+    Uint8List M_forward() {
+
+    }
+
+}
+
+
+class ServiceReference extends ReferenceType {
+    static const int type_code = -23;
+
+    bool get isTypeStance => ;
+    bool get isOpaque;
+    
+    final Vector<Nat8> blob;
+
+    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+        
+    } 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+
+    }
+    
+    Uint8List T_forward() {
+
+    }
+    Uint8List M_forward() {
+
+    }
+
+}
+
+
+class PrincipalReference extends ReferenceType {
+    static const int type_code = -24;
+
+    bool get isTypeStance => ;
+    bool get isOpaque;
     
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         
@@ -1225,11 +1297,25 @@ class CFunctionReference extends ReferenceType {
     }
     
     
-    Uint8List T_forward();
-    Uint8List M_forward();
+    Uint8List T_forward() {
+
+    }
+    Uint8List M_forward() {
+
+    }
 
 }
 
 
 
+
+
+
+
+
+
+
+
+
+abstract class FunctionAnnotation extends CandidType {}
 

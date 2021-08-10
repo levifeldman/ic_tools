@@ -35,6 +35,34 @@ Future<Map> ic_status() async {
 
 
 
+
+class Principal {
+    late final Uint8List bytes;
+    final String text;
+    Principal(this.text) {
+        bytes = icidtextasabytes(this.text);
+    }
+    static Principal oftheBytes(Uint8List bytes) {
+        Principal p = Principal(icidbytesasatext(bytes));
+        if (aresamebytes(p.bytes, bytes) != true) {
+            // print(p.bytes);
+            // print(bytes);
+            throw Exception('ic id functions look ');
+        }
+        return p;
+    }
+    static Principal ofPublicKeyDER(Uint8List pub_key_der) {
+        DartSha224 sha224 = DartSha224();
+        List<int> principal_bytes = [];
+        principal_bytes.addAll(sha224.hashSync(pub_key_der).bytes);
+        principal_bytes.add(2);
+        return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
+    }
+}
+
+
+
+
 abstract class Caller {
     final Uint8List public_key;
     Uint8List get public_key_DER;
@@ -86,30 +114,6 @@ class CallerEd25519 extends Caller {
 
 
 
-class Principal {
-    late final Uint8List blob;
-    final String text;
-    Principal(this.text) {
-        blob = icidtextasablob(this.text);
-    }
-    static Principal ofBlob(Uint8List blob) {
-        Principal p = Principal(icidblobasatext(blob));
-        if (aresamebytes(p.blob, blob) != true) {
-            print(p.blob);
-            print(blob);
-            throw Exception('ic id functions look ');
-        }
-        return p;
-    }
-    static Principal ofPublicKeyDER(Uint8List pub_key_der) {
-        DartSha224 sha224 = DartSha224();
-        List<int> principal_bytes = [];
-        principal_bytes.addAll(sha224.hashSync(pub_key_der).bytes);
-        principal_bytes.add(2);
-        return Principal.ofBlob(Uint8List.fromList(principal_bytes));
-    }
-}
-
 
 class Canister {
     final Principal principal;
@@ -120,14 +124,14 @@ class Canister {
     }
 
     Future<Uint8List> module_hash() async {
-        List<dynamic> paths_values = await state(paths: [['canister', this.principal.blob, 'module_hash']]);
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'module_hash']]);
         return paths_values[0] as Uint8List;
     }
     Future<List<Principal>> controllers() async {
-        List<dynamic> paths_values = await state(paths: [['canister', this.principal.blob, 'controllers']]);
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'controllers']]);
         List<dynamic> controllers_list = cborflutter.cborbytesasadart(paths_values[0]); //?buffer? orr List
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
-        List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.ofBlob(controller_bytes)).toList();
+        List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
     }
     
@@ -145,7 +149,7 @@ class Canister {
             "content": { // (quest-id is of this content-map)
                 "request_type": 'read_state',//(text)
                 "paths": pathsbytes,  // createstatequestpaths(paths, pathvariables),
-                "sender": caller != null ? caller.principal.blob : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
             }
@@ -188,10 +192,10 @@ class Canister {
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
-                "canister_id": principal.blob, //(blob)(29-bytes)
+                "canister_id": principal.bytes, //(blob)(29-bytes)
                 "method_name": methodName,//(text)(:name: canister-method.),
                 "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
-                "sender": caller != null ? caller.principal.blob : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
             }
@@ -489,7 +493,7 @@ dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path) {
 
 
 
-String icidblobasatext(Uint8List idblob) {
+String icidbytesasatext(Uint8List idblob) {
     // Grouped(Base32(CRC32(b) · b)) 
     // The textual representation is conventionally printed with lower case letters, but parsed case-insensitively.
     Crc32 crc32 = Crc32();
@@ -506,7 +510,7 @@ String icidblobasatext(Uint8List idblob) {
     return finalstring.toLowerCase();
 }
 
-Uint8List icidtextasablob(String idtext) {
+Uint8List icidtextasabytes(String idtext) {
     String idbase32code = idtext.replaceAll('-', '');
     if (idbase32code.length%2!=0) { idbase32code+='='; }
     return Uint8List.fromList(base32.decode(idbase32code).sublist(4));
