@@ -21,9 +21,10 @@ Future<void> main() async {
 
 
 Future<void> ictest() async {
-    print('trying ic');
+    // print('trying ic');
     
-    // Uint8List subaccount_bytes = Uint8List(32);
+    print(icidtextasablob('aaaaa-aa'));
+
 
 
     CallerEd25519 caller = CallerEd25519(public_key: Uint8List.fromList([45, 252, 83, 141, 240, 212, 250, 146, 217, 180, 96, 138, 121, 242, 236, 85, 211, 65, 239, 231, 172, 176, 160, 66, 21, 238, 13, 114, 136, 128, 208, 109]), private_key: Uint8List.fromList([169, 212, 147, 120, 21, 161, 122, 213, 23, 151, 91, 115, 66, 204, 230, 203, 139, 12, 241, 243, 74, 195, 172, 239, 7, 6, 244, 68, 51, 72, 114, 7]));

@@ -376,11 +376,10 @@ abstract class ConstructType extends CandidType {
     // static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i);
 }
 
-
 abstract class ReferenceType extends CandidType {}
+
 abstract class FunctionAnnotation extends CandidType {}
 
-// class MethodType extends NonPrimitiveCandidType {}
 
 
 
@@ -919,6 +918,12 @@ class Vector extends ConstructType with ListMixin<CandidType> {
         vec.addAll(list);
         return vec;
     }
+    static Vector Blob(Iterable<int> bytes_list) {
+        Uint8List bytes = Uint8List.fromList(bytes_list.toList());
+        Vector vec = Vector();
+        vec.addAll(bytes.map((byte)=>Nat8(byte)));
+        return vec;
+    }
 
     List<CandidType> _list = [];
     _canputinthevectortypecheck(CandidType new_c) {
@@ -1207,7 +1212,23 @@ class Variant extends RecordAndVariantMap {
 // Vector()..addAll([Variant.fromMap({'A':a_value}), Variant.fromMap({'B':b_value}), Variant.fromMap({'C':c_value})]);
 
 
+class CFunctionReference extends ReferenceType {
+    static const int type_code = -22;
 
+    bool get isTypeStance => ;
+    
+    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+        
+    } 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+
+    }
+    
+    
+    Uint8List T_forward();
+    Uint8List M_forward();
+
+}
 
 
 
