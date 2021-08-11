@@ -1269,6 +1269,7 @@ class Variant extends RecordAndVariantMap {
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 
+
 abstract class ReferenceType extends CandidType {
     bool get isOpaque;
 }
@@ -1294,9 +1295,9 @@ class FunctionReference extends ReferenceType {
     final bool isOneWay;  
 
     final ServiceReference? service;
-    final Text? service_name;
+    final Text? method_name;
 
-    FunctionReference({required this.in_types, required this.out_types, this.isQuery=false, this.isOneWay=false, this.service, this.service_name, this.isTypeStance=false}) {
+    FunctionReference({required this.in_types, required this.out_types, this.isQuery=false, this.isOneWay=false, this.service, this.method_name, this.isTypeStance=false}) {
         for (List<CandidType> types_list in [in_types, out_types]) {
             for (CandidType typestance in types_list) {
                 if (typestance.isTypeStance==false) {
@@ -1304,11 +1305,11 @@ class FunctionReference extends ReferenceType {
                 }
             }
         }
-        if ( (this.service != null && this.service_name == null) || (this.service == null && this.service_name != null)) {
-            throw Exception('CandidType: FunctionReference service and service_name must be given both together or both null.');
+        if ( (this.service != null && this.method_name == null) || (this.service == null && this.method_name != null)) {
+            throw Exception('CandidType: FunctionReference service and method_name must be given both together or both null.');
         }
         if (this.isTypeStance==true && this.service != null) {
-            throw Exception('CandidType: FunctionReference service & service_name must be null when isTypeStance==true');
+            throw Exception('CandidType: FunctionReference service & method_name must be null when isTypeStance==true');
         }
     }
 
@@ -1349,13 +1350,29 @@ class FunctionReference extends ReferenceType {
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         late CandidBytes_i next_i;
-        ServiceReference? service;
-        Text? service_name;
+        ServiceReference? service_value;
+        Text? method_name_value;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            ServiceReference service = ServiceReference(); // service with 0 methods or with 1 method which is this one.?
+            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true).M(candidbytes, start_i + 1); 
+            service_value = service_m_func_tuple.item1; 
+            MfuncTuple method_name_text_m_func_tuple = Text().M(candidbytes, service_m_func_tuple.item2);
+            method_name_value = method_name_text_m_func_tuple.item1;
+            next_i = method_name_text_m_func_tuple.item2;
         }
+        FunctionReference func_fer = FunctionReference(
+            in_types: this.in_types, 
+            out_types: this.out_types, 
+            isQuery: this.isQuery, 
+            isOneWay: this.isOneWay, 
+            service: service_value, 
+            method_name: method_name_value
+        );
+        if (func_fer.service != null) {
+            func_fer.service.methods[func_fer.method_name] = func_fer; // putting this function-reference as a method on this function_reference.service
+        }
+        return func_fer;
     }
     
     Uint8List T_forward() {
@@ -1372,9 +1389,16 @@ class ServiceReference extends ReferenceType {
     static const int type_code = -23;
 
     bool get isTypeStance => ;
-    bool get isOpaque;
+    bool get isOpaque => blob == null;
     
     final Blob? blob; 
+
+    final Map<Text, FunctionReference> methods = {}; // final?
+
+    ServiceReference({this.methods}) {
+
+    }
+
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         
