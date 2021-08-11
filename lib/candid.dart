@@ -1409,27 +1409,45 @@ class FunctionReference extends ReferenceType {
 class ServiceReference extends ReferenceType {
     static const int type_code = -23;
 
-    bool get isTypeStance => ;
-    bool get isOpaque => blob == null;
-    
+    final bool isTypeStance;
     final Blob? blob; 
+    bool get isOpaque => blob == null;
+    Map<Text, FunctionReference> methods;   // final?
 
-    final Map<Text, FunctionReference> methods = {}; // final?
-
-    ServiceReference({this.methods}) {
-
+    ServiceReference({this.blob, this.methods={}, this.isTypeStance=false}) {
+        if (isTypeStance==true && this.blob != null) {
+            throw Exception('blob must be null when isTypeStance==true');
+        }
     }
-
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        
 
     }
     
     Uint8List T_forward() {
-
+        if (this.isTypeStance==true) {
+            throw Exception('Cannot serialize this ServiceReference because it has a isTypeStance=true, try to do ServiceReference with an isTypeStance=false');
+        }
+        for (MapEntry<Text, FunctionReference> method_ref in this.methods.entries) {
+            if (method_ref.key.isTypeStance == true) {
+                throw Exception('Cannot serialize this ServiceReference because it has a method with a name: CandidType: Text with an empty String, try setting the method-name to a Text(\'sampletext\')');
+            }
+            if (method_ref.value.isTypeStance == true) {
+                throw Exception('Cannot serialize this ServiceReference because it has a method-FunctionReference with an isTypeStance=true, try to make the methods-FunctionReferences with the isTypeStance=false');
+            }
+        }
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128flutter.encodeSigned(ServiceReference.type_code));
+        t_bytes.addAll(leb128flutter.encodeUnsigned(this.methods.keys.length));
+        for (MapEntry kv in this.methods.entries) { // does this need sort? 
+            t_bytes.addAll(kv.key.M_forward()); // Text
+            t_bytes.addAll(kv.value.M_forward()); // FunctionReference
+        } 
+        return Uint8List.fromList(t_bytes);
     }
     Uint8List M_forward() {
 
