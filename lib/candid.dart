@@ -1279,6 +1279,24 @@ abstract class ReferenceType extends CandidType {
 
 
 
+
+// helper function for FuntionReference M_backwards
+CandidType type_table_ference_as_the_type_stance(TypeTableReference type_table_fer) {
+    CandidType type_table_type = type_table[type_table_fer.type_table_i];
+    if (type_table_type is TypeTableReference) {
+        type_table_type = type_table_ference_as_the_type_stance(type_table_type);
+    } 
+    if (type_table_type is TypeTableReference) {
+        throw Exception('something cursion is wrong');
+    }
+    if (type_table_type.isTypeStance==false) {
+        throw Exception('this should be true');
+    }
+    return type_table_type;
+}
+
+
+
 class FunctionReference extends ReferenceType {
     static const int type_code = -22;
 
@@ -1358,18 +1376,25 @@ class FunctionReference extends ReferenceType {
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true).M(candidbytes, start_i + 1); 
+            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true).M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
             service_value = service_m_func_tuple.item1; 
             MfuncTuple method_name_text_m_func_tuple = Text().M(candidbytes, service_m_func_tuple.item2);
             method_name_value = method_name_text_m_func_tuple.item1;
             next_i = method_name_text_m_func_tuple.item2;
+        }
+        for (List<CandidType> types_list in [this.in_types, this.out_types]) {
+            for(int i=0;i<types_list.length;i++) {
+                if (types_list[i] is TypeTableReference) {
+                    types_list[i] = type_table_ference_as_the_type_stance(types_list[i])
+                }
+            }
         }
         FunctionReference func_fer = FunctionReference(
             in_types: this.in_types, 
             out_types: this.out_types, 
             isQuery: this.isQuery, 
             isOneWay: this.isOneWay, 
-            service: service_value, 
+            service: service_value,    // service.methods is empty bc method_name is shows and service.id can be there is the service is not-opaque
             method_name: method_name_value
         );
         if (func_fer.service != null) {
@@ -1414,30 +1439,61 @@ class ServiceReference extends ReferenceType {
     static const int type_code = -23;
 
     final bool isTypeStance;
-    final Blob? blob; 
-    bool get isOpaque => blob == null;
-    Map<Text, FunctionReference> methods; 
+    final Blob? id; 
+    bool get isOpaque => id == null;
+    Map<Text, FunctionReference> methods; // should hold either TypeTableReference or CandidType
+    final Map<Text, CandidType>? methods_types; // for the [de]coding of the methtypes  when some may be TypeTableReferences at this point
 
-    ServiceReference({this.blob, this.methods={}, this.isTypeStance=false}) {
-        if (isTypeStance==true && this.blob != null) {
-            throw Exception('blob must be null when isTypeStance==true');
+    ServiceReference({this.id, this.methods={}, this.isTypeStance=false, this.methods_types}) {
+        if (isTypeStance==true) {
+            if (this.id != null) {
+                throw Exception('id must be null when isTypeStance==true'); // because if its a type-stance that means we only have its data of the type_table and havent called M_backwards() on it yet so we dont know if it has a blob id or not  
+            }
+        } else {
+            if (this.methods_types != null) {
+                throw Exception('methods_types can only be given when isTypeStance==true')
+            }
         }
     }
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        Map<Text, FunctionReference> methods = {};
+        List<CandidType> methods_types = {};
         FindLeb128BytesTuple methods_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         int methods_len = leb128flutter.decodeUnsigned(methods_len_leb128bytes_tuple.item1);
         CandidBytes_i next_method_start_i = methods_len_leb128bytes_tuple.item2;
         for (int i=0;i<methods_len;i++) {
-            Text method_name_m_func_tuple = Text().M(candidbytes, next_method_start_i);
-
+            MfuncTuple method_name_m_func_tuple = Text().M(candidbytes, next_method_start_i);
+            Text method_name = method_name_m_func_tuple.item1;
+            TfuncTuple function_reference_t_func_tuple = crawl_type_table_whirlpool(candidbytes, method_name_m_func_tuple.item2);
+            methods_types[method_name] = function_reference_t_func_tuple.item1; // could be a type table reference
+            next_method_start_i = function_reference_t_func_tuple.item2;
         }
-
+        return ServiceReference(isTypeStance: true, methods_types: methods_types);
     } 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-        
 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        Blob? id_value;
+        late CandidBytes_i next_i;
+        if (candidbytes[start_i] == 0) {
+            next_i = start_i + 1;
+        } else if (candidbytes[start_i] == 1) {
+            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
+            id = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
+            next_i = id_m_func_tuple.item2;
+        }
+        ServiceReference service = ServiceReference(id: id_value);
+        for (MapEntry func_me in this.methods_types.entries {
+            FunctionReference func_ref = func_me.value.M(Uint8List.fromList(0), 0); // getting the FunctionReference types from the type_table without a service or method_name
+            service.methods[func_me.key] = FunctionReference(
+                service: service, 
+                method_name: func_me.key,     // putting this service and method_name of this method on this FunctionReference
+                in_types: func_ref.in_types,
+                out_types: func_ref.out_types,
+                isQuery: func_ref.isQuery,
+                isOneWay: func_ref.isOneWay
+            );
+        }
+        return service;
     }
     
     Uint8List T_forward() {
@@ -1462,10 +1518,17 @@ class ServiceReference extends ReferenceType {
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i);
     }
+    
     Uint8List M_forward() {
-
+        List<int> m_bytes = [];
+        if (this.id == null) {
+            m_bytes.add(0);
+        } else {
+            m_bytes.add(1);
+            m_bytes.addAll(this.id.M_forward());
+        }
+        return Uint8List.fromList(m_bytes);
     }
-
 }
 
 
