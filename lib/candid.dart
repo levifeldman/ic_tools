@@ -161,15 +161,18 @@ final Map<int, PrimitiveCandidType> backwards_primtypes_opcodes_for_the_primtype
     Empty.type_code    : Empty(),
 };
 
-final Map<int, TfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i)> backwards_constypes_opcodes_for_the_constypes_T_function = {
+final Map<int, TfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i)> constypes_and_reftypes_opcodes_for_the_static_T_backwards_function = {
     Option.type_code  : Option.T,
     Vector.type_code  : Vector.T,
     Record.type_code  : Record.T,
     Variant.type_code : Variant.T,
+    FunctionReference.type_code : FunctionReference.T,
+    ServiceReference.type_code  : ServiceReference.T,
+    PrincipalReference.type_code: PrincipalReference.T
 };
 
 bool isPrimTypeCode(int type_code) => backwards_primtypes_opcodes_for_the_primtype_type_stances.keys.contains(type_code);
-bool isConsTypeCode(int type_code) => backwards_constypes_opcodes_for_the_constypes_T_function.keys.contains(type_code);
+bool isConsOrRefTypeCode(int type_code) => constypes_and_reftypes_opcodes_for_the_static_T_backwards_function.keys.contains(type_code);
 
 
 
@@ -222,8 +225,11 @@ TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_
     else if (isPrimTypeCode(type_code)) { 
         t_func_tuple = TfuncTuple(backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!, type_code_sleb128bytes_tuple.item2);
     } 
-    else if (isConsTypeCode(type_code)) { 
-        t_func_tuple = backwards_constypes_opcodes_for_the_constypes_T_function[type_code]!(candidbytes, type_code_sleb128bytes_tuple.item2);
+    else if (isConsOrRefTypeCode(type_code)) { 
+        t_func_tuple = constypes_and_reftypes_opcodes_for_the_static_T_backwards_function[type_code]!(candidbytes, type_code_sleb128bytes_tuple.item2);
+    }
+    else {
+        throw Exception('unknown candid type_code ');
     }
     
     if (t_func_tuple.item1.isTypeStance==false) { throw Exception('T_backwards functions need to return a CandidType with an isTypeStance=true'); }
@@ -268,7 +274,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
         } else if (isPrimTypeCode(type_code)) {
             ctype = backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!;
         } else {
-            throw Exception('params_list_types codes can either be a type_table_i or a primtypecode');
+            throw Exception('params_list_types codes can either be a type_table_i or a primtypecode'); // even for a principal?
         }
 
         MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_param_value_start_i);
@@ -294,15 +300,6 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
 
 
 // forwards
-List<Uint8List> T_forward_type_table_nests_whirlpool(List<List<int>> type_table_bytes, ConstructType candid) {
-    // only call within a constype T_forward func. not in the c_forwards func (?)
-    
-    throw UnimplementedError('');
-    // return type_table_bytes;
-}
-
-
-
 List<List<int>> type_table_forward = []; // each [inner] list is a candid(cons)types.T_forward() 
 
 // forwards
@@ -1272,6 +1269,8 @@ class Variant extends RecordAndVariantMap {
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 // can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 
+// is the principalreference-type suppose to be given as an index in a type-table? even in the list of params? for the now, yes.
+
 
 abstract class ReferenceType extends CandidType {
     bool get isOpaque;
@@ -1478,7 +1477,7 @@ class ServiceReference extends ReferenceType {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
-            id = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
+            id_value = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
             next_i = id_m_func_tuple.item2;
         }
         ServiceReference service = ServiceReference(id: id_value);
@@ -1518,7 +1517,7 @@ class ServiceReference extends ReferenceType {
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128flutter.encodeSigned(type_table_i);
     }
-    
+
     Uint8List M_forward() {
         List<int> m_bytes = [];
         if (this.id == null) {
@@ -1535,26 +1534,47 @@ class ServiceReference extends ReferenceType {
 class PrincipalReference extends ReferenceType {
     static const int type_code = -24;
 
-    bool get isTypeStance => ;
-    bool get isOpaque;
+    final bool isTypeStance;
+    bool get isOpaque => id == null;
 
-    final Blob? blob; 
-    
+    final Blob? id; 
+
+    PrincipalReference({this.id, this.isTypeStance}) {
+        if (this.isTypeStance==true && this.id != null) {
+            throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
+        } 
+    }
+
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        
+        return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-
-    }
-    
-    
+        Blob? id_value;
+        late CandidBytes_i next_i;
+        if (candidbytes[start_i] == 0) {
+            next_i = start_i + 1;
+        } else if (candidbytes[start_i] == 1) {
+            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
+            id_value = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
+            next_i = id_m_func_tuple.item2;
+        }
+        return PrincipalReference(id: id_value);
+    }    
     Uint8List T_forward() {
-
+        List<int> type_code_bytes = leb128flutter.encodeSigned(PrincipalReference.type_code);
+        int type_table_i = put_t_in_the_type_table_forward(type_code_bytes);
+        return leb128flutter.encodeSigned(type_table_i);
     }
     Uint8List M_forward() {
-
+        List<int> m_bytes = [];
+        if (this.id == null) {
+            m_bytes.add(0);
+        } else {
+            m_bytes.add(1);
+            m_bytes.addAll(this.id.M_forward());
+        }
+        return Uint8List.fromList(m_bytes);
     }
-
 }
 
 
