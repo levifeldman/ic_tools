@@ -137,6 +137,9 @@ typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; //T-function gives back a
 // };
 
 
+// static T_backwards functions start_i starts after the type_code-signed-leb128bytes
+
+
 
 final Map<int, PrimitiveCandidType> backwards_primtypes_opcodes_for_the_primtype_type_stances = { //PrimitiveCandidType is with isTypeStance = true; 
     Null.type_code     : Null(),
@@ -731,7 +734,7 @@ class Float64 extends PrimitiveCandidType {
     Float64([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little); // whaat bout when in javascript max integer?  docs has the return type: int but says "The return value will be between -263 and 263 - 1, inclusive ", so what happens in the javascript when value is bigger than 2^53?   
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little); // is for the js double the same as the linux-double
         return MfuncTuple(Float64(value), start_i+8);    
     }
 
@@ -1268,7 +1271,7 @@ class Variant extends RecordAndVariantMap {
 // how can i know when the function annotations are finish in a func-reference-type?
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
-
+// can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 
 
 abstract class ReferenceType extends CandidType {
     bool get isOpaque;
@@ -1390,7 +1393,8 @@ class FunctionReference extends ReferenceType {
         t_bytes.addAll(leb128flutter.encodeUnsigned(func_marks_len));
         if (this.isQuery) { t_bytes.add(1); }
         if (this.isOneWay) { t_bytes.add(2); }
-        return Uint8List.fromList(t_bytes);
+        int type_table_i = put_t_in_the_type_table_forward(t_bytes);
+        return leb128flutter.encodeSigned(type_table_i);
     }
     Uint8List M_forward() {
         List<int> m_bytes = [];
@@ -1412,7 +1416,7 @@ class ServiceReference extends ReferenceType {
     final bool isTypeStance;
     final Blob? blob; 
     bool get isOpaque => blob == null;
-    Map<Text, FunctionReference> methods;   // final?
+    Map<Text, FunctionReference> methods; 
 
     ServiceReference({this.blob, this.methods={}, this.isTypeStance=false}) {
         if (isTypeStance==true && this.blob != null) {
@@ -1421,7 +1425,15 @@ class ServiceReference extends ReferenceType {
     }
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        
+        Map<Text, FunctionReference> methods = {};
+        FindLeb128BytesTuple methods_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
+        int methods_len = leb128flutter.decodeUnsigned(methods_len_leb128bytes_tuple.item1);
+        CandidBytes_i next_method_start_i = methods_len_leb128bytes_tuple.item2;
+        for (int i=0;i<methods_len;i++) {
+            Text method_name_m_func_tuple = Text().M(candidbytes, next_method_start_i);
+
+        }
+
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         
@@ -1445,9 +1457,10 @@ class ServiceReference extends ReferenceType {
         t_bytes.addAll(leb128flutter.encodeUnsigned(this.methods.keys.length));
         for (MapEntry kv in this.methods.entries) { // does this need sort? 
             t_bytes.addAll(kv.key.M_forward()); // Text
-            t_bytes.addAll(kv.value.M_forward()); // FunctionReference
+            t_bytes.addAll(kv.value.T_forward()); // FunctionReference
         } 
-        return Uint8List.fromList(t_bytes);
+        int type_table_i = put_t_in_the_type_table_forward(t_bytes);
+        return leb128flutter.encodeSigned(type_table_i);
     }
     Uint8List M_forward() {
 
