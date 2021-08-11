@@ -1229,6 +1229,46 @@ class Variant extends RecordAndVariantMap {
 // ----------------------------------------------
 
 
+// T : <reftype> -> i8*
+
+// T(func (<datatype1>*) -> (<datatype2>*) <funcann>*) = 
+//    sleb128(-22) T*(<datatype1>*) T*(<datatype2>*) T*(<funcann>*) // 0x6a
+
+// T(service {<methtype>*}) = sleb128(-23) T*(<methtype>*)                                    // 0x69
+
+// T(principal) = sleb128(-24)                                       // 0x68
+
+// T : <methtype> -> i8*
+// T(<name>:<datatype>) = leb128(|utf8(<name>)|) i8*(utf8(<name>)) I(<datatype>)
+
+// T : <funcann> -> i8*
+// T(query)  = i8(1)
+// T(oneway) = i8(2)
+
+// T* : <X>* -> i8*
+// T*(<X>^N) = leb128(N) T(<X>)^N
+
+
+// The serialised data type representing a method type must denote a function type.
+
+
+// M : <val> -> <reftype> -> i8*
+// M(ref(r) : service <actortype>) = i8(0)
+// M(id(v*) : service <actortype>) = i8(1) M(v* : vec nat8)
+
+// M(ref(r)   : func <functype>) = i8(0)
+// M(pub(s,n) : func <functype>) = i8(1) M(s : service {}) M(n : text)
+
+// M(ref(r) : principal) = i8(0)
+// M(id(v*) : principal) = i8(1) M(v* : vec nat8)
+
+
+
+// can a function have more than one candidtype parameters, in the general &in a func reference ? is the length of the func-reference-in_types in the leb128?
+// how can i know when the function annotations are finish in a func-reference-type?
+// are function annotations just a single byte? what happens when there are more than 256 annotations 
+// is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
+
 abstract class ReferenceType extends CandidType {
     bool get isOpaque;
 }
@@ -1238,14 +1278,84 @@ abstract class ReferenceType extends CandidType {
 class FunctionReference extends ReferenceType {
     static const int type_code = -22;
 
-    bool get isTypeStance => ;
-    bool get isOpaque;
+    final bool isTypeStance;
+
+    bool get isOpaque {
+        if (this.isTypeStance==true) {
+            throw Exception('CandidType: FunctionReference .isOpaque is not known on this FunctionReference-stance because isTypeStance==true');
+        }
+        return service == null; 
+    }
+
+    final List<CandidType> in_types;
+    final List<CandidType> out_types;
+
+    final bool isQuery;
+    final bool isOneWay;  
+
+    final ServiceReference? service;
+    final Text? service_name;
+
+    FunctionReference({required this.in_types, required this.out_types, this.isQuery=false, this.isOneWay=false, this.service, this.service_name, this.isTypeStance=false}) {
+        for (List<CandidType> types_list in [in_types, out_types]) {
+            for (CandidType typestance in types_list) {
+                if (typestance.isTypeStance==false) {
+                    throw Exception('CandidType: FunctionReference in_types & out_types lists needs each type-stance/finition with the isTypeStance=true, since these are the type-finitions for the function, not values.');
+                }
+            }
+        }
+        if ( (this.service != null && this.service_name == null) || (this.service == null && this.service_name != null)) {
+            throw Exception('CandidType: FunctionReference service and service_name must be given both together or both null.');
+        }
+        if (this.isTypeStance==true && this.service != null) {
+            throw Exception('CandidType: FunctionReference service & service_name must be null when isTypeStance==true');
+        }
+    }
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        
+        List<CandidType> in_types = [];
+        List<CandidType> out_types = [];
+        CandidBytes_i next_types_list_start_i = start_i;
+        for (List<CandidType> types_list in [in_types, out_types]) {
+            FindLeb128BytesTuple types_len_leb128bytes_tuple = find_leb128bytes(candidbytes, next_types_list_start_i);
+            int types_len = leb128flutter.decodeUnsigned(types_len_leb128bytes_tuple.item1) as int;
+            CandidBytes_i next_type_start_i = types_len_leb128bytes_tuple.item2;
+            for (int type_i=0;i<types_len;i++) {
+                TfuncTuple type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, next_type_start_i);
+                types_list.add(type_t_func_tuple.item1);
+                next_type_start_i = type_t_func_tuple.item2;
+            }
+            next_types_list_start_i = next_type_start_i;
+        }
+        CandidBytes_i func_marks_len_leb128bytes_start_i = next_types_list_start_i;
+        FindLeb128BytesTuple func_marks_len_leb128bytes_tuple = find_leb128bytes(candidbytes, func_marks_len_leb128bytes_start_i);
+        int func_marks_len = leb128flutter.decodeUnsigned(func_marks_len_leb128bytes_tuple.item1);
+        CandidBytes_i next_func_mark_start_i = func_marks_len_leb128bytes_tuple.item2;
+        bool isQuery = false;
+        bool isOneWay = false;
+        for (int func_mark_i = 0; func_mark_i < func_marks_len; func_mark_i++) {
+            // leb128? or the single-byte? for the now, the single-byte
+            int func_mark_code = candidbytes[next_func_mark_start_i]; 
+            if (func_mark_code == 1) {
+                isQuery = true;
+            }
+            else if (func_mark_code == 2) {
+                isOneWay = true;
+            }
+            next_func_mark_start_i = next_func_mark_start_i + 1;
+        }
+        return FunctionReference(in_types: in_types, out_types: out_types, isQuery: isQuery, isOneWay: isOneWay, isTypeStance: true);
     } 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
 
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        late CandidBytes_i next_i;
+        ServiceReference? service;
+        Text? service_name;
+        if (candidbytes[start_i] == 0) {
+            next_i = start_i + 1;
+        } else if (candidbytes[start_i] == 1) {
+            ServiceReference service = ServiceReference(); // service with 0 methods or with 1 method which is this one.?
+        }
     }
     
     Uint8List T_forward() {
@@ -1264,7 +1374,7 @@ class ServiceReference extends ReferenceType {
     bool get isTypeStance => ;
     bool get isOpaque;
     
-    final Vector<Nat8> blob;
+    final Blob? blob; 
 
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         
@@ -1288,6 +1398,8 @@ class PrincipalReference extends ReferenceType {
 
     bool get isTypeStance => ;
     bool get isOpaque;
+
+    final Blob? blob; 
     
     static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
         
@@ -1305,9 +1417,6 @@ class PrincipalReference extends ReferenceType {
     }
 
 }
-
-
-
 
 
 
