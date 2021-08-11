@@ -1376,12 +1376,33 @@ class FunctionReference extends ReferenceType {
     }
     
     Uint8List T_forward() {
-
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128flutter.encodeSigned(FunctionReference.type_code));
+        for (List<CandidType> types_list in [this.in_types, this.out_types]) {
+            t_bytes.addAll(leb128flutter.encodeUnsigned(types_list.length));
+            for (CandidType ctype in types_list) {
+                t_bytes.addAll(ctype.T_forward());
+            }
+        }
+        int func_marks_len = 0;
+        if (this.isQuery) { func_marks_len += 1; }
+        if (this.isOneWay) { func_marks_len += 1; }
+        t_bytes.addAll(leb128flutter.encodeUnsigned(func_marks_len));
+        if (this.isQuery) { t_bytes.add(1); }
+        if (this.isOneWay) { t_bytes.add(2); }
+        return Uint8List.fromList(t_bytes);
     }
     Uint8List M_forward() {
-
+        List<int> m_bytes = [];
+        if (this.service != null) {
+            m_bytes.add(1);
+            m_bytes.addAll(this.service.M_forward());
+            m_bytes.addAll(this.method_name!.M_forward());
+        } else {
+            m_bytes.add(0);
+        }
+        return Uint8List.fromList(m_bytes);
     }
-
 }
 
 
