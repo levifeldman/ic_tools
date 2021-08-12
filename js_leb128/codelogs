@@ -1,1 +1,0 @@
-npx browserify node_modules/leb/lib/leb.js > leb128.js --standalone=leb128
