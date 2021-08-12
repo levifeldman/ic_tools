@@ -2,6 +2,11 @@
 import 'package:http/http.dart';
 import 'dart:typed_data';
 
+export './leb128.dart';
+export './cross_platform_tools/onthewebcheck/main.dart';
+export './cross_platform_tools/cbor/main.dart';
+export './cross_platform_tools/bls12381/main.dart';
+
 
 Uint8List hexstringasthebytes(String hex) {
     List<int> bytes = [];

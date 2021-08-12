@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import '../../tools.dart';
+import './tools.dart';
 
 
 class leb128flutter {

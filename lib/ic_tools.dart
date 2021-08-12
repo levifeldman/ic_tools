@@ -9,16 +9,17 @@ import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:async';
+
 import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:cryptography/cryptography.dart';
 import 'package:cryptography/dart.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
-import 'tools.dart';
-import 'cross_platform_tools/cross_platform_tools.dart';
-import 'candid.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
+
+import 'tools/tools.dart';
+import 'candid.dart';
 
 DartSha256 sha256 = DartSha256();
 

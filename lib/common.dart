@@ -6,16 +6,16 @@ import 'package:archive/archive.dart';
 
 import 'ic_tools.dart';
 import 'candid.dart';
-import 'tools.dart';
+import 'tools/tools.dart';
 
 
 
 
 
-Canister management = Canister(Principal('aaaaa-aa'));
+Canister management  = Canister(Principal('aaaaa-aa'));
 Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
-Canister ledger = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-Canister governance = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
+Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
+Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
 
 
 
