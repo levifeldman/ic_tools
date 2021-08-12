@@ -8,7 +8,7 @@
 import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:async';
+// import 'dart:async';
 import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:cryptography/cryptography.dart';
@@ -84,7 +84,19 @@ abstract class Caller {
 }
 
 class CallerEd25519 extends Caller {    
-    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key);
+    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key) {
+        if (public_key.length != 32 || private_key.length != 32) {
+            throw Exception('Ed25519 Public-key and Private-key both must be 32 bytes');
+        }
+    }
+    static Future<CallerEd25519> new_keys() async {
+        // throw Exception(':DO.');
+        DartEd25519 ed25519 = DartEd25519();
+        SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
+        List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
+        List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
+        return CallerEd25519(public_key: Uint8List.fromList(pub_key), private_key: Uint8List.fromList(pvate_key));
+    }
     static Uint8List DER_public_key_start = Uint8List.fromList([
         ...[48, 42], // SEQUENCE
         ...[48, 5], // SEQUENCE
@@ -101,14 +113,6 @@ class CallerEd25519 extends Caller {
         Signature signature = await ed25519.sign(message, keyPair: simplekeypairdata ); 
         return Uint8List.fromList(signature.bytes);
     }
-
-    // static Future<CallerEd25519> new() async {
-    //     DartEd25519 ed25519 = DartEd25519();
-    //     SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
-    //     List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
-    //     List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
-    //     return CallerEd25519(public_key: pub_key, private_key: pvate_key);
-    // }
 
 }
 

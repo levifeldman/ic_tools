@@ -133,6 +133,7 @@ String bytes_as_the_bitstring(Uint8List bytes) {
 
 
 
+int check_double_decimal_point_places(double d) => d.toString().substring(d.toString().indexOf('.') + 1).length;
 
 
 

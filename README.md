@@ -1,16 +1,6 @@
 # ic_tools
 
-import 'package:ic_tools/ic_tools.dart';  
-import 'package:ic_tools/candid.dart';  
-
-Canister can = Canister('ryjl3-tyaaa-aaaaa-aaaba-cai');  
-List sponse = await can.call(calltype: 'call', methodName: 'account_balance_dfx');  
-print(sponse);    
-print(sponse[0]);    
-
-----------
-
-dart --no-sound-null-safety lib/t.dart
+Checkout lib/common.dart for some samples.
 
 ----------
 

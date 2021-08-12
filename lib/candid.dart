@@ -82,8 +82,9 @@ final Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x44494
 
 typedef CandidBytes_i = int;     
 typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_function gives back a CandidType-stance with the values and a Candidbytes_i
-// typedef M_func = MfuncTuple Function(Uint8List candidbytes, int start_i);
 typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; //T-function gives back a CandidType-stance with isTypeStance = true with a m_func
+
+// typedef M_func = MfuncTuple Function(Uint8List candidbytes, int start_i);
 
 // :primtypes-T-functions are:
 //      in the type_table: with the lack of the cept of the candidbytes-parameters with the lack of the give-back of a candidbytes_i
@@ -162,13 +163,13 @@ final Map<int, PrimitiveCandidType> backwards_primtypes_opcodes_for_the_primtype
 };
 
 final Map<int, TfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i)> constypes_and_reftypes_opcodes_for_the_static_T_backwards_function = {
-    Option.type_code  : Option.T,
-    Vector.type_code  : Vector.T,
-    Record.type_code  : Record.T,
-    Variant.type_code : Variant.T,
-    FunctionReference.type_code : FunctionReference.T,
-    ServiceReference.type_code  : ServiceReference.T,
-    PrincipalReference.type_code: PrincipalReference.T
+    Option.type_code  : Option.T_backward,
+    Vector.type_code  : Vector.T_backward,
+    Record.type_code  : Record.T_backward,
+    Variant.type_code : Variant.T_backward,
+    FunctionReference.type_code : FunctionReference.T_backward,
+    ServiceReference.type_code  : ServiceReference.T_backward,
+    PrincipalReference.type_code: PrincipalReference.T_backward
 };
 
 bool isPrimTypeCode(int type_code) => backwards_primtypes_opcodes_for_the_primtype_type_stances.keys.contains(type_code);
@@ -181,9 +182,14 @@ int candid_text_hash(String text) {
     // hash(id) = ( Sum_(i=0..k) utf8(id)[i] * 223^(k-i) ) mod 2^32 where k = |utf8(id)|-1
     int hash = 0;
     for (int b in utf8.encode(text)) {
-        hash = hash * 223 + b;  
+        hash = (hash * 223 + b) % pow(2, 32) as int;  
     }
-    return hash % pow(2, 32) as int;
+    return hash as int;
+    // this works on linux only
+    // for (int b in utf8.encode(text)) {
+    //     hash = hash * 223 + b;  
+    // }
+    // return hash % pow(2, 32) as int;
 }
 
 typedef FindLeb128BytesTuple = Tuple2<Uint8List, CandidBytes_i>;
@@ -803,7 +809,7 @@ class Empty extends PrimitiveCandidType {
 
 
 abstract class ConstructType extends CandidType {
-    // static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i);
+    // static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i);
 }
 
 
@@ -855,7 +861,7 @@ class Option extends ConstructType {
         }
     }
 
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         // 110
         // type_code-cursion
         TfuncTuple value_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
@@ -915,8 +921,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
             }
         } 
     }
-    static Vector<T> oftheList(Iterable<T> list ) {
-        Vector vec = Vector();
+    static Vector<T> oftheList<T extends CandidType>(Iterable<T> list ) {
+        Vector<T> vec = Vector<T>();
         vec.addAll(list);
         return vec;
     }
@@ -960,7 +966,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     } 
 
 
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         TfuncTuple values_type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Vector vec = Vector(values_type: values_type_t_func_tuple.item1);
         return TfuncTuple(vec, values_type_t_func_tuple.item2);
@@ -1001,21 +1007,24 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 }
 
 
-class Blob extends Vector<Nat8> {
-    Uint8List get bytes => Uint8List.fromList(this.map((Nat8 nat8byte)=>nat8byte.value));
+class Blob extends Vector<Nat8> { // extends CandidType with a variable Vector<Nat8> within?
     Blob(Iterable<int> bytes_list) {
-        this.addAll(bytes_list);
+        this.addAll_bytes(bytes_list);
     }
-    int operator [](int i) => super[i].value;
-    void operator []=(int i, int v) { 
-        super[i] = Nat8(v);
+    static Blob oftheVector(Vector<Nat8> vecnat8) {
+        return Blob(vecnat8.map((Nat8 nat8byte)=>nat8byte.value!).toList());
     }
-    void add(int byte) { 
+    Uint8List get bytes => Uint8List.fromList(this.map((Nat8 nat8byte)=>nat8byte.value!).toList());
+    void add_byte(int byte) { 
         super.add(Nat8(byte));
     }
-    void addAll(Iterable<int> bytes_list) {  
+    void addAll_bytes(Iterable<int> bytes_list) {  
         List<Nat8> nat8list = bytes_list.map((int byte)=>Nat8(byte)).toList();
         super.addAll(nat8list);
+    }
+    int get_byte_i(int i) {
+        Nat8 nat8byte = this[i] as Nat8;
+        return nat8byte.value!;
     }
 }
 
@@ -1092,7 +1101,7 @@ class Record extends RecordAndVariantMap {
         return record;
     }
     
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         Record record_type = Record(isTypeStance: true);
         FindLeb128BytesTuple record_len_find_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic record_len = leb128flutter.decodeUnsigned(record_len_find_leb128bytes_tuple.item1);
@@ -1164,7 +1173,7 @@ class Variant extends RecordAndVariantMap {
         return variant;
     }
     
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) { 
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         Variant variant_type = Variant(isTypeStance: true);
         FindLeb128BytesTuple variant_type_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic variant_len = leb128flutter.decodeUnsigned(variant_type_len_leb128bytes_tuple.item1);
@@ -1333,7 +1342,7 @@ class FunctionReference extends ReferenceType {
         }
     }
 
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         List<CandidType> in_types = [];
         List<CandidType> out_types = [];
         CandidBytes_i next_types_list_start_i = start_i;
@@ -1341,7 +1350,7 @@ class FunctionReference extends ReferenceType {
             FindLeb128BytesTuple types_len_leb128bytes_tuple = find_leb128bytes(candidbytes, next_types_list_start_i);
             int types_len = leb128flutter.decodeUnsigned(types_len_leb128bytes_tuple.item1) as int;
             CandidBytes_i next_type_start_i = types_len_leb128bytes_tuple.item2;
-            for (int type_i=0;i<types_len;i++) {
+            for (int type_i=0;type_i < types_len;type_i++) {
                 TfuncTuple type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, next_type_start_i);
                 types_list.add(type_t_func_tuple.item1);
                 next_type_start_i = type_t_func_tuple.item2;
@@ -1365,7 +1374,8 @@ class FunctionReference extends ReferenceType {
             }
             next_func_mark_start_i = next_func_mark_start_i + 1;
         }
-        return FunctionReference(in_types: in_types, out_types: out_types, isQuery: isQuery, isOneWay: isOneWay, isTypeStance: true);
+        FunctionReference func_fer = FunctionReference(in_types: in_types, out_types: out_types, isQuery: isQuery, isOneWay: isOneWay, isTypeStance: true);
+        return TfuncTuple(func_fer, next_func_mark_start_i);
     } 
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
@@ -1376,15 +1386,15 @@ class FunctionReference extends ReferenceType {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true).M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
-            service_value = service_m_func_tuple.item1; 
+            service_value = service_m_func_tuple.item1 as ServiceReference; 
             MfuncTuple method_name_text_m_func_tuple = Text().M(candidbytes, service_m_func_tuple.item2);
-            method_name_value = method_name_text_m_func_tuple.item1;
+            method_name_value = method_name_text_m_func_tuple.item1 as Text;
             next_i = method_name_text_m_func_tuple.item2;
         }
         for (List<CandidType> types_list in [this.in_types, this.out_types]) {
             for(int i=0;i<types_list.length;i++) {
                 if (types_list[i] is TypeTableReference) {
-                    types_list[i] = type_table_ference_as_the_type_stance(types_list[i])
+                    types_list[i] = type_table_ference_as_the_type_stance(types_list[i] as TypeTableReference);
                 }
             }
         }
@@ -1393,13 +1403,13 @@ class FunctionReference extends ReferenceType {
             out_types: this.out_types, 
             isQuery: this.isQuery, 
             isOneWay: this.isOneWay, 
-            service: service_value,    // service.methods is empty bc method_name is shows and service.id can be there is the service is not-opaque
+            service: service_value,
             method_name: method_name_value
         );
         if (func_fer.service != null) {
-            func_fer.service.methods[func_fer.method_name] = func_fer; // putting this function-reference as a method on this function_reference.service
+            func_fer.service!.methods[func_fer.method_name!] = func_fer; // putting this function-reference as a method on this function_reference.service
         }
-        return func_fer;
+        return MfuncTuple(func_fer, next_i);
     }
     
     Uint8List T_forward() {
@@ -1424,7 +1434,7 @@ class FunctionReference extends ReferenceType {
         List<int> m_bytes = [];
         if (this.service != null) {
             m_bytes.add(1);
-            m_bytes.addAll(this.service.M_forward());
+            m_bytes.addAll(this.service!.M_forward());
             m_bytes.addAll(this.method_name!.M_forward());
         } else {
             m_bytes.add(0);
@@ -1440,49 +1450,55 @@ class ServiceReference extends ReferenceType {
     final bool isTypeStance;
     final Blob? id; 
     bool get isOpaque => id == null;
-    Map<Text, FunctionReference> methods; // should hold either TypeTableReference or CandidType
+    Map<Text, FunctionReference> methods = {}; // should hold either TypeTableReference or CandidType
     final Map<Text, CandidType>? methods_types; // for the [de]coding of the methtypes  when some may be TypeTableReferences at this point
 
-    ServiceReference({this.id, this.methods={}, this.isTypeStance=false, this.methods_types}) {
+    ServiceReference({this.id,  Map<Text, FunctionReference>? put_methods, this.isTypeStance=false, this.methods_types}) {
         if (isTypeStance==true) {
             if (this.id != null) {
                 throw Exception('id must be null when isTypeStance==true'); // because if its a type-stance that means we only have its data of the type_table and havent called M_backwards() on it yet so we dont know if it has a blob id or not  
             }
         } else {
             if (this.methods_types != null) {
-                throw Exception('methods_types can only be given when isTypeStance==true')
+                throw Exception('methods_types can only be given when isTypeStance==true');
             }
+        }
+        if (put_methods != null) {
+            this.methods = put_methods;
         }
     }
 
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
-        List<CandidType> methods_types = {};
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
+        Map<Text, CandidType> methods_types = {}; // CandidType here is either TypeTableReference or FunctionReference
         FindLeb128BytesTuple methods_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         int methods_len = leb128flutter.decodeUnsigned(methods_len_leb128bytes_tuple.item1);
         CandidBytes_i next_method_start_i = methods_len_leb128bytes_tuple.item2;
         for (int i=0;i<methods_len;i++) {
             MfuncTuple method_name_m_func_tuple = Text().M(candidbytes, next_method_start_i);
-            Text method_name = method_name_m_func_tuple.item1;
+            Text method_name = method_name_m_func_tuple.item1 as Text;
             TfuncTuple function_reference_t_func_tuple = crawl_type_table_whirlpool(candidbytes, method_name_m_func_tuple.item2);
             methods_types[method_name] = function_reference_t_func_tuple.item1; // could be a type table reference
             next_method_start_i = function_reference_t_func_tuple.item2;
         }
-        return ServiceReference(isTypeStance: true, methods_types: methods_types);
+        ServiceReference service_fer = ServiceReference(isTypeStance: true, methods_types: methods_types);
+        return TfuncTuple(service_fer, next_method_start_i);
     } 
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+        if (this.isTypeStance==false) { throw Exception('this function should only be called on a stance with the isTypeStance==true and a Map<Text, FunctionReference> methods_types'); }
         Blob? id_value;
         late CandidBytes_i next_i;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
-            id_value = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
+            Vector<Nat8> id_value_vecnat8 = id_m_func_tuple.item1 as Vector<Nat8>;
+            id_value = Blob.oftheVector(id_value_vecnat8);
             next_i = id_m_func_tuple.item2;
         }
         ServiceReference service = ServiceReference(id: id_value);
-        for (MapEntry func_me in this.methods_types.entries {
-            FunctionReference func_ref = func_me.value.M(Uint8List.fromList(0), 0); // getting the FunctionReference types from the type_table without a service or method_name
+        for (MapEntry func_me in this.methods_types!.entries) {
+            FunctionReference func_ref = func_me.value.M(Uint8List(0), 0); // getting the FunctionReference types from the type_table without a service or method_name
             service.methods[func_me.key] = FunctionReference(
                 service: service, 
                 method_name: func_me.key,     // putting this service and method_name of this method on this FunctionReference
@@ -1492,7 +1508,7 @@ class ServiceReference extends ReferenceType {
                 isOneWay: func_ref.isOneWay
             );
         }
-        return service;
+        return MfuncTuple(service, next_i);
     }
     
     Uint8List T_forward() {
@@ -1524,7 +1540,7 @@ class ServiceReference extends ReferenceType {
             m_bytes.add(0);
         } else {
             m_bytes.add(1);
-            m_bytes.addAll(this.id.M_forward());
+            m_bytes.addAll(this.id!.M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
@@ -1539,13 +1555,13 @@ class PrincipalReference extends ReferenceType {
 
     final Blob? id; 
 
-    PrincipalReference({this.id, this.isTypeStance}) {
+    PrincipalReference({this.id, this.isTypeStance=false}) {
         if (this.isTypeStance==true && this.id != null) {
             throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
         } 
     }
 
-    static TfuncTuple T(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
@@ -1555,10 +1571,12 @@ class PrincipalReference extends ReferenceType {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
-            id_value = id_m_func_tuple.item1 as Blob; // Blob(id_m_func_tuple.item1.map((Nat8 nat8byte)=>nat8byte.value));
+            Vector<Nat8> id_value_vecnat8 = id_m_func_tuple.item1 as Vector<Nat8>;
+            id_value = Blob.oftheVector(id_value_vecnat8); 
             next_i = id_m_func_tuple.item2;
         }
-        return PrincipalReference(id: id_value);
+        PrincipalReference principal_fer = PrincipalReference(id: id_value);
+        return MfuncTuple(principal_fer, next_i);
     }    
     Uint8List T_forward() {
         List<int> type_code_bytes = leb128flutter.encodeSigned(PrincipalReference.type_code);
@@ -1571,7 +1589,7 @@ class PrincipalReference extends ReferenceType {
             m_bytes.add(0);
         } else {
             m_bytes.add(1);
-            m_bytes.addAll(this.id.M_forward());
+            m_bytes.addAll(this.id!.M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
@@ -1585,5 +1603,5 @@ class PrincipalReference extends ReferenceType {
 
 
 
-abstract class FunctionAnnotation extends CandidType {}
+// abstract class FunctionAnnotation extends CandidType {}
 
