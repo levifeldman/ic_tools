@@ -229,10 +229,8 @@ class Canister {
                     httpclient: httpclient,
                     caller: caller 
                 ); 
-                // time-check, not in verify_certificate-function bc that would create new Datetime.now() on each verify and that is slow.
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
-                if (certificate_time_nanoseconds < time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // put the timestamp
-                
+                if (certificate_time_nanoseconds < time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // // time-check, not in verify_certificate-function bc that would create new Datetime.now() on each verify and that is slow. 
                 callstatus = pathsvalues[1];            
             }
             // print(pathsvalues);

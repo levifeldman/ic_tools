@@ -15,130 +15,11 @@ import 'tools/tools.dart';
 final Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x4449444C
 
 
-// Map<dynamic,int> candid_type_codes = {
-//     // "primitive-types"
-//     // T : <primtype> -> i8*
-//     'null': 127,  // T(null)     = sleb128(-1)  = 0x7f
-//     'bool': 126,  // T(bool)     = sleb128(-2)  = 0x7e
-//     'nat' : 125,    // T(nat)      = sleb128(-3)  = 0x7d
-//     'int' : 124,   // T(int)      = sleb128(-4)  = 0x7c
-//     'nat8' : 123,    // T(nat8)     = sleb128(-5)  = 0x7b
-//     'nat16': 122,    // T(nat16)    = sleb128(-6)  = 0x7a
-//     'nat32': 121,    // T(nat32)    = sleb128(-7)  = 0x79
-//     'nat64': 120,    // T(nat64)    = sleb128(-8)  = 0x78
-//     'int8' : 119,   // T(int8)     = sleb128(-9)  = 0x77
-//     'int16': 118,    // T(int16)    = sleb128(-10) = 0x76
-//     'int32': 117,    // T(int32)    = sleb128(-11) = 0x75
-//     'int64': 116,    // T(int64)    = sleb128(-12) = 0x74
-//     'float32': 115,    // T(float32)  = sleb128(-13) = 0x73
-//     'float64': 114,    // T(float64)  = sleb128(-14) = 0x72
-//     'text': 113,    // T(text)     = sleb128(-15) = 0x71
-//     'reserved': 112,    // T(reserved) = sleb128(-16) = 0x70
-//     'empty': 111,    // T(empty)    = sleb128(-17) = 0x6f
-//     // constructive-types
-//     'opt': 110,    // T(opt <datatype>) = sleb128(-18) I(<datatype>)              // 0x6e
-//     'vec': 109,    // T(vec <datatype>) = sleb128(-19) I(<datatype>)              // 0x6d
-//     'record': 108,    // T(record {<fieldtype>^N}) = sleb128(-20) T*(<fieldtype>^N)  // 0x6c
-//     'variant': 107,    // T(variant {<fieldtype>^N}) = sleb128(-21) T*(<fieldtype>^N) // 0x6b
-//     // field-type  
-//     // T : <fieldtype> -> i8*
-//     // T(<nat>:<datatype>) = leb128(<nat>) I(<datatype>) // last byte of the leb128<nat>-coding is < 128
-//     // [re]ference-types    
-//     // T : <reftype> -> i8*
-//     'func': 106,    // T(func (<datatype1>*) -> (<datatype2>*) <funcann>*) = sleb128(-22) T*(<datatype1>*) T*(<datatype2>*) T*(<funcann>*) // 0x6a
-//     'service': 105,    // T(service {<methtype>*}) = sleb128(-23) T*(<methtype>*)                                    // 0x69
-//     'principal': 104,    // T(principal) = sleb128(-24)                                       // 0x68
-//     // method-type
-//     // T : <methtype> -> i8*
-//     // T(<name>:<datatype>) = leb128(|utf8(<name>)|) i8*(utf8(<name>)) I(<datatype>)
-//     // "function-annotations"
-//     // T : <funcann> -> i8*
-//     'query': 1,    // T(query)  = i8(1)
-//     'oneway': 2    // T(oneway) = i8(2)
-// };
-
-// String? candid_type_code_as_a_type_string(int candid_type_code_byte) {
-//     String? rs; 
-//     candid_type_codes.forEach(
-//         (type_string, code_byte) { 
-//             if (code_byte == candid_type_code_byte) { 
-//                 rs = type_string; 
-//             } 
-//         }
-//     );
-//     return rs;
-// }
-
-
-
-
-
-
-
-
-
-// all nat and int candidtypes turn into dart int and BigInt Types. and all dart ints and bigints are coded as candid int (and nat?)
-
 
 typedef CandidBytes_i = int;     
-typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_function gives back a CandidType-stance with the values and a Candidbytes_i
-typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; //T-function gives back a CandidType-stance with isTypeStance = true with a m_func
+typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; // T_backward gives back a CandidType-stance with isTypeStance=true for the M_backwards-function. and a Candidbytes_i for non-primitive-types
+typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_backward gives back a CandidType-stance with the values and a Candidbytes_i
 
-// typedef M_func = MfuncTuple Function(Uint8List candidbytes, int start_i);
-
-// :primtypes-T-functions are:
-//      in the type_table: with the lack of the cept of the candidbytes-parameters with the lack of the give-back of a candidbytes_i
-//      in the param_table: ''  ''  ''  ''
-// :datatypes(non-primitive)-T-functions are:
-//      in the type_table: with the cept of the candidbytes-parameters with the give-back of a candidbytes_i
-//      in the param_table: in the type_table as a M_function
-
-
-// values are either primtype-T-functions: give-back: M_func and are with the lack of the parameters. or this map value can be a non-primtype-T-function: candidbytes,start_i params and: give-back: TFuncTuple 
-// const Map<int, dynamic> candidtypecodesastheTfunc = {  // primitivetype-T-functions are with the lack of the parameters.
-//     // "primitive-types"
-//     // T : <primtype> -> i8*
-//     127: Null.T, // 'null': 127,  // T(null)     = sleb128(-1)  = 0x7f
-//     126: Bool.T, // 'bool': 126,  // T(bool)     = sleb128(-2)  = 0x7e
-//     125: Nat.T, // 'nat' : 125,    // T(nat)      = sleb128(-3)  = 0x7d
-//     124: Int.T, // 'int' : 124,   // T(int)      = sleb128(-4)  = 0x7c
-//     123: Nat8.T, // 'nat8' : 123,    // T(nat8)     = sleb128(-5)  = 0x7b
-//     122: Nat16.T, // 'nat16': 122,    // T(nat16)    = sleb128(-6)  = 0x7a
-//     121: Nat32.T, // 'nat32': 121,    // T(nat32)    = sleb128(-7)  = 0x79
-//     120: Nat64.T,    // T(nat64)    = sleb128(-8)  = 0x78
-//     119: Int8.T, // 'int8' : 119,   // T(int8)     = sleb128(-9)  = 0x77
-//     118: Int16.T, // 'int16': 118,    // T(int16)    = sleb128(-10) = 0x76
-//     117: Int32.T, // 'int32': 117,    // T(int32)    = sleb128(-11) = 0x75
-//     116: Int64.T, // 'int64': 116,    // T(int64)    = sleb128(-12) = 0x74
-//     115: Float32.T, // 'float32': 115,    // T(float32)  = sleb128(-13) = 0x73
-//     114: Float64.T, // 'float64': 114,    // T(float64)  = sleb128(-14) = 0x72
-//     113: Text.T, // 'text': 113,    // T(text)     = sleb128(-15) = 0x71
-//     112: Reserved.T, // 'reserved': 112,    // T(reserved) = sleb128(-16) = 0x70
-//     111: Empty.T, // 'empty': 111,    // T(empty)    = sleb128(-17) = 0x6f
-//     // // constructive-types
-//     110: Option.T, // 'opt': 110,    // T(opt <datatype>) = sleb128(-18) I(<datatype>)              // 0x6e
-//     109: Vector.T, // 'vec': 109,    // T(vec <datatype>) = sleb128(-19) I(<datatype>)              // 0x6d
-//     108: Record.T,    // T(record {<fieldtype>^N}) = sleb128(-20) T*(<fieldtype>^N)  // 0x6c
-//     107: Variant.T, // 'variant': 107,    // T(variant {<fieldtype>^N}) = sleb128(-21) T*(<fieldtype>^N) // 0x6b
-//     // field-type  
-//     // T : <fieldtype> -> i8*
-//     // T(<nat>:<datatype>) = leb128(<nat>) I(<datatype>) // last byte of the leb128<nat>-coding is < 128
-//     // [re]ference-types    
-//     // T : <reftype> -> i8*
-//     // 'func': 106,    // T(func (<datatype1>*) -> (<datatype2>*) <funcann>*) = sleb128(-22) T*(<datatype1>*) T*(<datatype2>*) T*(<funcann>*) // 0x6a
-//     // 'service': 105,    // T(service {<methtype>*}) = sleb128(-23) T*(<methtype>*)                                    // 0x69
-//     // 'principal': 104,    // T(principal) = sleb128(-24)                                       // 0x68
-//     // method-type
-//     // T : <methtype> -> i8*
-//     // T(<name>:<datatype>) = leb128(|utf8(<name>)|) i8*(utf8(<name>)) I(<datatype>)
-//     // "function-annotations"
-//     // T : <funcann> -> i8*
-//     // 'query': 1,    // T(query)  = i8(1)
-//     // 'oneway': 2    // T(oneway) = i8(2)
-// };
-
-
-// static T_backwards functions start_i starts after the type_code-signed-leb128bytes
 
 
 
@@ -161,6 +42,8 @@ final Map<int, PrimitiveCandidType> backwards_primtypes_opcodes_for_the_primtype
     Reserved.type_code : Reserved(),
     Empty.type_code    : Empty(),
 };
+
+// static T_backwards functions start_i starts after the type_code-signed-leb128bytes
 
 final Map<int, TfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i)> constypes_and_reftypes_opcodes_for_the_static_T_backwards_function = {
     Option.type_code  : Option.T_backward,
@@ -185,29 +68,16 @@ int candid_text_hash(String text) {
         hash = (hash * 223 + b) % pow(2, 32) as int;  
     }
     return hash as int;
-    // this works on linux only
-    // for (int b in utf8.encode(text)) {
-    //     hash = hash * 223 + b;  
-    // }
-    // return hash % pow(2, 32) as int;
-}
-
-typedef FindLeb128BytesTuple = Tuple2<Uint8List, CandidBytes_i>;
-FindLeb128BytesTuple find_leb128bytes(Uint8List candidbytes, CandidBytes_i start_i) {
-    CandidBytes_i c = start_i;
-    while (candidbytes[c] >= 128) { 
-        c += 1; 
-    }
-    CandidBytes_i next_i = c + 1;
-    Uint8List field_id_hash_leb128_bytes = candidbytes.sublist(start_i, next_i);
-    // print('leb128-bytes: ${field_id_hash_leb128_bytes}');
-    return FindLeb128BytesTuple(field_id_hash_leb128_bytes, next_i);
 }
 
 
-List<CandidType> type_table = []; // can type_table.length be a BigInt?
 
-class TypeTableReference extends CandidType { // extends Candidype , more custom?
+
+// backwards
+
+List<CandidType> type_table = []; 
+
+class TypeTableReference extends CandidType { 
     final bool isTypeStance = true;
     int type_table_i; 
     late MfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i) m;
@@ -220,7 +90,6 @@ class TypeTableReference extends CandidType { // extends Candidype , more custom
     Uint8List M_forward() => throw Exception('shouldnt-call');
 }
 
-// backwards
 TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_code_start_candidbytes_i) {
     FindLeb128BytesTuple type_code_sleb128bytes_tuple = find_leb128bytes(candidbytes, type_code_start_candidbytes_i);
     int type_code = leb128flutter.decodeSigned(type_code_sleb128bytes_tuple.item1) as int;
@@ -308,6 +177,21 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
 // forwards
 List<List<int>> type_table_forward = []; // each [inner] list is a candid(cons)types.T_forward() 
 
+int put_t_in_the_type_table_forward(List<int> t_bytes) {
+    int? same_type_i;
+    for (int i=0; i < type_table_forward.length;i++) {
+        if (aresamebytes(t_bytes, type_table_forward[i])) {
+            same_type_i = i;
+        }
+    }
+    if (same_type_i != null) {
+        return same_type_i; 
+    } else {
+        type_table_forward.add(t_bytes);
+        return type_table_forward.length - 1;
+    }
+}
+
 // forwards
 Uint8List c_forwards(List<CandidType> candids) {
     candids.forEach((CandidType c){ if (c.isTypeStance==true) { throw Exception('c_forwards must be with the candids of the isTypeStance=false'); }});
@@ -328,24 +212,13 @@ Uint8List c_forwards(List<CandidType> candids) {
 }
 
 
-// primtypes dont need forward or backwards T function? or do 
 
 // is the type_table length in the code in the leb128-Unsigned?
 // is the parameter-length in the code as the leb128-Unsigned?
-// make TFunctionWhirlpool into a static function on the ConstructType
 
-
-// make T_forward on each constype
-// make heriting-funciton T_forward on the PrimitiveCandidType abstract class
-// make M_forward on the CandidTypes
-
-// i think this is good to get everything done
-
-// test leb128 bigint and int unsigned and signed
 
 
 abstract class CandidType {
-    // static int type_code;
     bool get isTypeStance;
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i);
@@ -359,18 +232,14 @@ abstract class PrimitiveCandidType extends CandidType {
     final value = null;
     bool get isTypeStance => this.value == null;
     
-    // static int type_code;  // uncomment this if its not in the scope?
-    // Uint8List T_forward() => leb128flutter.encodeSigned(type_code);
-    // this if still not work?
     Uint8List T_forward() {
         for (MapEntry me in backwards_primtypes_opcodes_for_the_primtype_type_stances.entries) {
             if (this.runtimeType == me.value.runtimeType) {
                 return leb128flutter.encodeSigned(me.key);
             } 
         }
-        throw Exception('should be a type_code of this static class in the backwards_primtypes... map');
+        throw Exception('should be a type_code of this static class in the backwards_primtypes map');
     }
-
 
     @override
     String toString() {
@@ -382,11 +251,9 @@ abstract class PrimitiveCandidType extends CandidType {
 
 
 
-
-
 class Null extends PrimitiveCandidType {
     static const int type_code = -1;
-    get value => throw Exception('CandidType: Null is with the lack of a value.'); // should i make the value null?static Null T() => Null();
+    get value => throw Exception('CandidType: Null is with the lack of a value.'); 
     
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         return MfuncTuple(Null(), start_i);
@@ -419,7 +286,7 @@ class Nat extends PrimitiveCandidType {
     static const int type_code = -3;
     final dynamic? value;// can be int or BigInt
     Nat([this.value]) {
-        if (!(value is BigInt) && !(value is int) && value!=null) {
+        if (value is! BigInt && value is! int && value!=null) {
             throw Exception('CandidType: Nat value must be either a dart-int or a dart-BigInt.');
         }
         if (value !=null && value<0) {
@@ -679,7 +546,6 @@ class Int32 extends PrimitiveCandidType {
     }
 } 
 
-// test on the web 
 class Int64 extends PrimitiveCandidType {
     static const int type_code = -12;
     final dynamic? value;
@@ -798,50 +664,21 @@ class Empty extends PrimitiveCandidType {
 
 // ------------------------------------
 
-// have to start store of the stances themselves 
-// m_funcs must give-back a new stance.
-
-
-// :do: backwards: constypes need tfuncs to give back ctypes and mfuncs to give back a new stance of themselves with the value
-// figure out if primtype .value should be final or not
-// make sure constypes with a isTypeStance=true have their value_type with the isTypeStance=true
+// M_backward-functions must give-back a new stance.
 
 
 
-abstract class ConstructType extends CandidType {
-    // static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i);
-}
-
-
-
-int put_t_in_the_type_table_forward(List<int> t_bytes) {
-    int? same_type_i;
-    for (int i=0; i < type_table_forward.length;i++) {
-        if (aresamebytes(t_bytes, type_table_forward[i])) {
-            same_type_i = i;
-        }
-    }
-    if (same_type_i != null) {
-        return same_type_i; 
-    } else {
-        type_table_forward.add(t_bytes);
-        return type_table_forward.length - 1;
-    }
-}
+abstract class ConstructType extends CandidType {}
 
 
 
 
-// Option(CandidType-stance or TFunction) // 
 class Option extends ConstructType {
     static const int type_code = -18;
-    late final CandidType? value; // what happens when someone puts an option with a Null candidtype. why is there a Null candidtype?
+    late final CandidType? value; 
     late final CandidType? value_type;
     late final bool isTypeStance;
-    Option({this.value, this.value_type, this.isTypeStance=false}) { // why cant this.value be an optional positional param?
-        // this.value = val;
-        // this.value_type = val_type;
-        // this.isTypeStance = is_type_stance;
+    Option({this.value, this.value_type, this.isTypeStance=false}) { 
         if (isTypeStance==true) {
             if (value_type==null) {
                 throw Exception('for an Option as a type-stance is with the value_type-parameter-quirement by the class-rules.');
@@ -856,13 +693,12 @@ class Option extends ConstructType {
         }
         if (value_type!=null) {
             if (value_type!.isTypeStance==false) {
-                throw Exception('The Option value_type CandidType must have .isTypeStance == true');
+                throw Exception('The value_type CandidType must have .isTypeStance == true');
             }           
         }
     }
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
-        // 110
         // type_code-cursion
         TfuncTuple value_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Option opt_type = Option(value_type: value_t_func_tuple.item1, isTypeStance: true);
@@ -881,7 +717,7 @@ class Option extends ConstructType {
             next_i = value_type_m_func_tuple.item2;
         }
         else {
-            throw Exception('candid Option M func must start with a 0 or 1 byte.');
+            throw Exception('candid Option M bytes must start with a 0 or 1 byte.');
         }
         Option opt = Option(value: val, value_type: this.value_type);
         return MfuncTuple(opt, next_i);
@@ -909,7 +745,6 @@ class Option extends ConstructType {
 }
 
 
-// :test if the List.of and List.from constructors are on this class. careful that they void-possible for the bypass of the _canputinthevectortypecheck.
 class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {         
     static const int type_code = -19;
     final CandidType? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
@@ -1007,7 +842,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 }
 
 
-class Blob extends Vector<Nat8> { // extends CandidType with a variable Vector<Nat8> within?
+class Blob extends Vector<Nat8> { 
     Blob(Iterable<int> bytes_list) {
         this.addAll_bytes(bytes_list);
     }
@@ -1035,7 +870,7 @@ class Blob extends Vector<Nat8> { // extends CandidType with a variable Vector<N
 abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, CandidType> {
     final bool isTypeStance;
     RecordAndVariantMap({this.isTypeStance=false});
-    Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when its a record_type in a type_table
+    Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when this is a record_type of a type_table with an isTypeStance=true
     Iterable<int> get keys => _map.keys.toList()..sort();
     Iterable<CandidType> get values => this.keys.map((int k)=>this[k]!);
     CandidType? operator [](dynamic key) { // String or int
@@ -1137,7 +972,7 @@ class Record extends RecordAndVariantMap {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128flutter.encodeSigned(Record.type_code));
         Iterable<int> hash_keys = this.keys;
-        t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length)); // make this length able to be a Bigint somehow
+        t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length));
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128flutter.encodeUnsigned(hash_key));
             t_bytes.addAll(this[hash_key]!.T_forward());
@@ -1212,7 +1047,7 @@ class Variant extends RecordAndVariantMap {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128flutter.encodeSigned(Variant.type_code));
         Iterable<int> hash_keys = this.keys;
-        t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length));   // make this length able to be a Bigint somehow ?
+        t_bytes.addAll(leb128flutter.encodeUnsigned(hash_keys.length));   
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128flutter.encodeUnsigned(hash_key));
             t_bytes.addAll(this[hash_key]!.T_forward());
@@ -1238,43 +1073,9 @@ class Variant extends RecordAndVariantMap {
 // ----------------------------------------------
 
 
-// T : <reftype> -> i8*
-
-// T(func (<datatype1>*) -> (<datatype2>*) <funcann>*) = 
-//    sleb128(-22) T*(<datatype1>*) T*(<datatype2>*) T*(<funcann>*) // 0x6a
-
-// T(service {<methtype>*}) = sleb128(-23) T*(<methtype>*)                                    // 0x69
-
-// T(principal) = sleb128(-24)                                       // 0x68
-
-// T : <methtype> -> i8*
-// T(<name>:<datatype>) = leb128(|utf8(<name>)|) i8*(utf8(<name>)) I(<datatype>)
-
-// T : <funcann> -> i8*
-// T(query)  = i8(1)
-// T(oneway) = i8(2)
-
-// T* : <X>* -> i8*
-// T*(<X>^N) = leb128(N) T(<X>)^N
-
-
-// The serialised data type representing a method type must denote a function type.
-
-
-// M : <val> -> <reftype> -> i8*
-// M(ref(r) : service <actortype>) = i8(0)
-// M(id(v*) : service <actortype>) = i8(1) M(v* : vec nat8)
-
-// M(ref(r)   : func <functype>) = i8(0)
-// M(pub(s,n) : func <functype>) = i8(1) M(s : service {}) M(n : text)
-
-// M(ref(r) : principal) = i8(0)
-// M(id(v*) : principal) = i8(1) M(v* : vec nat8)
-
-
 
 // can a function have more than one candidtype parameters, in the general &in a func reference ? is the length of the func-reference-in_types in the leb128?
-// how can i know when the function annotations are finish in a func-reference-type?
+// how can i know when the function annotations are finish in a func-reference-type? is the length of the func-annotations in the leb128?
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 // can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 
@@ -1288,7 +1089,7 @@ abstract class ReferenceType extends CandidType {
 
 
 
-// helper function for FuntionReference M_backwards
+// helper function for the TypeTableReferences in the FuntionReference M_backwards 
 CandidType type_table_ference_as_the_type_stance(TypeTableReference type_table_fer) {
     CandidType type_table_type = type_table[type_table_fer.type_table_i];
     if (type_table_type is TypeTableReference) {
@@ -1450,7 +1251,7 @@ class ServiceReference extends ReferenceType {
     final bool isTypeStance;
     final Blob? id; 
     bool get isOpaque => id == null;
-    Map<Text, FunctionReference> methods = {}; // should hold either TypeTableReference or CandidType
+    Map<Text, FunctionReference> methods = {}; 
     final Map<Text, CandidType>? methods_types; // for the [de]coding of the methtypes  when some may be TypeTableReferences at this point
 
     ServiceReference({this.id,  Map<Text, FunctionReference>? put_methods, this.isTypeStance=false, this.methods_types}) {
@@ -1597,11 +1398,4 @@ class PrincipalReference extends ReferenceType {
 
 
 
-
-
-
-
-
-
-// abstract class FunctionAnnotation extends CandidType {}
 

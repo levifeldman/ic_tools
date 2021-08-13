@@ -1,4 +1,7 @@
 import 'dart:typed_data';
+
+import 'package:tuple/tuple.dart';
+
 import './tools.dart';
 
 
@@ -79,5 +82,19 @@ class leb128flutter {
     }
     
 }
+
+
+typedef FindLeb128BytesTuple = Tuple2<Uint8List, int>;
+FindLeb128BytesTuple find_leb128bytes(Uint8List bytes, int start_i) {
+    int c = start_i;
+    while (bytes[c] >= 128) { 
+        c += 1; 
+    }
+    int next_i = c + 1;
+    Uint8List leb128_bytes = bytes.sublist(start_i, next_i);
+    return FindLeb128BytesTuple(leb128_bytes, next_i);
+}
+
+
 
 
