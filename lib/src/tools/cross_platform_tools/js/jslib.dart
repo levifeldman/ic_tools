@@ -3,7 +3,7 @@ library jslib;
 
 import 'package:js/js.dart';
 import 'package:js/js_util.dart';
-import 'bignumber/main.dart';
+import './bignumber/main.dart';
 import 'dart:typed_data';
 import 'dart:js';
 
