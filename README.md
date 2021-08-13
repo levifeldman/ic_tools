@@ -1,6 +1,6 @@
 # ic_tools
 
-Checkout lib/common.dart for some samples.
+Checkout common.dart https://github.com/levifeldman/ic_tools_dart/blob/master/lib/common.dart for some samples.
 
 # 
 

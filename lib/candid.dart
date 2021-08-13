@@ -243,7 +243,8 @@ abstract class PrimitiveCandidType extends CandidType {
 
     @override
     String toString() {
-        return 'CandidType: ' + super.toString().substring(13,super.toString().length-1) + ': ${this.value}';
+        String s = 'CandidType: ' + super.toString().substring(13,super.toString().length-1);
+        return this.value != null ? s + ': ${this.value}' : s;
     }
 
 }
@@ -847,7 +848,7 @@ class Blob extends Vector<Nat8> {
         this.addAll_bytes(bytes_list);
     }
     static Blob oftheVector(Vector<Nat8> vecnat8) {
-        return Blob(vecnat8.map((Nat8 nat8byte)=>nat8byte.value!).toList());
+        return Blob(vecnat8.map<int>((Nat8 nat8byte)=>nat8byte.value!).toList());
     }
     Uint8List get bytes => Uint8List.fromList(this.map((Nat8 nat8byte)=>nat8byte.value!).toList());
     void add_byte(int byte) { 
@@ -1186,7 +1187,7 @@ class FunctionReference extends ReferenceType {
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true).M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
+            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true, methods_types: {}).M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
             service_value = service_m_func_tuple.item1 as ServiceReference; 
             MfuncTuple method_name_text_m_func_tuple = Text().M(candidbytes, service_m_func_tuple.item2);
             method_name_value = method_name_text_m_func_tuple.item1 as Text;
@@ -1259,6 +1260,9 @@ class ServiceReference extends ReferenceType {
             if (this.id != null) {
                 throw Exception('id must be null when isTypeStance==true'); // because if its a type-stance that means we only have its data of the type_table and havent called M_backwards() on it yet so we dont know if it has a blob id or not  
             }
+            if (this.methods_types == null) { 
+                throw Exception('when isTypeStance==true on a ServiceReference it needs a methods_types = {}'); 
+            }
         } else {
             if (this.methods_types != null) {
                 throw Exception('methods_types can only be given when isTypeStance==true');
@@ -1293,7 +1297,7 @@ class ServiceReference extends ReferenceType {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
-            Vector<Nat8> id_value_vecnat8 = id_m_func_tuple.item1 as Vector<Nat8>;
+            Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
             id_value = Blob.oftheVector(id_value_vecnat8);
             next_i = id_m_func_tuple.item2;
         }
@@ -1372,7 +1376,7 @@ class PrincipalReference extends ReferenceType {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
             MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
-            Vector<Nat8> id_value_vecnat8 = id_m_func_tuple.item1 as Vector<Nat8>;
+            Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
             id_value = Blob.oftheVector(id_value_vecnat8); 
             next_i = id_m_func_tuple.item2;
         }
