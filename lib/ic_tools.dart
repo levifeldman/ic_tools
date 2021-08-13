@@ -344,7 +344,11 @@ dynamic createicquestingressexpiry([Duration? duration]) { //can be a bigint or 
         duration = (Duration(minutes: 4));
     }
     BigInt bigint = BigInt.from(DateTime.now().add(duration).millisecondsSinceEpoch) * BigInt.from(1000000); // microsecondsSinceEpoch*1000;
-    return bigint.isValidInt ? bigint.toInt() : bigint;
+    if (isontheweb) {
+        return bigint;
+    } else {
+        return bigint.isValidInt ? bigint.toInt() : bigint;
+    }
 }
 
 Uint8List createdomainseparatorbytes(String domainsepstring) {
