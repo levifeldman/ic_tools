@@ -15,5 +15,3 @@ final dart_bls_stantiate bls_stantiate = dlffi.lookup<ffi.NativeFunction<rust_bl
 final dart_bls_verify bls_verify = dlffi.lookup<ffi.NativeFunction<rust_bls_verify>>('bls_verify').asFunction();
 
 
-ffi.Pointer<Utf8> dartstringasaffipointerutf8(String dart_string) => utf8.encode(dart_string) as ffi.Pointer<Utf8>;
-

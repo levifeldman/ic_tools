@@ -23,10 +23,3 @@ external bool bls_verify(autograph, message, pubkey);
 
 
 
-
-
-// const {bls_stantiate, bls_verify} = rust_wasm_bls12381;
-// await rust_wasm_bls12381('rust_wasm_bls12381/rust_wasm_bls12381_bg.wasm')
-// bls_stantiate()
-
-

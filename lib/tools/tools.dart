@@ -1,11 +1,10 @@
-
-import 'package:http/http.dart';
 import 'dart:typed_data';
 
 export './leb128.dart';
-export './cross_platform_tools/onthewebcheck/main.dart';
+export './cross_platform_tools/onthewebcheck/main.dart' show isontheweb;
 export './cross_platform_tools/cbor/main.dart';
 export './cross_platform_tools/bls12381/main.dart';
+
 
 
 Uint8List hexstringasthebytes(String hex) {
@@ -59,14 +58,6 @@ bool aresamebytes(List<int> b1, List<int> b2) {
 }
 
 
-
-// String placeUrlVariablesIntoUrlPathString({required String mainString, required Map<String,String>map}) {
-//     map.forEach((key,value) {
-//         mainString = mainString.replaceAll(key, value);
-//     });
-//     return mainString;
-
-// }
 
 
 String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_size}) { // bit_size can technically be BigInt or Int

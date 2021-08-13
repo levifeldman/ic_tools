@@ -10,14 +10,6 @@ import 'stub.dart'
 
 
 abstract class CborFlutter {
-    // static CborFlutter stantiate() {
-    //     return getCborLib();
-    //     // if (kIsWeb) {
-    //     //     return new cborjs();
-    //     // } else {
-    //     //     return new cbordart();
-    //     // }
-    // }
 
     Uint8List codeMap(Map map, {withaselfscribecbortag=false}); 
     
@@ -32,7 +24,7 @@ abstract class CborFlutter {
 }
 
 
-CborFlutter cborflutter = getCborLib(); //CborFlutter.stantiate();
+CborFlutter cborflutter = getCborLib(); 
 
 
 
