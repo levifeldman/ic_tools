@@ -20,39 +20,6 @@ Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
 
 
 
-
-class ICPTs extends Record {
-    double get icp {
-        Nat64 nat64e8s = this['e8s'] as Nat64;
-        return nat64e8s.value / 100000000;
-    }
-    ICPTs(double icp_value) {
-        if (check_double_decimal_point_places(icp_value) > 8) {
-            throw Exception('icp can be with a max: 8 decimal-point-places');
-        }
-        this['e8s'] = Nat64((icp_value * 100000000).toInt());
-    }
-    void operator []=(dynamic key, CandidType value) { // key can be String or a nat(int). if key is String it gets hashed with the candid-hash for the lookup which is: nat. 
-        int k = key is int ? key : candid_text_hash(key);
-        if (k != candid_text_hash('e8s')) {
-            throw Exception('ICPTs-Record class has one field: "e8s"');
-        }
-        super[key] = value;
-    }
-    static ICPTs ofRecord(Record record) {
-        Nat64 nat64e8s = record['e8s'] as Nat64;
-        return ICPTs(nat64e8s.value / 100000000);
-    }
-
-    String toString() {
-        return 'icp: ${this.icp}';
-    }
-
-}
-
-
-
-
 String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_bytes }) {
     subaccount_bytes ??= Uint8List(32);
     if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
@@ -72,14 +39,12 @@ String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_by
 }
 
 
-Future<ICPTs> check_icp_balance(String icp_id) async {
+Future<double> check_icp_balance(String icp_id) async {
     Record record = Record.oftheMap({'account': Text(icp_id)});
-    Uint8List sponse_bytes = await ledger.call(calltype: 'call', methodName: 'account_balance_dfx', put_bytes: c_forwards([record]));
+    Uint8List sponse_bytes = await ledger.call(calltype: 'call', method_name: 'account_balance_dfx', put_bytes: c_forwards([record]));
     Record icpts_balance_record = c_backwards(sponse_bytes)[0] as Record;
-    ICPTs icpts = ICPTs.ofRecord(icpts_balance_record);
-    return icpts;
-   
- 
+    Nat64 e8s = icpts_balance_record['e8s'] as Nat64;
+    return e8s.value / 100000000; 
 }
 
 
@@ -90,27 +55,34 @@ Future<Nat64> send_dfx(Caller caller, String fortheicpid, double mount, {double?
     }
     Record sendargs = Record.oftheMap({
         'memo': Nat64(123),
-        'amount': ICPTs(mount),
-        'fee': ICPTs(fee),
+        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}), // maybe needs Nat64(BigInt)
+        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),      // maybe needs Nat64(BigInt)
         'to': Text(fortheicpid),
         // 'created_at_time': Option()
     });
     if (subaccount_bytes != null) {
-        sendargs['from_subaccount'] = Option(value: Vector.oftheList(subaccount_bytes.map((int byte)=>Nat8(byte)).toList()));
+        sendargs['from_subaccount'] = Option(value: Blob(subaccount_bytes));
     }    
-    return c_backwards(await ledger.call(calltype: 'call', methodName: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller))[0] as Nat64; 
+    Nat64 block_height = c_backwards(await ledger.call(calltype: 'call', method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller))[0] as Nat64;
+    return block_height;
 }
 
 
-double tcycles_for_the_icp_conversion_rate(double tcycles) {
-    // gives-back: icp for the cycles
-    throw Exception();
-    return 1.0;
-}
+
+
+
+
+
+
+// double tcycles_for_the_icp_conversion_rate(double tcycles) {
+//     // gives-back: icp for the cycles
+//     throw Exception();
+//     return 1.0;
+// }
 
 
 // Principal create_canister(Caller caller) {
-//     Record new_canister_id_record = c_backwards(await management.call(calltype: 'call', methodName: 'create_canister', caller: caller))[0] as Record;
+//     Record new_canister_id_record = c_backwards(await management.call(calltype: 'call', method_name: 'create_canister', caller: caller))[0] as Record;
     
 //     Principal new_canister_principal = Principal.oftheBytes(new_canister_id_record['canister_id']);
 //     return new_canister_principal;
@@ -143,7 +115,7 @@ double tcycles_for_the_icp_conversion_rate(double tcycles) {
 //         }
 //         notifycanisterargs['to_subaccount'] = Option(value: Blob(tpup_canister_principal.bytes));
 //     }
-//     await ledger.call(calltype: 'call', methodName: 'notify_dfx', put_bytes: c_forward([notifycanisterargs]), caller: caller);
+//     await ledger.call(calltype: 'call', method_name: 'notify_dfx', put_bytes: c_forward([notifycanisterargs]), caller: caller);
 
     
 // }

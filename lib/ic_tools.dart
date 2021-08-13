@@ -26,7 +26,7 @@ DartSha256 sha256 = DartSha256();
 
 String icbaseurl = 'https://ic0.app';
 Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 1, 2, 1, 6, 12, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 2, 1, 3, 97, 0, 129, 76, 14, 110, 199, 31, 171, 88, 59, 8, 189, 129, 55, 60, 37, 92, 60, 55, 27, 46, 132, 134, 60, 152, 164, 241, 224, 139, 116, 35, 93, 20, 251, 93, 156, 12, 213, 70, 217, 104, 95, 145, 58, 12, 11, 44, 197, 52, 21, 131, 191, 75, 67, 146, 228, 103, 219, 150, 214, 91, 155, 180, 203, 113, 113, 18, 248, 71, 46, 13, 90, 77, 20, 80, 95, 253, 116, 132, 176, 18, 145, 9, 28, 95, 135, 185, 136, 131, 70, 63, 152, 9, 26, 11, 170, 174]);
-// String icversion ?
+
 
 
 Future<Map> ic_status() async {
@@ -38,18 +38,12 @@ Future<Map> ic_status() async {
 
 
 class Principal {
-    late final Uint8List bytes;
+    final Uint8List bytes;
     final String text;
-    Principal(this.text) {
-        bytes = icidtextasabytes(this.text);
-    }
+    Principal(this.text) : bytes = icidtextasabytes(text);
     static Principal oftheBytes(Uint8List bytes) {
         Principal p = Principal(icidbytesasatext(bytes));
-        if (aresamebytes(p.bytes, bytes) != true) {
-            // print(p.bytes);
-            // print(bytes);
-            throw Exception('ic id functions look ');
-        }
+        if (aresamebytes(p.bytes, bytes) != true) {  throw Exception('ic id functions look '); }
         return p;
     }
     static Principal ofPublicKeyDER(Uint8List pub_key_der) {
@@ -59,6 +53,7 @@ class Principal {
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
+    String toString() => 'Principal: ${this.text}';
 }
 
 
@@ -66,14 +61,13 @@ class Principal {
 
 abstract class Caller {
     final Uint8List public_key;
-    Uint8List get public_key_DER;
     final Uint8List private_key;
     late final Principal principal; 
+    Uint8List get public_key_DER;
 
-    Caller({required this.public_key, required this.private_key}) { 
+    Caller({required this.public_key, required this.private_key}) {
         this.principal = Principal.ofPublicKeyDER(public_key_DER); 
     }
-
     Future<Uint8List> private_key_authorize_function(Uint8List message);
 
     Future<Uint8List> authorize_call_questId(Uint8List questId) async {
@@ -91,7 +85,6 @@ class CallerEd25519 extends Caller {
         }
     }
     static Future<CallerEd25519> new_keys() async {
-        // throw Exception(':DO.');
         DartEd25519 ed25519 = DartEd25519();
         SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
         List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
@@ -114,7 +107,6 @@ class CallerEd25519 extends Caller {
         Signature signature = await ed25519.sign(message, keyPair: simplekeypairdata ); 
         return Uint8List.fromList(signature.bytes);
     }
-
 }
 
 
@@ -122,11 +114,9 @@ class CallerEd25519 extends Caller {
 
 class Canister {
     final Principal principal;
-    late final String canisterbaseurl;
+    final String canisterbaseurl;
 
-    Canister(this.principal) {
-        canisterbaseurl= icbaseurl + '/api/v2/canister/${principal.text}/';   
-    }
+    Canister(this.principal) : canisterbaseurl= icbaseurl + '/api/v2/canister/${principal.text}/';   
 
     Future<Uint8List> module_hash() async {
         List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'module_hash']]);
@@ -148,12 +138,9 @@ class Canister {
         systemstatequest.headers['Content-Type'] = 'application/cbor';
         List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
         Map getstatequestbodymap = {
-            //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
-            // "sender_delegation": ([] of the maps) ?find out more
-            //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
-            "content": { // (quest-id is of this content-map)
+            "content": { 
                 "request_type": 'read_state',//(text)
-                "paths": pathsbytes,  // createstatequestpaths(paths, pathvariables),
+                "paths": pathsbytes,  
                 "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
@@ -179,15 +166,14 @@ class Canister {
             Map systemstatesponsemap = cborflutter.cborbytesasadart(statesponse.bodyBytes);
             Map certificate = cborflutter.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
             await verifycertificate(certificate); // will throw an exception if certificate is not valid.
-            // print(certificate['tree']);
             List pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
             return pathsvalues;
         } else {
-            throw Exception(':getstatesponsestatuscode: ${statesponse.statusCode}, body:\n${statesponse.body}');
+            throw Exception(':statesponse_statuscode: ${statesponse.statusCode}, body:\n${statesponse.body}');
         }
     }
 
-    Future<dynamic> call({required String calltype, required String methodName, Uint8List? put_bytes, Caller? caller}) async {
+    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
         canistercallquest.headers['Content-Type'] = 'application/cbor';
@@ -197,12 +183,12 @@ class Canister {
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
-                "canister_id": principal.bytes, //(blob)(29-bytes)
-                "method_name": methodName,//(text)(:name: canister-method.),
-                "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), // maybe ... : Uint8List.fromList(utf8.encode('DIDL'))?    //createcandidparams(),// (blob), (in the candid?)	
-                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "canister_id": principal.bytes, //(blob)
+                "method_name": method_name,//(text)(:name: canister-method.),
+                "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), 
+                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
-                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
+                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the year-~1970)
             }
         };
         Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha256.    
@@ -217,10 +203,9 @@ class Canister {
         var httpclient = http.Client();
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
         if (![202,200].contains(canistercallsponse.statusCode)) {
-            // need "exception" here ? 
-            throw Exception('ic call gave http-sponse-status: ${canistercallsponse.statusCode}, with a body: ${canistercallsponse.body}');
+            throw Exception('ic call gave http-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
         }
-        dynamic canistersponse;
+        late Uint8List canistersponse;
         if (calltype == 'call') {
             List pathsvalues = [];
             String? callstatus;
@@ -241,6 +226,11 @@ class Canister {
                     httpclient: httpclient,
                     caller: caller 
                 ); 
+                // time check
+                BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
+                BigInt two_minutes_past_nano_seconds = BigInt.from(DateTime.now().add(Duration(minutes: -2)).millisecondsSinceEpoch) * BigInt.from(1000000);
+                if (certificate_time_nanoseconds < two_minutes_past_nano_seconds) { throw Exception('IC got back certificate that has a timestamp of more than 3 minutes ago'); }
+                
                 callstatus = pathsvalues[1];            
             }
             // print(pathsvalues);
@@ -249,22 +239,26 @@ class Canister {
             } else if (callstatus=='rejected') {
                 throw Exception('Call Reject: reject_code: ${pathsvalues[3]}: ${system_call_reject_codes[pathsvalues[3]]}: ${pathsvalues[4]}.');
             } else if (callstatus=='done') {
-                print('call-status is "done"');
-                throw Exception('');
+                throw Exception('call-status is "done", cant see the canister-reply');
             }
         } 
         else 
         if (calltype == 'query') {
-            canistersponse = cborflutter.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
+            Map canister_query_sponse_map = cborflutter.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
+            if (canister_query_sponse_map['status'] == 'replied') {
+                canistersponse = Uint8List.fromList(canister_query_sponse_map['reply']['arg']);
+            } else {
+                throw Exception('Query-call error: sponse: \n${canister_query_sponse_map}');
+            }
         }
         httpclient.close();
         return canistersponse;
     }
 
-
-
-
 }
+
+
+
 
 Map<int, String> system_call_reject_codes = {
     1: 'SYS_FATAL', //, Fatal system error, retry unlikely to be useful.',
@@ -285,9 +279,6 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
         if (pathb[i] is String) {
             pathb[i] = utf8.encode(pathb[i]);    
         }
-        // if (pathb[i] is List<int>) {
-        //     pathb[i] = Uint8List.fromList(pathb[i]);
-        // }??
     }
     return List.castFrom<dynamic, Uint8List>(pathb);
 }
@@ -346,11 +337,8 @@ dynamic createicquestingressexpiry([Duration? duration]) { //can be a bigint or 
     if (duration==null) {
         duration = (Duration(minutes: 4));
     }
-    if (isontheweb) {
-        return BigInt.from(DateTime.now().add(duration).millisecondsSinceEpoch)*BigInt.from(1000000); // microsecondsSinceEpoch*1000;
-    } else {
-        return DateTime.now().add(duration).millisecondsSinceEpoch*1000000; // microsecondsSinceEpoch*1000;
-    }
+    BigInt bigint = BigInt.from(DateTime.now().add(duration).millisecondsSinceEpoch) * BigInt.from(1000000); // microsecondsSinceEpoch*1000;
+    return bigint.isValidInt ? bigint.toInt() : bigint;
 }
 
 Uint8List createdomainseparatorbytes(String domainsepstring) {
