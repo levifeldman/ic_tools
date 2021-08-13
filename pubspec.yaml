@@ -1,20 +1,20 @@
 name: ic_tools
-# description: 
+description: ":ic_tools in the dart-language."
 version: 0.9.0
-homepage:
+homepage: https://github.com/levifeldman/ic_tools_dart
+
 
 environment:
   sdk: ">=2.13.0 <3.0.0"
   # flutter: ">=1.20.0"
 
 dependencies:
-  http: ^0.13.3
+  http: 0.13.3
   cbor: 4.0.2
-  typed_data: ^1.3.0 #check if use
-  archive: ^3.1.2 # crc32 checksum functions
+  typed_data: 1.3.0 #check if use
+  archive: 3.1.2 # crc32 checksum functions
   base32: 2.0.0
   cryptography: 2.0.2 
-  ffi: ^1.0.0
-  js: ^0.6.3
-  tuple: ^2.0.0
-  ed25519_edwards: ^0.2.1
+  ffi: 1.1.2
+  js: 0.6.3
+  tuple: 2.0.0

@@ -16,12 +16,14 @@ import 'package:cryptography/cryptography.dart';
 import 'package:cryptography/dart.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
-import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 
 import 'tools/tools.dart';
 import 'candid.dart';
 
+
 DartSha256 sha256 = DartSha256();
+
+
 
 
 String icbaseurl = 'https://ic0.app';
