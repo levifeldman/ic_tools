@@ -129,9 +129,8 @@ class Canister {
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
     }
-    
     // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
-    
+
 
     Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller}) async {        
         http.Request systemstatequest = http.Request('post', Uri.parse(canisterbaseurl + 'read_state'));
@@ -173,6 +172,7 @@ class Canister {
         }
     }
 
+
     Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
@@ -200,16 +200,19 @@ class Canister {
             // }
         }
         canistercallquest.bodyBytes = cborflutter.codeMap(canistercallquestbodymap,withaselfscribecbortag: true);
+        
         var httpclient = http.Client();
+        BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
         if (![202,200].contains(canistercallsponse.statusCode)) {
             throw Exception('ic call gave http-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
         }
-        late Uint8List canistersponse;
+        String? callstatus;
+        Uint8List? canistersponse;
+        int? reject_code;
+        String? reject_message;
         if (calltype == 'call') {
             List pathsvalues = [];
-            String? callstatus;
-            //:do: if poll certian mount of the times and no-sponse then try call again (with same nonce?)
             int c = 0;
             while (!['replied','rejected','done'].contains(callstatus) && c <= 15) {
                 c += 1;
@@ -226,33 +229,38 @@ class Canister {
                     httpclient: httpclient,
                     caller: caller 
                 ); 
-                // time check
+                // time-check, not in verify_certificate-function bc that would create new Datetime.now() on each verify and that is slow.
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
-                BigInt two_minutes_past_nano_seconds = BigInt.from(DateTime.now().add(Duration(minutes: -2)).millisecondsSinceEpoch) * BigInt.from(1000000);
-                if (certificate_time_nanoseconds < two_minutes_past_nano_seconds) { throw Exception('IC got back certificate that has a timestamp of more than 3 minutes ago'); }
+                if (certificate_time_nanoseconds < time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // put the timestamp
                 
                 callstatus = pathsvalues[1];            
             }
             // print(pathsvalues);
-            if (callstatus=='replied') {
-                canistersponse = Uint8List.fromList(pathsvalues[2]);
-            } else if (callstatus=='rejected') {
-                throw Exception('Call Reject: reject_code: ${pathsvalues[3]}: ${system_call_reject_codes[pathsvalues[3]]}: ${pathsvalues[4]}.');
-            } else if (callstatus=='done') {
-                throw Exception('call-status is "done", cant see the canister-reply');
-            }
+            canistersponse = pathsvalues[2];
+            reject_code = pathsvalues[3];
+            reject_message = pathsvalues[4];
         } 
-        else 
-        if (calltype == 'query') {
+
+        else if (calltype == 'query') {
             Map canister_query_sponse_map = cborflutter.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
-            if (canister_query_sponse_map['status'] == 'replied') {
-                canistersponse = Uint8List.fromList(canister_query_sponse_map['reply']['arg']);
-            } else {
-                throw Exception('Query-call error: sponse: \n${canister_query_sponse_map}');
-            }
+            callstatus = canister_query_sponse_map['status'];
+            canistersponse = canister_query_sponse_map.keys.toList().contains('reply') && canister_query_sponse_map['reply'].keys.toList().contains('arg') ? Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer) : null;
+            reject_code = canister_query_sponse_map.keys.toList().contains('reject_code') ? canister_query_sponse_map['reject_code'] : null;
+            reject_message = canister_query_sponse_map.keys.toList().contains('reject_message') ? canister_query_sponse_map['reject_message'] : null;
         }
+        
+        if (callstatus == 'replied') {
+            // good
+        } else if (callstatus=='rejected') {
+            throw Exception('Call Reject: reject_code: ${reject_code}: ${system_call_reject_codes[reject_code]}: ${reject_message}.');
+        } else if (callstatus=='done') {
+            throw Exception('call-status is "done", cant see the canister-reply');
+        } else {
+            throw Exception('Call error: call-status: ${callstatus}');
+        }
+        
         httpclient.close();
-        return canistersponse;
+        return canistersponse!;
     }
 
 }
@@ -290,8 +298,6 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
         valueforthehash = utf8.encode(datastructure); }
     else if (datastructure is int || datastructure is BigInt) {
         valueforthehash = leb128flutter.encodeUnsigned(datastructure); }
-    // else if (datastructure is BigInt) {
-    //     valueforthehash = Leb128.encodeUnsigned(datastructure); }  // FIX THIS DATA how to get bytes on leb128 codeUnsigned(of a bigint/jsbignumber)
     else if (datastructure is Uint8List) {
         valueforthehash= datastructure; }
     else if (datastructure is List) {
@@ -392,11 +398,9 @@ Future<void> verifycertificate(Map certificate) async {
     } else {
         derKey = icrootkey; }
     Uint8List blskey = derkeyasablskey(derKey);
-    // print("sig len: ${certificate['signature'].length}, pk len: ${blskey.length}");
     bool certificatevalidity = await bls12381flutter.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
     // print(certificatevalidity);
     if (certificatevalidity == false) { 
-        // print(':CERTIFICATE IS: VOID.');
         throw Exception(':CERTIFICATE IS: VOID.'); 
     }
 }
@@ -440,7 +444,7 @@ String getstatetreepathvaluetype(List<dynamic> path) {
             }
         }
     }
-    if (valuetype==null) { throw Exception(':library is with the void-knowledge of the quest-path.'); }
+    if (valuetype==null) { throw Exception(':library: ic_tools is with the void-knowledge of the quest-path.'); }
     return valuetype;
 }
 
