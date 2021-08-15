@@ -5,7 +5,7 @@ import 'package:tuple/tuple.dart';
 import './tools.dart';
 
 
-class leb128flutter {
+class leb128 {
 
     static Uint8List encodeUnsigned(x) {
         if (!(x is int) && !(x is BigInt)) {

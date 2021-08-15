@@ -18,7 +18,6 @@ import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 
 import './tools/tools.dart';
-import './candid.dart';
 
 
 DartSha256 sha256 = DartSha256();
@@ -33,7 +32,7 @@ Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1,
 
 Future<Map> ic_status() async {
     http.Response statussponse = await http.get(Uri.parse(icbaseurl + '/api/v2/status'));
-    return cborflutter.cborbytesasadart(statussponse.bodyBytes);
+    return cbor.cborbytesasadart(statussponse.bodyBytes);
 }
 
 
@@ -126,7 +125,7 @@ class Canister {
     }
     Future<List<Principal>> controllers() async {
         List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'controllers']]);
-        List<dynamic> controllers_list = cborflutter.cborbytesasadart(paths_values[0]); //?buffer? orr List
+        List<dynamic> controllers_list = cbor.cborbytesasadart(paths_values[0]); //?buffer? orr List
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
@@ -155,7 +154,7 @@ class Canister {
             //     ...
             // }
         }
-        systemstatequest.bodyBytes = cborflutter.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
+        systemstatequest.bodyBytes = cbor.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
         bool need_close_httpclient = false;
         if (httpclient==null) {
             httpclient = http.Client();
@@ -164,8 +163,8 @@ class Canister {
         http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
         if (need_close_httpclient) { httpclient.close(); }
         if (statesponse.statusCode==200) {
-            Map systemstatesponsemap = cborflutter.cborbytesasadart(statesponse.bodyBytes);
-            Map certificate = cborflutter.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
+            Map systemstatesponsemap = cbor.cborbytesasadart(statesponse.bodyBytes);
+            Map certificate = cbor.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
             await verifycertificate(certificate); // will throw an exception if certificate is not valid.
             List pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
             return pathsvalues;
@@ -201,7 +200,7 @@ class Canister {
             //     ...
             // }
         }
-        canistercallquest.bodyBytes = cborflutter.codeMap(canistercallquestbodymap,withaselfscribecbortag: true);
+        canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap,withaselfscribecbortag: true);
         
         var httpclient = http.Client();
         BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
@@ -242,7 +241,7 @@ class Canister {
         } 
 
         else if (calltype == 'query') {
-            Map canister_query_sponse_map = cborflutter.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
+            Map canister_query_sponse_map = cbor.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
             callstatus = canister_query_sponse_map['status'];
             canistersponse = canister_query_sponse_map.keys.toList().contains('reply') && canister_query_sponse_map['reply'].keys.toList().contains('arg') ? Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer) : null;
             reject_code = canister_query_sponse_map.keys.toList().contains('reject_code') ? canister_query_sponse_map['reject_code'] : null;
@@ -297,7 +296,7 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     if (datastructure is String) {
         valueforthehash = utf8.encode(datastructure); }
     else if (datastructure is int || datastructure is BigInt) {
-        valueforthehash = leb128flutter.encodeUnsigned(datastructure); }
+        valueforthehash = leb128.encodeUnsigned(datastructure); }
     else if (datastructure is Uint8List) {
         valueforthehash= datastructure; }
     else if (datastructure is List) {
@@ -396,13 +395,13 @@ Future<void> verifycertificate(Map certificate) async {
     Uint8List treeroothash = constructicsystemstatetreeroothash(certificate['tree']);
     Uint8List derKey;
     if (certificate.containsKey('delegation')) {
-        Map legation_certificate = cborflutter.cborbytesasadart(Uint8List.fromList(certificate['delegation']['certificate']));
+        Map legation_certificate = cbor.cborbytesasadart(Uint8List.fromList(certificate['delegation']['certificate']));
         await verifycertificate(legation_certificate);
         derKey = lookuppathvalueinaniccertificatetree(legation_certificate['tree'], ['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']);
     } else {
         derKey = icrootkey; }
     Uint8List blskey = derkeyasablskey(derKey);
-    bool certificatevalidity = await bls12381flutter.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
+    bool certificatevalidity = await bls12381.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
     // print(certificatevalidity);
     if (certificatevalidity == false) { 
         throw Exception(':CERTIFICATE IS: VOID.'); 
@@ -454,7 +453,7 @@ String getstatetreepathvaluetype(List<dynamic> path) {
 
 Map<String, Function(Uint8List)> systemstatepathvaluetypetransform = {
     'blob'    : (li)=>li,
-    'natural' : (li)=>leb128flutter.decodeUnsigned(li),
+    'natural' : (li)=>leb128.decodeUnsigned(li),
     'text'    : (li)=>utf8.decode(li)
 };
 

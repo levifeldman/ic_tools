@@ -27,7 +27,7 @@ abstract class Bls12381Flutter {
 }
 
 
-Bls12381Flutter bls12381flutter = getBls12381Lib(); 
+Bls12381Flutter bls12381 = getBls12381Lib(); 
 
 
 // await bls12381flutter.load();

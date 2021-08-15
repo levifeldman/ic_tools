@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 export './leb128.dart';
 export './cross_platform_tools/onthewebcheck/main.dart' show isontheweb;
-export './cross_platform_tools/cbor/main.dart' show cborflutter;
-export './cross_platform_tools/bls12381/main.dart' show bls12381flutter;
+export './cross_platform_tools/cbor/main.dart' show cbor;
+export './cross_platform_tools/bls12381/main.dart' show bls12381;
 
 
 
@@ -132,6 +132,7 @@ String bytes_as_the_bitstring(Uint8List bytes) {
 int check_double_decimal_point_places(double d) => d.toString().substring(d.toString().indexOf('.') + 1).length;
 
 
+String get_typename_ofthe_toString(String str) => str.substring(13, str.length-1);
 
 
 

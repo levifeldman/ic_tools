@@ -8,8 +8,6 @@ export 'src/ic_tools.dart' show
     system_call_reject_codes,
     ic_status,
     icdatahash,
-    icidbytesasatext,
-    icidtextasabytes,
     questidbytesasastring,
     questidstringasabytes,
     verifycertificate,

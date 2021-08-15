@@ -24,7 +24,7 @@ abstract class CborFlutter {
 }
 
 
-CborFlutter cborflutter = getCborLib(); 
+CborFlutter cbor = getCborLib(); 
 
 
 
