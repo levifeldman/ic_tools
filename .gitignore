@@ -19,3 +19,9 @@ build/
 lib/t.dart
 
 :code-logs.
+
+
+
+doc/
+
+serve_docs.py

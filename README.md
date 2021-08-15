@@ -1,16 +1,19 @@
 # ic_tools
 
-Checkout common.dart https://github.com/levifeldman/ic_tools_dart/blob/master/lib/common.dart for some samples.
+----------
 
-# 
+
+Checkout src/common.dart  for some samples.
+
+----------
 
 runs with the sound-null-safety.
 
-#
+----------
 
 This package is for the Dart &: Flutter, on the Web &: Linux.
 
-#
+----------
 
 
 On the web:
