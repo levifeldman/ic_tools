@@ -13,3 +13,7 @@
 ## 0.9.21
 
 * cbor namespace fix on the web
+
+## 0.9.22
+
+* README change
