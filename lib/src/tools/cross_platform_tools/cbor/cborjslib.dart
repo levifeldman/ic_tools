@@ -1,5 +1,5 @@
 @JS()
-library cbor;
+library cborjslib;
 
 import 'package:js/js.dart';
 import 'package:js/js_util.dart';
@@ -14,8 +14,8 @@ import 'dart:js' as js;
 
 
 
-@JS()
-class cbor {
+@JS('cbor')
+class cborjslib {
     external static Uint8List encodeOne(o, choices);
 }
 

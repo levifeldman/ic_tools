@@ -9,7 +9,7 @@ import '../js/bignumber/main.dart';
 class cborjs extends CborFlutter {
     @override
     Uint8List codeMap(Map map, {withaselfscribecbortag=false}) {
-        Uint8List v = cbor.encodeOne(dartmapasajsstruct(map), dartmapasajsstruct({'canonical': false, 'collapseBigIntegers': true}));
+        Uint8List v = cborjslib.encodeOne(dartmapasajsstruct(map), dartmapasajsstruct({'canonical': false, 'collapseBigIntegers': true}));
         if (withaselfscribecbortag) { v = Uint8List.fromList([217,217,247] + v); }
         return v;
     } 
