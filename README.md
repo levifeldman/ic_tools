@@ -7,7 +7,7 @@ This package is for the Dart &: Flutter, on the Web &: Linux.
 
 ----------
 
-Checkout src/common.dart (https://github.com/levifeldman/ic_tools_dart/blob/master/lib/src/common.dart) for some samples.
+Checkout the common-lib (https://github.com/levifeldman/ic_tools_dart/blob/master/lib/src/common.dart) for some samples.
 
 ----------
 
