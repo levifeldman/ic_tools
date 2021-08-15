@@ -10,4 +10,6 @@
 
 * Docs-fix , candid reference-types-fix
 
+## 0.9.21
 
+* cbor namespace fix on the web
