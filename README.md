@@ -1,17 +1,17 @@
 # ic_tools
 
 ----------
+This is a package for the connection of the dart-code with the DFINITY-INTERNET-COMPUTER.
 
+This package is for the Dart &: Flutter, on the Web &: Linux.
 
-Checkout src/common.dart  for some samples.
+----------
+
+Checkout src/common.dart (https://github.com/levifeldman/ic_tools_dart/blob/master/lib/src/common.dart) for some samples.
 
 ----------
 
 runs with the sound-null-safety.
-
-----------
-
-This package is for the Dart &: Flutter, on the Web &: Linux.
 
 ----------
 

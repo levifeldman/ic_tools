@@ -70,7 +70,7 @@ class leb128 {
         return Uint8List.fromList(bytes.reversed.toList());        
     }
 
-    static dynamic decodeSigned(bytes) {
+    static dynamic decodeSigned(List<int> bytes) {
         String bitstring = '';
         int first_byte = bytes[bytes.length-1];
         bitstring = first_byte.toRadixString(2);
