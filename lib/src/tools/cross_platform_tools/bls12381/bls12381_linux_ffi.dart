@@ -9,7 +9,7 @@ typedef dart_bls_stantiate = int Function();
 typedef dart_bls_verify = int Function(ffi.Pointer<Utf8> autograph, ffi.Pointer<Utf8> message, ffi.Pointer<Utf8> public_key);
 
 
-ffi.DynamicLibrary dlffi = ffi.DynamicLibrary.open("rust_bls12381/target/release/librust_bls12381.so");
+ffi.DynamicLibrary dlffi = ffi.DynamicLibrary.open("rust_bls12381/librust_bls12381.so");
 
 final dart_bls_stantiate bls_stantiate = dlffi.lookup<ffi.NativeFunction<rust_bls_stantiate>>('bls_stantiate').asFunction();
 final dart_bls_verify bls_verify = dlffi.lookup<ffi.NativeFunction<rust_bls_verify>>('bls_verify').asFunction();

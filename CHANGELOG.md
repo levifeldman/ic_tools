@@ -17,3 +17,7 @@
 ## 0.9.22
 
 * README change
+
+## 0.9.23
+
+* Structions on the Linux
