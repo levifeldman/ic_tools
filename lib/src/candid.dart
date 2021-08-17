@@ -727,7 +727,8 @@ class Option extends ConstructType {
 
     Uint8List T_forward() {
         // is with the give-back of a sleb128-bytes of a type-table-i
-        Uint8List t_bytes = leb128.encodeSigned(Option.type_code);
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128.encodeSigned(Option.type_code));
         Uint8List value_type_t_forward_bytes = this.value != null ? this.value!.T_forward() : this.value_type!.T_forward();
         t_bytes.addAll(value_type_t_forward_bytes);
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
@@ -805,7 +806,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         TfuncTuple values_type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
-        Vector vec = Vector(values_type: values_type_t_func_tuple.item1);
+        Vector vec = Vector(values_type: values_type_t_func_tuple.item1, isTypeStance: true);
         return TfuncTuple(vec, values_type_t_func_tuple.item2);
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
@@ -823,7 +824,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     }
 
     Uint8List T_forward() {
-        Uint8List t_bytes = leb128.encodeSigned(Vector.type_code);
+        List<int> t_bytes = [];
+        t_bytes.addAll(leb128.encodeSigned(Vector.type_code));
         if (this.values_type == null && this.length == 0) {
             throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs a vector-values-type to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-param when creating this vector. Vector(values_type: Int64()/Text()/...)');
         }
@@ -834,12 +836,12 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     }
 
     Uint8List M_forward() {
-        Uint8List m_bytes = Uint8List(0);
+        List<int> m_bytes = [];
         m_bytes.addAll(leb128.encodeUnsigned(this.length));
         for (CandidType c in this) {
             m_bytes.addAll(c.M_forward());
         }
-        return m_bytes;
+        return Uint8List.fromList(m_bytes);
     }
 }
 
