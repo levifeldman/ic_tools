@@ -21,3 +21,7 @@
 ## 0.9.23
 
 * Structions on the Linux
+
+## 0.9.24
+
+* candid Vector T_backwards isTypeStance fix and forwards bytes lists fixs.  
