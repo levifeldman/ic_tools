@@ -18,14 +18,14 @@ import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 
 import './tools/tools.dart';
-
+import './candid.dart';
 
 DartSha256 sha256 = DartSha256();
 
 
 
 
-String icbaseurl = 'https://ic0.app';
+const String icbaseurl = 'https://ic0.app';
 Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 1, 2, 1, 6, 12, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 2, 1, 3, 97, 0, 129, 76, 14, 110, 199, 31, 171, 88, 59, 8, 189, 129, 55, 60, 37, 92, 60, 55, 27, 46, 132, 134, 60, 152, 164, 241, 224, 139, 116, 35, 93, 20, 251, 93, 156, 12, 213, 70, 217, 104, 95, 145, 58, 12, 11, 44, 197, 52, 21, 131, 191, 75, 67, 146, 228, 103, 219, 150, 214, 91, 155, 180, 203, 113, 113, 18, 248, 71, 46, 13, 90, 77, 20, 80, 95, 253, 116, 132, 176, 18, 145, 9, 28, 95, 135, 185, 136, 131, 70, 63, 152, 9, 26, 11, 170, 174]);
 
 
@@ -114,10 +114,10 @@ class CallerEd25519 extends Caller {
 
 
 class Canister {
-    final Principal principal;
-    final String canisterbaseurl;
+    static const baseurl = icbaseurl + '/api/v2/canister/';
+    final Principal principal; 
 
-    Canister(this.principal) : canisterbaseurl= icbaseurl + '/api/v2/canister/${principal.text}/';   
+    Canister(this.principal);   
 
     Future<Uint8List> module_hash() async {
         List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'module_hash']]);
@@ -133,8 +133,9 @@ class Canister {
     // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
 
 
-    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller}) async {        
-        http.Request systemstatequest = http.Request('post', Uri.parse(canisterbaseurl + 'read_state'));
+    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, Principal? fective_canister_id}) async {        
+        fective_canister_id ??= this.principal;
+        http.Request systemstatequest = http.Request('post', Uri.parse(Canister.baseurl + fective_canister_id.text + '/read_state'));
         systemstatequest.headers['Content-Type'] = 'application/cbor';
         List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
         Map getstatequestbodymap = {
@@ -176,7 +177,20 @@ class Canister {
 
     Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
-        var canistercallquest = http.Request('post', Uri.parse(canisterbaseurl + calltype));
+        late Principal fective_canister_id; // // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
+        if (this.principal.text == 'aaaaa-aa') { 
+            try {
+                Record put_record = c_backwards(put_bytes!)[0] as Record;
+                PrincipalReference principalfer = put_record['canister_id'] as PrincipalReference;
+                fective_canister_id = Principal.oftheBytes(principalfer.id!.bytes);
+            }
+            catch(e) {
+                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference. When trying to see this Record this happened: ${e} ');
+            }
+        } else {
+            fective_canister_id = this.principal;
+        }
+        var canistercallquest = http.Request('post', Uri.parse(Canister.baseurl + fective_canister_id.text + '/' + calltype));
         canistercallquest.headers['Content-Type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
@@ -184,7 +198,7 @@ class Canister {
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
-                "canister_id": principal.bytes, //(blob)
+                "canister_id": fective_canister_id.bytes, // principal.bytes, //(blob)
                 "method_name": method_name,//(text)(:name: canister-method.),
                 "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), 
                 "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
@@ -200,8 +214,9 @@ class Canister {
             //     ...
             // }
         }
-        canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap,withaselfscribecbortag: true);
-        
+        canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
+        // print(canistercallquest);
+        // print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
         BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
@@ -228,7 +243,8 @@ class Canister {
                         ['request_status', questId, 'reject_message']
                     ], 
                     httpclient: httpclient,
-                    caller: caller 
+                    caller: caller,
+                    fective_canister_id: fective_canister_id 
                 ); 
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
                 if (certificate_time_nanoseconds < time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // // time-check, not in verify_certificate-function bc that would create new Datetime.now() on each verify and that is slow. 

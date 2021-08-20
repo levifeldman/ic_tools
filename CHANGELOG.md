@@ -25,3 +25,8 @@
 ## 0.9.24
 
 * candid Vector T_backwards isTypeStance fix and forwards bytes lists fixs.  
+
+## 0.9.25
+
+* calls to the management canister now are with the correct fective_canister_id.
+
