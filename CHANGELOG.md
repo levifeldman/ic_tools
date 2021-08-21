@@ -33,3 +33,7 @@
 ## 0.9.26
 
 * new create_canister-function in the common-library.
+
+## 0.9.27
+
+* :fix: comma in the lib/common.dart.
