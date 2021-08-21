@@ -25,7 +25,9 @@ typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_backward gives back 
 
 
 final Map<int, PrimitiveType> backwards_primtypes_opcodes_for_the_primtype_type_stances = { //PrimitiveType is with isTypeStance = true; 
-    Null.type_code     : Null(),
+    Null.type_code     : Null(isTypeStance: true),
+    Reserved.type_code : Reserved(isTypeStance: true),
+    Empty.type_code    : Empty(isTypeStance: true),
     Bool.type_code     : Bool(),
     Nat.type_code      : Nat(),
     Int.type_code      : Int(),
@@ -40,8 +42,6 @@ final Map<int, PrimitiveType> backwards_primtypes_opcodes_for_the_primtype_type_
     Float32.type_code  : Float32(),
     Float64.type_code  : Float64(),
     Text.type_code     : Text(),
-    Reserved.type_code : Reserved(),
-    Empty.type_code    : Empty(),
 };
 
 // static T_backwards functions start_i starts after the type_code-signed-leb128bytes
@@ -107,7 +107,7 @@ TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_
     else {
         throw Exception('unknown candid type_code ');
     }
-    
+
     if (t_func_tuple.item1.isTypeStance==false) { throw Exception('T_backwards functions need to return a CandidType with an isTypeStance=true'); }
     return t_func_tuple;
 }
@@ -256,7 +256,9 @@ abstract class PrimitiveType extends CandidType {
 class Null extends PrimitiveType {
     static const int type_code = -1;
     get value => throw Exception('CandidType: Null is with the lack of a value.'); 
-    
+    final bool isTypeStance;
+    Null({this.isTypeStance = false});
+
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         return MfuncTuple(Null(), start_i);
     }
@@ -264,7 +266,41 @@ class Null extends PrimitiveType {
     Uint8List M_forward() {
         return Uint8List(0);
     }
+
+    String toString() => 'Null';  
 }
+
+class Reserved extends PrimitiveType {
+    static const int type_code = -16;
+    get value => throw Exception('CandidType: Reserved is with the lack of a value.');
+    final bool isTypeStance;
+    Reserved({this.isTypeStance = false});
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+        return MfuncTuple(Reserved(), start_i);      
+    }
+    
+    Uint8List M_forward() {
+        return Uint8List(0);
+    }
+
+    String toString() => 'Reserved';  
+} 
+
+class Empty extends PrimitiveType {
+    static const int type_code = -17;
+    get value => throw Exception('CandidType: Empty is with the lack of a value.');
+    final bool isTypeStance;
+    Empty({this.isTypeStance = false});
+    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
+    }
+
+    Uint8List M_forward () {
+        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
+    }
+
+    String toString() => 'Empty';  
+} 
 
 
 class Bool extends PrimitiveType {
@@ -638,31 +674,6 @@ class Text extends PrimitiveType {
     }
 } 
 
-class Reserved extends PrimitiveType {
-    static const int type_code = -16;
-    get value => throw Exception('CandidType: Reserved is with the lack of a value.');
-
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        return MfuncTuple(Reserved(), start_i);      
-    }
-    
-    Uint8List M_forward() {
-        return Uint8List(0);
-    }
-} 
-
-class Empty extends PrimitiveType {
-    static const int type_code = -17;
-    get value => throw Exception('CandidType: Empty is with the lack of a value.');
-
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
-    }
-
-    Uint8List M_forward () {
-        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
-    }
-} 
 
 // ------------------------------------
 
@@ -930,6 +941,7 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
     void clear() {
         return _map.clear();
     }
+    bool containsKey(dynamic k) => k is String ? super.containsKey(candid_text_hash(k)) : super.containsKey(k);
 }
 
 

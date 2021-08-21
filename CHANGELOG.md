@@ -30,3 +30,6 @@
 
 * calls to the management canister now are with the correct fective_canister_id.
 
+## 0.9.26
+
+* new create_canister-function in the common-library.

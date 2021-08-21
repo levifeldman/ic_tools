@@ -41,7 +41,9 @@ Future<Map> ic_status() async {
 class Principal {
     final Uint8List bytes;
     final String text;
-    Principal(this.text) : bytes = icidtextasabytes(text);
+    Principal(this.text) : bytes = icidtextasabytes(text) {
+        // put a check here not more than 29 bytes?
+    }
     static Principal oftheBytes(Uint8List bytes) {
         Principal p = Principal(icidbytesasatext(bytes));
         if (aresamebytes(p.bytes, bytes) != true) {  throw Exception('ic id functions look '); }
