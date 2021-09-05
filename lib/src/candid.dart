@@ -215,10 +215,6 @@ Uint8List c_forwards(List<CandidType> candids) {
 
 
 
-// is the type_table length in the code in the leb128-Unsigned?
-// is the parameter-length in the code as the leb128-Unsigned?
-
-
 
 abstract class CandidType {
     bool get isTypeStance;
@@ -634,7 +630,6 @@ class Float32 extends PrimitiveType {
 } 
 
 
-// : DO. [ make sure the floats can handle js and linux the same ]
 class Float64 extends PrimitiveType {
     static const int type_code = -14;
     final double? value;
@@ -763,13 +758,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     static const int type_code = -19;
     final CandidType? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
     final bool isTypeStance;
-    Vector({this.values_type, this.isTypeStance= false}) {
-        if (values_type!=null) {
-            if (values_type!.isTypeStance==false) {
-                throw Exception('The Vector values_type CandidType must have .isTypeStance == true');
-            }
-        } 
-    }
+    Vector({this.values_type, this.isTypeStance= false});
+
     static Vector<T> oftheList<T extends CandidType>(Iterable<T> list ) {
         Vector<T> vec = Vector<T>();
         vec.addAll(list);
@@ -778,7 +768,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
     List<T> _list = <T>[];
     _canputinthevectortypecheck(CandidType new_c) {
-        if (this.isTypeStance == true) { // test this throw 
+        if (this.isTypeStance == true) { 
             throw Exception('a Vector with a isTypeStance=true is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
         }
         if (this.values_type != null) {
@@ -1086,15 +1076,11 @@ class Variant extends RecordAndVariantMap {
 }
 
 // for the forward of a vec { variant {A,B,C }  } create a vec and for each vec-item: create: new Variant with that item's-specific variant-fieldtype-id and value. Vector() 
-// Vector()..addAll([Variant.fromMap({'A':a_value}), Variant.fromMap({'B':b_value}), Variant.fromMap({'C':c_value})]);
 
 
 // ----------------------------------------------
 
 
-
-// can a function have more than one candidtype parameters, in the general &in a func reference ? is the length of the func-reference-in_types in the leb128?
-// how can i know when the function annotations are finish in a func-reference-type? is the length of the func-annotations in the leb128?
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 // can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 

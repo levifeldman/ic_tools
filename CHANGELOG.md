@@ -41,3 +41,7 @@
 ## 0.9.28
 
 * :fix: exports of the common.dart.
+
+## 1.0.1
+
+* :version: 1.0.1 .

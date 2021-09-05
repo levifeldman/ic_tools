@@ -1,10 +1,3 @@
-// FOR THE DO: 
-
-// create Authorization-keys, call with an authorization. 
-// create legations-portunities
-
-// check each curance of the int/BigInt .parse(), make sure radix parameter is correct
-
 import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -12,15 +5,21 @@ import 'dart:async';
 
 import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
-import 'package:cryptography/cryptography.dart';
-import 'package:cryptography/dart.dart';
+// importing from the /src files because otherwise this package won't show up as being compatible with the web-platform-js-runtime on the pub.dev. The cryptography package can check their imports on this page https://pub.dev/packages/cryptography/score in the support multiple platforms section.
+// import 'package:cryptography/cryptography.dart';
+// import 'package:cryptography/dart.dart';
+import 'package:cryptography/src/dart/sha1_sha2.dart';
+import 'package:cryptography/src/dart/ed25519.dart';
+import 'package:cryptography/src/cryptography/simple_key_pair.dart';
+import 'package:cryptography/src/cryptography/simple_public_key.dart';
+import 'package:cryptography/src/cryptography/signature.dart';
+import 'package:cryptography/src/cryptography/key_pair_type.dart';
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 
 import './tools/tools.dart';
 import './candid.dart';
 
-DartSha256 sha256 = DartSha256();
 
 
 
@@ -144,9 +143,9 @@ class Canister {
             "content": { 
                 "request_type": 'read_state',//(text)
                 "paths": pathsbytes,  
-                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous in the now(Principal) (:quirement. can be the anonymous principal? find out what is the anonymous principal.-> anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
-                "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
-                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (time of message time-out in nanoseconds since 1970)
+                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
+                "nonce": createicquestnonce(),  // (blob)(optional)(use when make same quest soon between but make sure system sees two seperate quests) , 
+                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the ~1970)
             }
         };
         if (caller != null) {
@@ -196,7 +195,7 @@ class Canister {
         canistercallquest.headers['Content-Type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
-            // "sender_delegation": ([] of the maps) ?find out more. "(array of maps, optional): a chain of delegations, starting with the one signed by sender_pubkey and ending with the one delegating to the key relating to sender_sig."
+            // "sender_delegation": ([] of the maps) "(array of maps, optional): a chain of delegations, starting with the one signed by sender_pubkey and ending with the one delegating to the key relating to sender_sig."
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
@@ -208,7 +207,7 @@ class Canister {
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the year-~1970)
             }
         };
-        Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha256.    
+        Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha 256.    
         if (caller != null) {
             canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
             canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
@@ -259,7 +258,7 @@ class Canister {
         } 
 
         else if (calltype == 'query') {
-            Map canister_query_sponse_map = cbor.cborbytesasadart(canistercallsponse.bodyBytes); // make canister sponse just the reply           
+            Map canister_query_sponse_map = cbor.cborbytesasadart(canistercallsponse.bodyBytes); 
             callstatus = canister_query_sponse_map['status'];
             canistersponse = canister_query_sponse_map.keys.toList().contains('reply') && canister_query_sponse_map['reply'].keys.toList().contains('arg') ? Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer) : null;
             reject_code = canister_query_sponse_map.keys.toList().contains('reject_code') ? canister_query_sponse_map['reject_code'] : null;
@@ -307,6 +306,9 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
     }
     return List.castFrom<dynamic, Uint8List>(pathb);
 }
+
+
+DartSha256 sha256 = DartSha256();
 
 
 Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
