@@ -66,7 +66,7 @@ int candid_text_hash(String text) {
     // hash(id) = ( Sum_(i=0..k) utf8(id)[i] * 223^(k-i) ) mod 2^32 where k = |utf8(id)|-1
     int hash = 0;
     for (int b in utf8.encode(text)) {
-        hash = (hash * 223 + b) % pow(2, 32) as int;  
+        hash = (((hash * 223) % pow(2, 32) as int) + b) % pow(2, 32) as int;  
     }
     return hash as int;
 }
@@ -379,8 +379,9 @@ class Nat8 extends PrimitiveType {
         // }
         // int value = int.parse(nat8_asabitstring, radix: 2);
 
-        int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getUint8(0);
-        MfuncTuple m_func_tuple = MfuncTuple(Nat8(value), start_i+1);
+        // int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getUint8(0);
+        
+        MfuncTuple m_func_tuple = MfuncTuple(Nat8(candidbytes[start_i]), start_i+1);
         return m_func_tuple;    
     }
     
@@ -812,15 +813,31 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     } 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
-        dynamic vec_len = leb128.decodeUnsigned(leb128_bytes_tuple.item1);
-        if (vec_len is int) { vec_len = BigInt.from(vec_len); }
+        dynamic vec_len_dy = leb128.decodeUnsigned(leb128_bytes_tuple.item1);
+        late int vec_len; // need because leb128 can be bigint but candidbytes is a list and can only index up to 2^64 of the max of the dart-int
+        if (vec_len_dy is BigInt) {
+            if (vec_len_dy.isValidInt) {
+                vec_len = vec_len_dy.toInt();  
+            } else {
+                throw Exception('these candid-bytes are too big for this dart code to handle, there are more than 2^64 bytes. these candid-bytes are held in lists and a dart-list can only index up to 2^64, the max of the dart-int. ');
+            }
+        } else {
+            vec_len = vec_len_dy as int;
+        }
         CandidBytes_i next_vec_item_start_i = leb128_bytes_tuple.item2;
         Vector vec = Vector();
-        for (BigInt i=BigInt.from(0);i<vec_len;i=i+BigInt.one) {
-            MfuncTuple m_func_tuple = this.values_type!.M(candidbytes, next_vec_item_start_i);
-            vec.add(m_func_tuple.item1);
-            next_vec_item_start_i = m_func_tuple.item2;
+        if (this.values_type! is Nat8) {
+            CandidBytes_i finish_nat8s_i = next_vec_item_start_i + vec_len;
+            vec.addAll(candidbytes.sublist(next_vec_item_start_i, finish_nat8s_i).map<Nat8>((int byte)=>Nat8(byte)));
+            next_vec_item_start_i = finish_nat8s_i;
+        } else {
+            for (int i=0;i<vec_len;i=i+1) {
+                MfuncTuple m_func_tuple = this.values_type!.M(candidbytes, next_vec_item_start_i);
+                vec.add(m_func_tuple.item1);
+                next_vec_item_start_i = m_func_tuple.item2;
+            }
         }
+
         return MfuncTuple(vec, next_vec_item_start_i);
     }
 
@@ -848,7 +865,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
 
 class Blob extends Vector<Nat8> { 
-    Blob(Iterable<int> bytes_list) {
+    Blob(Iterable<int> bytes_list, {bool isTypeStance=false}) : super(values_type: Nat8(), isTypeStance: isTypeStance) {
         this.addAll_bytes(bytes_list);
     }
     static Blob oftheVector(Vector<Nat8> vecnat8) {

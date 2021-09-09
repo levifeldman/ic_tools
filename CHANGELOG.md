@@ -45,3 +45,8 @@
 ## 1.0.1
 
 * :version: 1.0.1 .
+
+## 1.0.2
+
+* Timization of the c_backwards on a Vector< Nat8 > , so we can serialize big blobs fast. 
+* empty Blob() c_forwards fix
