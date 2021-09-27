@@ -50,3 +50,13 @@
 
 * Timization of the c_backwards on a Vector< Nat8 > , so we can serialize big blobs fast. 
 * empty Blob() c_forwards fix
+
+## 1.0.3
+
+* new .cast_vector<C>() method on the Vector , for the cast of a vector< Candidtype > for a specific vector < specific-candidtype >, like .cast< T >() on a List.
+* new getter .principal on a candid PrincipalReference  
+* The Principal class now extends the CandidType: PrincipalReference.
+* You can now set the icbaseurl variable and it is now a Uri type. local on the port: 8000 -> 
+```dart 
+icbaseurl = Uri.parse('http://127.0.0.1:8000'); 
+```

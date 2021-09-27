@@ -24,23 +24,23 @@ import './candid.dart';
 
 
 
-const String icbaseurl = 'https://ic0.app';
+Uri icbaseurl = Uri.parse('https://ic0.app');
 Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 1, 2, 1, 6, 12, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 2, 1, 3, 97, 0, 129, 76, 14, 110, 199, 31, 171, 88, 59, 8, 189, 129, 55, 60, 37, 92, 60, 55, 27, 46, 132, 134, 60, 152, 164, 241, 224, 139, 116, 35, 93, 20, 251, 93, 156, 12, 213, 70, 217, 104, 95, 145, 58, 12, 11, 44, 197, 52, 21, 131, 191, 75, 67, 146, 228, 103, 219, 150, 214, 91, 155, 180, 203, 113, 113, 18, 248, 71, 46, 13, 90, 77, 20, 80, 95, 253, 116, 132, 176, 18, 145, 9, 28, 95, 135, 185, 136, 131, 70, 63, 152, 9, 26, 11, 170, 174]);
 
 
 
 Future<Map> ic_status() async {
-    http.Response statussponse = await http.get(Uri.parse(icbaseurl + '/api/v2/status'));
+    http.Response statussponse = await http.get(icbaseurl.replace(pathSegments: ['api', 'v2', 'status']));
     return cbor.cborbytesasadart(statussponse.bodyBytes);
 }
 
 
 
 
-class Principal {
-    final Uint8List bytes;
+class Principal extends PrincipalReference {
+    Uint8List get bytes => super.id!.bytes;
     final String text;
-    Principal(this.text) : bytes = icidtextasabytes(text) {
+    Principal(this.text) : super(id: Blob(icidtextasabytes(text))) {  
         // put a check here not more than 29 bytes?
     }
     static Principal oftheBytes(Uint8List bytes) {
@@ -115,7 +115,8 @@ class CallerEd25519 extends Caller {
 
 
 class Canister {
-    static const baseurl = icbaseurl + '/api/v2/canister/';
+    static final List<String> base_path_segments = ['api', 'v2', 'canister'];
+    
     final Principal principal; 
 
     Canister(this.principal);   
@@ -136,7 +137,11 @@ class Canister {
 
     Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, Principal? fective_canister_id}) async {        
         fective_canister_id ??= this.principal;
-        http.Request systemstatequest = http.Request('post', Uri.parse(Canister.baseurl + fective_canister_id.text + '/read_state'));
+        http.Request systemstatequest = http.Request('POST', 
+            icbaseurl.replace(
+                pathSegments: Canister.base_path_segments + [fective_canister_id.text, 'read_state']
+            )
+        );
         systemstatequest.headers['Content-Type'] = 'application/cbor';
         List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
         Map getstatequestbodymap = {
@@ -178,20 +183,37 @@ class Canister {
 
     Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
-        late Principal fective_canister_id; // // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
+        Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
+            Record put_record = c_backwards(put_bytes!)[0] as Record;
             try {
-                Record put_record = c_backwards(put_bytes!)[0] as Record;
                 PrincipalReference principalfer = put_record['canister_id'] as PrincipalReference;
-                fective_canister_id = Principal.oftheBytes(principalfer.id!.bytes);
+                fective_canister_id = principalfer.principal!;
+                print('fective cid as a PrincipalReference in a "canister_id" field');
+            } catch(e) {
+                
             }
-            catch(e) {
-                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference. When trying to see this Record this happened: ${e} ');
+            if (fective_canister_id == null) {
+                try {
+                    // while the management-canister takes Blobs we will send blobs
+                    Blob principal_blob =  Blob.oftheVector((put_record['canister_id'] as Vector).cast_vector<Nat8>());
+                    fective_canister_id = Principal.oftheBytes(principal_blob.bytes);    
+                    print('fective cid as a Blob in a "canister_id" field');
+                } catch(e) {
+                    
+                }                
+            }
+            if (fective_canister_id == null) {
+                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference (or a Blob for the now while the management-canister takes blobs in the stead of the PrincipalReference. ');
             }
         } else {
             fective_canister_id = this.principal;
         }
-        var canistercallquest = http.Request('post', Uri.parse(Canister.baseurl + fective_canister_id.text + '/' + calltype));
+        var canistercallquest = http.Request('POST', 
+            icbaseurl.replace(
+                pathSegments: Canister.base_path_segments + [fective_canister_id.text, calltype]
+            )
+        );
         canistercallquest.headers['Content-Type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
@@ -199,7 +221,7 @@ class Canister {
             //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
             "content": { // (quest-id is of this content-map)
                 "request_type": calltype,//(text)
-                "canister_id": fective_canister_id.bytes, // principal.bytes, //(blob)
+                "canister_id": this.principal.bytes, //(blob)
                 "method_name": method_name,//(text)(:name: canister-method.),
                 "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), 
                 "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
@@ -222,7 +244,7 @@ class Canister {
         BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
         if (![202,200].contains(canistercallsponse.statusCode)) {
-            throw Exception('ic call gave http-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
+            throw Exception('ic call: ${canistercallquest} \nhttp-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
         }
         String? callstatus;
         Uint8List? canistersponse;
@@ -278,6 +300,8 @@ class Canister {
         httpclient.close();
         return canistersponse!;
     }
+
+    String toString() => 'Canister: ${this.principal.text}';
 
 }
 

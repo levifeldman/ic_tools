@@ -767,6 +767,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         return vec;
     }
 
+    Vector<C> cast_vector<C extends CandidType>() => Vector.oftheList<C>(this.cast<C>()); // using C here because this gets called on a stance of a Vector which already has a T which is at the usual: the-abstract-type: CandidType and the point of this function is for a concrete-type-vector-cast 
+
     List<T> _list = <T>[];
     _canputinthevectortypecheck(CandidType new_c) {
         if (this.isTypeStance == true) { 
@@ -1380,6 +1382,7 @@ class PrincipalReference extends ReferenceType {
 
     final bool isTypeStance;
     bool get isOpaque => id == null;
+    Principal? get principal => this.id == null ? null : Principal.oftheBytes(this.id!.bytes);
 
     final Blob? id; 
 
