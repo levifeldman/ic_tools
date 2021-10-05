@@ -5,15 +5,8 @@ import 'dart:async';
 
 import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
-// importing from the /src files because otherwise this package won't show up as being compatible with the web-platform-js-runtime on the pub.dev. The cryptography package can check their imports on this page https://pub.dev/packages/cryptography/score in the support multiple platforms section.
-// import 'package:cryptography/cryptography.dart';
-// import 'package:cryptography/dart.dart';
-import 'package:cryptography/src/dart/sha1_sha2.dart';
-import 'package:cryptography/src/dart/ed25519.dart';
-import 'package:cryptography/src/cryptography/simple_key_pair.dart';
-import 'package:cryptography/src/cryptography/simple_public_key.dart';
-import 'package:cryptography/src/cryptography/signature.dart';
-import 'package:cryptography/src/cryptography/key_pair_type.dart';
+import 'package:crypto/crypto.dart';
+import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 
@@ -49,9 +42,8 @@ class Principal extends PrincipalReference {
         return p;
     }
     static Principal ofPublicKeyDER(Uint8List pub_key_der) {
-        DartSha224 sha224 = DartSha224();
         List<int> principal_bytes = [];
-        principal_bytes.addAll(sha224.hashSync(pub_key_der).bytes);
+        principal_bytes.addAll(sha224.convert(pub_key_der).bytes);
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
@@ -70,29 +62,17 @@ abstract class Caller {
     Caller({required this.public_key, required this.private_key}) {
         this.principal = Principal.ofPublicKeyDER(public_key_DER); 
     }
-    Future<Uint8List> private_key_authorize_function(Uint8List message);
+    Uint8List private_key_authorize_function(Uint8List message);
 
-    Future<Uint8List> authorize_call_questId(Uint8List questId) async {
+    Uint8List authorize_call_questId(Uint8List questId) {
         List<int> message = []; 
         message.addAll(utf8.encode('\x0Aic-request'));
         message.addAll(questId);
-        return await private_key_authorize_function(Uint8List.fromList(message));
+        return private_key_authorize_function(Uint8List.fromList(message));
     }
 }
 
 class CallerEd25519 extends Caller {    
-    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key) {
-        if (public_key.length != 32 || private_key.length != 32) {
-            throw Exception('Ed25519 Public-key and Private-key both must be 32 bytes');
-        }
-    }
-    static Future<CallerEd25519> new_keys() async {
-        DartEd25519 ed25519 = DartEd25519();
-        SimpleKeyPair simplekeypair = await ed25519.newKeyPair();
-        List<int> pvate_key = await simplekeypair.extractPrivateKeyBytes(); 
-        List<int> pub_key = (await simplekeypair.extractPublicKey()).bytes;
-        return CallerEd25519(public_key: Uint8List.fromList(pub_key), private_key: Uint8List.fromList(pvate_key));
-    }
     static Uint8List DER_public_key_start = Uint8List.fromList([
         ...[48, 42], // SEQUENCE
         ...[48, 5], // SEQUENCE
@@ -103,11 +83,23 @@ class CallerEd25519 extends Caller {
         ...[0], // 'no padding'
     ]);
     Uint8List get public_key_DER => Uint8List.fromList([ ...DER_public_key_start, ...this.public_key]);
-    Future<Uint8List> private_key_authorize_function(Uint8List message) async {
-        DartEd25519 ed25519 = DartEd25519();
-        SimpleKeyPairData simplekeypairdata = SimpleKeyPairData(this.private_key, publicKey: SimplePublicKey(this.public_key, type: KeyPairType.ed25519), type: KeyPairType.ed25519 );        
-        Signature signature = await ed25519.sign(message, keyPair: simplekeypairdata ); 
-        return Uint8List.fromList(signature.bytes);
+    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key) {
+        if (public_key.length != 32 || private_key.length != 32) {
+            throw Exception('Ed25519 Public-key and Private-key both must be 32 bytes');
+        }
+    }
+    static CallerEd25519 new_keys() {
+        ed.KeyPair ed_key_pair = ed.generateKey();
+        return CallerEd25519(
+            public_key  : Uint8List.fromList(ed_key_pair.publicKey.bytes), 
+            private_key : ed.seed(ed_key_pair.privateKey)
+        );
+    }
+    static bool verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) {
+        return ed.verify(ed.PublicKey(pubkey), message, signature);
+    }
+    Uint8List private_key_authorize_function(Uint8List message) {
+        return ed.sign(ed.newKeyFromSeed(this.private_key), message);
     }
 }
 
@@ -156,7 +148,7 @@ class Canister {
         if (caller != null) {
             getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
             Uint8List questId = icdatahash(getstatequestbodymap['content']);
-            getstatequestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
+            getstatequestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
             // if (with the authority-legations) {
             //     ...
             // }
@@ -214,6 +206,7 @@ class Canister {
                 pathSegments: Canister.base_path_segments + [fective_canister_id.text, calltype]
             )
         );
+        // canistercallquest.headers['Authorization'] = 'Basic ' + base64Encode(utf8.encode('${}:${}'));
         canistercallquest.headers['Content-Type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
@@ -232,7 +225,7 @@ class Canister {
         Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha 256.    
         if (caller != null) {
             canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
-            canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
+            canistercallquestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
             // if (with the authority-legations) {
             //     ...
             // }
@@ -332,8 +325,6 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
 }
 
 
-DartSha256 sha256 = DartSha256();
-
 
 Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     var valueforthehash = <int>[];
@@ -349,7 +340,7 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
         List<List<int>> datafieldshashs = [];
         for (String key in datastructure.keys) {
             List<int> fieldhash = [];
-            fieldhash.addAll(sha256.hashSync(ascii.encode(key)).bytes);
+            fieldhash.addAll(sha256.convert(ascii.encode(key)).bytes);
             fieldhash.addAll(icdatahash(datastructure[key]));
             datafieldshashs.add(fieldhash);
             if (show==true) { print('fieldhash: ' + bytesasahexstring(fieldhash)); }
@@ -364,7 +355,7 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
     else { 
         throw Exception('icdatahash: check: type of the datastructure: ${datastructure.runtimeType}');    
     } 
-    return Uint8List.fromList(sha256.hashSync(valueforthehash).bytes);
+    return Uint8List.fromList(sha256.convert(valueforthehash).bytes);
 }
  
 
@@ -402,19 +393,19 @@ Uint8List constructicsystemstatetreeroothash(List tree) {
     List<int> v;
     if (tree[0] == 0) {
         assert(tree.length==1); 
-        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-empty")).bytes;
+        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-empty")).bytes;
     } 
     if (tree[0] == 1) {
         assert(tree.length==3);
-        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-fork") + constructicsystemstatetreeroothash(tree[1]) + constructicsystemstatetreeroothash(tree[2])).bytes;
+        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-fork") + constructicsystemstatetreeroothash(tree[1]) + constructicsystemstatetreeroothash(tree[2])).bytes;
     }
     else if (tree[0] == 2) {
         assert(tree.length==3);
-        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-labeled") + tree[1] + constructicsystemstatetreeroothash(tree[2])).bytes;
+        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-labeled") + tree[1] + constructicsystemstatetreeroothash(tree[2])).bytes;
     }
     else if (tree[0] == 3) {
         assert(tree.length==2); 
-        v = sha256.hashSync(createdomainseparatorbytes("ic-hashtree-leaf") + tree[1]).bytes;
+        v = sha256.convert(createdomainseparatorbytes("ic-hashtree-leaf") + tree[1]).bytes;
     }
     else if (tree[0] == 4) {
         assert(tree.length==2);
