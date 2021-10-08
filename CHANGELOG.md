@@ -60,3 +60,7 @@
 ```dart 
 icbaseurl = Uri.parse('http://127.0.0.1:8000'); 
 ```
+
+## 1.0.4
+
+* :change of the crypto-libraries, now crypto and ed25519_edwards
