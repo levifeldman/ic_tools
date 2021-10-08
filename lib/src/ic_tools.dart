@@ -70,6 +70,7 @@ abstract class Caller {
         message.addAll(questId);
         return private_key_authorize_function(Uint8List.fromList(message));
     }
+    String toString() => 'Caller: ' + this.principal.text;
 }
 
 class CallerEd25519 extends Caller {    
@@ -181,7 +182,7 @@ class Canister {
             try {
                 PrincipalReference principalfer = put_record['canister_id'] as PrincipalReference;
                 fective_canister_id = principalfer.principal!;
-                print('fective cid as a PrincipalReference in a "canister_id" field');
+                // print('fective-cid as a PrincipalReference in a "canister_id" field');
             } catch(e) {
                 
             }
@@ -190,7 +191,7 @@ class Canister {
                     // while the management-canister takes Blobs we will send blobs
                     Blob principal_blob =  Blob.oftheVector((put_record['canister_id'] as Vector).cast_vector<Nat8>());
                     fective_canister_id = Principal.oftheBytes(principal_blob.bytes);    
-                    print('fective cid as a Blob in a "canister_id" field');
+                    // print('fective-cid as a Blob in a "canister_id" field');
                 } catch(e) {
                     
                 }                
@@ -231,7 +232,7 @@ class Canister {
             // }
         }
         canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
-        // print(canistercallquest);
+        print(canistercallquest);
         // print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
         BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 

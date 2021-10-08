@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
 
-import 'package:cryptography/dart.dart';
+import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
 
 import './ic_tools.dart';
@@ -64,8 +64,7 @@ String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_by
     blobl.addAll(utf8.encode('\x0Aaccount-id'));
     blobl.addAll(principal.bytes);
     blobl.addAll(subaccount_bytes);
-    DartSha224 sha224 = DartSha224();
-    Uint8List blob = Uint8List.fromList(sha224.hashSync(blobl).bytes);
+    Uint8List blob = Uint8List.fromList(sha224.convert(blobl).bytes);
     Crc32 crc32 = Crc32();
     crc32.add(blob);
     List<int> text_format_bytes = [];
@@ -84,14 +83,14 @@ final Nat64 MEMO_CREATE_CANISTER_nat64 = Nat64(1095062083); // int.parse(bytesas
 final Nat64 MEMO_TOP_UP_CANISTER_nat64 = Nat64(1347768404); // int.parse(bytesasabitstring(hexstringasthebytes('0x50555054')), radix: 2); // == 'TPUP'
 
 
-Uint8List principal_as_a_subaccountbytes(Principal principal) {
+Uint8List principal_as_an_icpsubaccountbytes(Principal principal) {
     List<int> bytes = []; // an icp subaccount is 32 bytes
     bytes.add(principal.bytes.length);
     bytes.addAll(principal.bytes);
     while (bytes.length < 32) { bytes.add(0); }
     return Uint8List.fromList(bytes);
 }
-Principal subaccountbytes_as_a_principal(Uint8List subaccount_bytes) {
+Principal icpsubaccountbytes_as_a_principal(Uint8List subaccount_bytes) {
     int principal_bytes_len = subaccount_bytes[0];
     List<int> principal_bytes = subaccount_bytes.sublist(1, principal_bytes_len + 1);
     return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
@@ -99,7 +98,7 @@ Principal subaccountbytes_as_a_principal(Uint8List subaccount_bytes) {
 
 
 Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? from_subaccount_bytes}) async {
-    Uint8List to_subaccount_bytes = principal_as_a_subaccountbytes(caller.principal);
+    Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(caller.principal);
     
     Nat64 block_height = await send_dfx(
         caller, 
