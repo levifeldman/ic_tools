@@ -232,7 +232,7 @@ class Canister {
             // }
         }
         canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
-        print(canistercallquest);
+        // print(canistercallquest);
         // print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
         BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
