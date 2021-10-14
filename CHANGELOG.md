@@ -64,3 +64,7 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 ## 1.0.4
 
 * :change of the crypto-libraries, now crypto and ed25519_edwards
+
+## 1.0.5
+
+* Principal class now has a new method: .as_a_candid() and does not extend the CandidType: PrincipalReference.

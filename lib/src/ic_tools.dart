@@ -30,10 +30,10 @@ Future<Map> ic_status() async {
 
 
 
-class Principal extends PrincipalReference {
-    Uint8List get bytes => super.id!.bytes;
+class Principal {
+    final Uint8List bytes;
     final String text;
-    Principal(this.text) : super(id: Blob(icidtextasabytes(text))) {  
+    Principal(this.text) : bytes = icidtextasabytes(text) {  
         // put a check here not more than 29 bytes?
     }
     static Principal oftheBytes(Uint8List bytes) {
@@ -47,6 +47,7 @@ class Principal extends PrincipalReference {
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
+    PrincipalReference as_a_candid() => PrincipalReference(id: Blob(this.bytes));
     String toString() => 'Principal: ${this.text}';
 }
 

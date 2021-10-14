@@ -126,7 +126,7 @@ Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? f
     // print('notify_sponse_variant: ${variant}');
     if (variant.containsKey('CanisterCreated')) {
         PrincipalReference principal_fer = variant['CanisterCreated'] as PrincipalReference;
-        Principal new_canister_principal = Principal.oftheBytes(principal_fer.id!.bytes);
+        Principal new_canister_principal = principal_fer.principal!;
         print(new_canister_principal);
         return new_canister_principal;
     } else if (variant.containsKey('Refunded')) {

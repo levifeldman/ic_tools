@@ -1391,7 +1391,7 @@ class PrincipalReference extends ReferenceType {
             throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
         } 
     }
-    String toString() => '${get_typename_ofthe_toString(super.toString())}${this.id != null ? ': ' + Principal.oftheBytes(this.id!.bytes).text : ''}';
+    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}';
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
