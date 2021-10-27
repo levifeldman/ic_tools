@@ -7,5 +7,9 @@ export 'src/common.dart' show
     create_canister,
     management,
     ledger,
-    governance
+    governance,
+    root,
+    ii,
+    check_canister_status,
+    put_code_on_the_canister
     ;

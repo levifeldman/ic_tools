@@ -17,6 +17,7 @@ build/
 !**/target/release/librust_bls12381.so
 
 lib/t.dart
+lib/tbytes.dart
 
 :code-logs.
 

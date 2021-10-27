@@ -68,3 +68,8 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 ## 1.0.5
 
 * Principal class now has a new method: .as_a_candid() and does not extend the CandidType: PrincipalReference.
+
+## 1.0.6
+
+* PrincipalReference serializes as a candid primtype
+* new common management functions: `check_canister_status` and `put_code_on_the_canister`

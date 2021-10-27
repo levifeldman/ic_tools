@@ -149,8 +149,10 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
             ctype = type_table[type_code];
         } else if (isPrimTypeCode(type_code)) {
             ctype = backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!;
+        } else if (type_code == PrincipalReference.type_code) {
+            ctype = PrincipalReference(isTypeStance: true);
         } else {
-            throw Exception('params_list_types codes can either be a type_table_i or a primtypecode'); // even for a principal?
+            throw Exception('params_list_types codes can either be a type_table_i or a primtypecode or a principal-reference'); // this is because a PrincipalReference even though not a primitive-type it is considered a non-composite type because its T-function has only its type_code so it is not put in the type-table.
         }
 
         MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_param_value_start_i);
@@ -201,7 +203,7 @@ Uint8List c_forwards(List<CandidType> candids) {
     List<int> params_list_types_bytes_section = [];
     List<int> params_list_values_bytes_section = [];
     for (CandidType candid in candids) {
-        params_list_types_bytes_section.addAll(candid.T_forward()); // sleb128-bytes() of either primtype -opcode or type_table_i    // constypes use the type_table_forward list for the T function to put the types and gives back the type_table_i-leb128-code-bytes. 
+        params_list_types_bytes_section.addAll(candid.T_forward()); // sleb128-bytes() of either primtype -opcode or type_table_i    // composite-types (types with a T-function that has more data/parameters beside the opcode) use the type_table_forward list for the T function to put the types and gives back the type_table_i-leb128-code-bytes. 
         params_list_values_bytes_section.addAll(candid.M_forward()); 
     }
     candidbytes.addAll(leb128.encodeUnsigned(type_table_forward.length));
@@ -728,7 +730,7 @@ class Option extends ConstructType {
         else {
             throw Exception('candid Option M bytes must start with a 0 or 1 byte.');
         }
-        Option opt = Option(value: val, value_type: this.value_type);
+        Option opt = Option(value: val, value_type: this.value_type); // this.value_type could be a type_table_i, figure_out 
         return MfuncTuple(opt, next_i);
     }
 
@@ -867,8 +869,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
 
 class Blob extends Vector<Nat8> { 
-    Blob(Iterable<int> bytes_list, {bool isTypeStance=false}) : super(values_type: Nat8(), isTypeStance: isTypeStance) {
-        this.addAll_bytes(bytes_list);
+    Blob([ Iterable<int>? bytes_list ]) : super(values_type: Nat8()) {
+        if (bytes_list != null) { this.addAll_bytes(bytes_list); }
     }
     static Blob oftheVector(Vector<Nat8> vecnat8) {
         return Blob(vecnat8.map<int>((Nat8 nat8byte)=>nat8byte.value!).toList());
@@ -1391,7 +1393,7 @@ class PrincipalReference extends ReferenceType {
             throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
         } 
     }
-    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}';
+    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}: ${this.principal!.text}';
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
@@ -1411,9 +1413,7 @@ class PrincipalReference extends ReferenceType {
         return MfuncTuple(principal_fer, next_i);
     }    
     Uint8List T_forward() {
-        List<int> type_code_bytes = leb128.encodeSigned(PrincipalReference.type_code);
-        int type_table_i = put_t_in_the_type_table_forward(type_code_bytes);
-        return leb128.encodeSigned(type_table_i);
+        return leb128.encodeSigned(PrincipalReference.type_code);
     }
     Uint8List M_forward() {
         List<int> m_bytes = [];

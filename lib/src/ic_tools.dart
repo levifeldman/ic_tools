@@ -179,26 +179,13 @@ class Canister {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
-            Record put_record = c_backwards(put_bytes!)[0] as Record;
             try {
+                Record put_record = c_backwards(put_bytes!)[0] as Record;
                 PrincipalReference principalfer = put_record['canister_id'] as PrincipalReference;
                 fective_canister_id = principalfer.principal!;
                 // print('fective-cid as a PrincipalReference in a "canister_id" field');
             } catch(e) {
-                
-            }
-            if (fective_canister_id == null) {
-                try {
-                    // while the management-canister takes Blobs we will send blobs
-                    Blob principal_blob =  Blob.oftheVector((put_record['canister_id'] as Vector).cast_vector<Nat8>());
-                    fective_canister_id = Principal.oftheBytes(principal_blob.bytes);    
-                    // print('fective-cid as a Blob in a "canister_id" field');
-                } catch(e) {
-                    
-                }                
-            }
-            if (fective_canister_id == null) {
-                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference (or a Blob for the now while the management-canister takes blobs in the stead of the PrincipalReference. ');
+                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference.');   
             }
         } else {
             fective_canister_id = this.principal;
@@ -208,8 +195,7 @@ class Canister {
                 pathSegments: Canister.base_path_segments + [fective_canister_id.text, calltype]
             )
         );
-        // canistercallquest.headers['Authorization'] = 'Basic ' + base64Encode(utf8.encode('${}:${}'));
-        canistercallquest.headers['Content-Type'] = 'application/cbor';
+        canistercallquest.headers['content-type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
             // "sender_delegation": ([] of the maps) "(array of maps, optional): a chain of delegations, starting with the one signed by sender_pubkey and ending with the one delegating to the key relating to sender_sig."
@@ -218,7 +204,7 @@ class Canister {
                 "request_type": calltype,//(text)
                 "canister_id": this.principal.bytes, //(blob)
                 "method_name": method_name,//(text)(:name: canister-method.),
-                "arg": put_bytes != null ? put_bytes : Uint8List.fromList([]), 
+                "arg": put_bytes != null ? put_bytes : c_forwards([]), 
                 "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the year-~1970)

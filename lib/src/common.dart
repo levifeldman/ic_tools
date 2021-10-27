@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
@@ -10,15 +11,12 @@ import './tools/tools.dart';
 
 
 
-
-
+Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
 Canister management  = Canister(Principal('aaaaa-aa'));
 Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
 Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
 Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
-
-
-
+Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 
 
@@ -54,9 +52,6 @@ Future<Nat64> send_dfx(Caller caller, String fortheicpid, double mount, {double?
 }
 
 
-
-
-
 String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_bytes }) {
     subaccount_bytes ??= Uint8List(32);
     if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
@@ -78,10 +73,8 @@ String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_by
 
 
 
-
 final Nat64 MEMO_CREATE_CANISTER_nat64 = Nat64(1095062083); // int.parse(bytesasabitstring(hexstringasthebytes('0x41455243')), radix: 2); // == 'CREA'
 final Nat64 MEMO_TOP_UP_CANISTER_nat64 = Nat64(1347768404); // int.parse(bytesasabitstring(hexstringasthebytes('0x50555054')), radix: 2); // == 'TPUP'
-
 
 Uint8List principal_as_an_icpsubaccountbytes(Principal principal) {
     List<int> bytes = []; // an icp subaccount is 32 bytes
@@ -137,6 +130,58 @@ Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? f
 }
 
 
+Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
+    Uint8List canister_status_sponse_bytes = await management.call(
+        caller: caller,
+        calltype: 'call',
+        method_name: 'canister_status',
+        put_bytes: c_forwards([
+            Record.oftheMap({
+                'canister_id': canister_id.as_a_candid() }) ]) 
+    );
+    Record canister_status_record = c_backwards(canister_status_sponse_bytes)[0] as Record;
+    Map canister_status_map = {};
+    // status
+    Variant status_variant = canister_status_record['status'] as Variant;
+    ['running', 'stopping', 'stopped'].forEach((status_possibility) {
+        if (status_variant.containsKey(status_possibility)) { 
+            canister_status_map['status'] = status_possibility; } 
+    });
+    // settings    
+    Record settings_record = canister_status_record['settings'] as Record;
+    canister_status_map['settings'] = {};
+    canister_status_map['settings']['controllers'] = (settings_record['controllers'] as Vector).cast<PrincipalReference>().map<Principal>((pr)=>pr.principal!).toList();
+    canister_status_map['settings']['compute_allocation'] = (settings_record['compute_allocation'] as Nat).value;
+    canister_status_map['settings']['memory_allocation'] = (settings_record['memory_allocation'] as Nat).value;
+    canister_status_map['settings']['freezing_threshold'] = (settings_record['freezing_threshold'] as Nat).value;
+    // module_hash
+    Option optional_module_hash = canister_status_record['module_hash'] as Option;
+    canister_status_map['module_hash'] = optional_module_hash.value != null ? Blob.oftheVector((optional_module_hash.value as Vector).cast_vector<Nat8>()).bytes : null;
+    // memory_size
+    canister_status_map['memory_size'] = (canister_status_record['memory_size'] as Nat).value;
+    // cycles
+    canister_status_map['Tcycles'] = (canister_status_record['cycles'] as Nat).value / 1000000000000;
+    return canister_status_map;
+}
+
+
+Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, String wasm_module_file_path, String mode, [Uint8List? canister_install_arg]) async {
+    Uint8List wasm_canister_bytes =  await File(wasm_module_file_path).readAsBytes();
+    Uint8List put_code_sponse_bytes = await management.call(
+        caller: caller,
+        calltype: 'call',
+        method_name: 'install_code',
+        put_bytes: c_forwards([
+            Record.oftheMap({
+                'mode': Variant.oftheMap({mode: Null()}),
+                'canister_id': canister_id.as_a_candid(),
+                'wasm_module': Blob(wasm_canister_bytes),
+                'arg': canister_install_arg != null ? Blob(canister_install_arg) : Blob()
+            })
+        ])
+    );
+    print('put code sponse bytes:\n$put_code_sponse_bytes');
+}
 
 
 
