@@ -137,7 +137,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
         method_name: 'canister_status',
         put_bytes: c_forwards([
             Record.oftheMap({
-                'canister_id': canister_id.as_a_candid() }) ]) 
+                'canister_id': canister_id.candid }) ]) 
     );
     Record canister_status_record = c_backwards(canister_status_sponse_bytes)[0] as Record;
     Map canister_status_map = {};
@@ -174,7 +174,7 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Stri
         put_bytes: c_forwards([
             Record.oftheMap({
                 'mode': Variant.oftheMap({mode: Null()}),
-                'canister_id': canister_id.as_a_candid(),
+                'canister_id': canister_id.candid,
                 'wasm_module': Blob(wasm_canister_bytes),
                 'arg': canister_install_arg != null ? Blob(canister_install_arg) : Blob()
             })

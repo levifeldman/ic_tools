@@ -47,7 +47,7 @@ class Principal {
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
-    PrincipalReference as_a_candid() => PrincipalReference(id: Blob(this.bytes));
+    PrincipalReference get candid => PrincipalReference(id: Blob(this.bytes));
     String toString() => 'Principal: ${this.text}';
 }
 

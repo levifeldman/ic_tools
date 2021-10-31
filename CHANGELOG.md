@@ -73,3 +73,10 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 
 * PrincipalReference serializes as a candid primtype
 * new common management functions: `check_canister_status` and `put_code_on_the_canister`
+
+## 1.0.7 
+
+* candid ServiceReference now sorts the methods by the name per the spec
+* Principal('...').as_a_candid() now is Principal('...').candid
+
+

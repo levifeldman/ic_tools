@@ -4,12 +4,12 @@ export 'src/common.dart' show
     principal_as_an_IcpCountId,
     principal_as_an_icpsubaccountbytes,
     icpsubaccountbytes_as_a_principal,
-    create_canister,
     management,
     ledger,
     governance,
     root,
     ii,
+    create_canister,
     check_canister_status,
     put_code_on_the_canister
     ;

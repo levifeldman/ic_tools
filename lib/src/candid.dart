@@ -1358,9 +1358,9 @@ class ServiceReference extends ReferenceType {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(ServiceReference.type_code));
         t_bytes.addAll(leb128.encodeUnsigned(this.methods.keys.length));
-        for (MapEntry kv in this.methods.entries) { // does this need sort? 
-            t_bytes.addAll(kv.key.M_forward()); // Text
-            t_bytes.addAll(kv.value.T_forward()); // FunctionReference
+        for (Text method_name in this.methods.keys.toList()..sort((a,b)=>a.value!.compareTo(b.value!))) { 
+            t_bytes.addAll(method_name.M_forward()); // Text
+            t_bytes.addAll(this.methods[method_name]!.T_forward()); // FunctionReference
         } 
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
