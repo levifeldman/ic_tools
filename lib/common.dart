@@ -10,6 +10,7 @@ export 'src/common.dart' show
     root,
     ii,
     create_canister,
+    top_up_canister,
     check_canister_status,
     put_code_on_the_canister
     ;

@@ -79,4 +79,7 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 * candid ServiceReference now sorts the methods by the name per the spec
 * Principal('...').as_a_candid() now is Principal('...').candid
 
+## 1.0.8
 
+* new common-lib top-up canister method 
+* updates the create_canister common-lib function with the ledger's-update of the to_canister-field on the notify_dfx method for a principal-type (used to be a blob type)

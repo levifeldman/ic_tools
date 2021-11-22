@@ -289,7 +289,7 @@ class Canister {
 
 
 
-Map<int, String> system_call_reject_codes = {
+const Map<int, String> system_call_reject_codes = {
     1: 'SYS_FATAL', //, Fatal system error, retry unlikely to be useful.',
     2: 'SYS_TRANSIENT', //, Transient system error, retry might be possible.',
     3: 'DESTINATION_INVALID', //, Invalid destination (e.g. canister/account does not exist)',
@@ -314,7 +314,7 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
 
 
 
-Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
+Uint8List icdatahash(dynamic datastructure) {
     var valueforthehash = <int>[];
     if (datastructure is String) {
         valueforthehash = utf8.encode(datastructure); }
@@ -331,14 +331,8 @@ Uint8List icdatahash(dynamic datastructure, {bool show=false}) {
             fieldhash.addAll(sha256.convert(ascii.encode(key)).bytes);
             fieldhash.addAll(icdatahash(datastructure[key]));
             datafieldshashs.add(fieldhash);
-            if (show==true) { print('fieldhash: ' + bytesasahexstring(fieldhash)); }
         }
         datafieldshashs.sort((a,b) => bytesasabitstring(a).compareTo(bytesasabitstring(b)));
-        if (show==true) {
-            for (List<int> fh in datafieldshashs) {
-                print('with the sort: ' + datafieldshashs.indexOf(fh).toString() + ': ' + bytesasahexstring(fh));
-            }
-        }
         valueforthehash = datafieldshashs.fold(<int>[],(p,c)=>p+c); }
     else { 
         throw Exception('icdatahash: check: type of the datastructure: ${datastructure.runtimeType}');    

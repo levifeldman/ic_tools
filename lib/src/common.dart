@@ -11,12 +11,12 @@ import './tools/tools.dart';
 
 
 
-Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
-Canister management  = Canister(Principal('aaaaa-aa'));
-Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
-Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
-Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
+final Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
+final Canister management  = Canister(Principal('aaaaa-aa'));
+final Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
+final Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
+final Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
+final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 
 
@@ -90,33 +90,35 @@ Principal icpsubaccountbytes_as_a_principal(Uint8List subaccount_bytes) {
 }
 
 
-Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? from_subaccount_bytes}) async {
+Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
     Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(caller.principal);
     
-    Nat64 block_height = await send_dfx(
-        caller, 
-        principal_as_an_IcpCountId(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
-        icp_mount, 
-        subaccount_bytes: from_subaccount_bytes,
-        memo: MEMO_CREATE_CANISTER_nat64,
-    );
-    print('block_height: ${block_height}');
+    if (block_height == null) {
+        block_height = await send_dfx(
+            caller, 
+            principal_as_an_IcpCountId(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
+            icp_mount, 
+            subaccount_bytes: from_subaccount_bytes,
+            memo: MEMO_CREATE_CANISTER_nat64,
+        );
+        print('block_height: ${block_height}');
+    } else {
+        print('using given block_height: $block_height');
+    }
 
     Record notifycanisterargs = Record.oftheMap({
         'block_height' : block_height,
         'max_fee'      : Record.oftheMap({'e8s': Nat64((0.0001 * 100000000).toInt())}),
-        'to_canister'  : Blob(cycles_mint.principal.bytes),  //PrincipalReference(id:  // cycles-mint canister candid Principal
-        'to_subaccount': Option(value: Blob( to_subaccount_bytes )) // controller of the canister to create 
+        'to_canister'  : cycles_mint.principal.candid,
+        'to_subaccount': Option(value: Blob( to_subaccount_bytes )) 
     });
     if (from_subaccount_bytes != null ) {
         notifycanisterargs['from_subaccount'] = Option(value: Blob(from_subaccount_bytes));
     }
 
     Uint8List notify_sponse_bytes = await ledger.call(calltype: 'call', method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller);
-    // print('notify_sponse_bytes: ${notify_sponse_bytes}');
     List<CandidType> notify_sponse_candids = c_backwards(notify_sponse_bytes);
     Variant variant = notify_sponse_candids[0] as Variant;
-    // print('notify_sponse_variant: ${variant}');
     if (variant.containsKey('CanisterCreated')) {
         PrincipalReference principal_fer = variant['CanisterCreated'] as PrincipalReference;
         Principal new_canister_principal = principal_fer.principal!;
@@ -128,6 +130,44 @@ Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? f
         throw Exception('notify_dfx gives-back this variant: ${variant}');
     }
 }
+
+
+Future<void> top_up_canister(Caller caller, double icp_mount, Principal canister_id, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
+    Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(canister_id);
+
+    if (block_height == null) {
+        block_height = await send_dfx(
+            caller, 
+            principal_as_an_IcpCountId(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
+            icp_mount, 
+            subaccount_bytes: from_subaccount_bytes,
+            memo: MEMO_TOP_UP_CANISTER_nat64,
+        );
+        print('block_height: ${block_height}');
+    } else {
+        print('using given block_height: $block_height');
+    }
+
+    Record notifycanisterargs = Record.oftheMap({
+        'block_height' : block_height,
+        'max_fee'      : Record.oftheMap({'e8s': Nat64((0.0001 * 100000000).toInt())}),
+        'to_canister'  : cycles_mint.principal.candid, 
+        'to_subaccount': Option(value: Blob( to_subaccount_bytes )) 
+    });
+    if (from_subaccount_bytes != null ) {
+        notifycanisterargs['from_subaccount'] = Option(value: Blob(from_subaccount_bytes));
+    }
+
+    Variant variant = c_backwards(await ledger.call(calltype: 'call', method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller))[0] as Variant;
+    if (variant.containsKey('ToppedUp')) {
+        return;
+    } else if (variant.containsKey('Refunded')) {
+        throw Exception('looks like the call was refunded for some reason. gave back this record: ${variant['Refunded']}');
+    } else {
+        throw Exception('notify_dfx gives-back this variant: ${variant}');
+    }
+}
+
 
 
 Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
@@ -180,7 +220,7 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Stri
             })
         ])
     );
-    print('put code sponse bytes:\n$put_code_sponse_bytes');
+    print('put code sponse bytes:\n${c_backwards(put_code_sponse_bytes)}');
 }
 
 
