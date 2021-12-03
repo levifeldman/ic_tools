@@ -71,6 +71,13 @@ abstract class Caller {
         message.addAll(questId);
         return private_key_authorize_function(Uint8List.fromList(message));
     }
+    Uint8List authorize_legation_hash(Uint8List legation_hash) {
+        List<int> message = []; 
+        message.addAll(utf8.encode('\x1Aic-request-auth-delegation'));
+        message.addAll(legation_hash);
+        return private_key_authorize_function(Uint8List.fromList(message));
+    }
+
     String toString() => 'Caller: ' + this.principal.text;
 }
 
@@ -107,6 +114,44 @@ class CallerEd25519 extends Caller {
 
 
 
+class Legation {
+    final Uint8List pubkey;
+    final int expiration_timestamp_unix_seconds;
+    final List<Principal>? target_canisters_ids;  
+    final Uint8List legator_public_key_DER;
+    final Uint8List legator_signature; 
+
+    Legation({required this.pubkey, required this.expiration_timestamp_unix_seconds, this.target_canisters_ids, required this.legator_public_key_DER, required this.legator_signature}); 
+
+    static create(Caller legator, Uint8List pubkey, int expiration_timestamp_unix_seconds, [List<Principal>? target_canisters_ids]) {
+        Uint8List legator_signature = legator.authorize_legation_hash(icdatahash(Legation.create_legation_map(pubkey, expiration_timestamp_unix_seconds, target_canisters_ids)));
+        return Legation(
+            pubkey: pubkey,
+            expiration_timestamp_unix_seconds: expiration_timestamp_unix_seconds,
+            target_canisters_ids: target_canisters_ids,
+            legator_public_key_DER: legator.public_key_DER,
+            legator_signature: legator_signature
+        );
+    }   
+
+    static Map create_legation_map(Uint8List pubkey, int expiration_timestamp_unix_seconds, List<Principal>? target_canisters_ids) {
+        BigInt expiration_timestamp_unix_nanoseconds = BigInt.from(expiration_timestamp_unix_seconds) * BigInt.from(1000000000);
+        return {
+            'pubkey': pubkey,
+            'expiration': expiration_timestamp_unix_nanoseconds.isValidInt ? expiration_timestamp_unix_nanoseconds.toInt() : expiration_timestamp_unix_nanoseconds,
+            if (target_canisters_ids != null) 'targets': target_canisters_ids.map<Uint8List>((Principal canister_id)=>canister_id.bytes).toList()
+        };
+    }
+
+    Map as_signed_legation_map() {
+        return {
+            'delegation' : Legation.create_legation_map(this.pubkey, this.expiration_timestamp_unix_seconds, this.target_canisters_ids),
+            'signature': this.legator_signature
+        };
+    }
+}
+
+
 
 class Canister {
     static final List<String> base_path_segments = ['api', 'v2', 'canister'];
@@ -129,7 +174,8 @@ class Canister {
     // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
 
 
-    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, Principal? fective_canister_id}) async {        
+    Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, List<Legation> legations = const [], Principal? fective_canister_id}) async {        
+        if (caller==null && legations.isNotEmpty) { throw Exception('legations can only be given with a current-caller that is the final legatee of the legations'); }
         fective_canister_id ??= this.principal;
         http.Request systemstatequest = http.Request('POST', 
             icbaseurl.replace(
@@ -142,18 +188,20 @@ class Canister {
             "content": { 
                 "request_type": 'read_state',//(text)
                 "paths": pathsbytes,  
-                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
+                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
                 "nonce": createicquestnonce(),  // (blob)(optional)(use when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the ~1970)
             }
         };
         if (caller != null) {
-            getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
+            if (legations.isNotEmpty) {             // The delegation field, if present, must not contain more than four delegations.
+                getstatequestbodymap['sender_pubkey'] = legations[0].legator_public_key_DER;
+                getstatequestbodymap['sender_delegation'] = legations.map<Map>((Legation legation)=>legation.as_signed_legation_map()).toList();
+            } else {
+                getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
+            }
             Uint8List questId = icdatahash(getstatequestbodymap['content']);
             getstatequestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
-            // if (with the authority-legations) {
-            //     ...
-            // }
         }
         systemstatequest.bodyBytes = cbor.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
         bool need_close_httpclient = false;
@@ -175,8 +223,9 @@ class Canister {
     }
 
 
-    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller}) async {
+    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const []}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
+        if (caller==null && legations.isNotEmpty) { throw Exception('legations can only be given with a current-caller that is the final legatee of the legations'); }
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
             try {
@@ -205,18 +254,20 @@ class Canister {
                 "canister_id": this.principal.bytes, //(blob)
                 "method_name": method_name,//(text)(:name: canister-method.),
                 "arg": put_bytes != null ? put_bytes : c_forwards([]), 
-                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
+                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
                 "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
                 "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the year-~1970)
             }
         };
         Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha 256.    
         if (caller != null) {
-            canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
+            if (legations.isNotEmpty) {             // The delegation field, if present, must not contain more than four delegations.
+                canistercallquestbodymap['sender_pubkey'] = legations[0].legator_public_key_DER;
+                canistercallquestbodymap['sender_delegation'] = legations.map<Map>((Legation legation)=>legation.as_signed_legation_map()).toList();
+            } else {
+                canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
+            }
             canistercallquestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
-            // if (with the authority-legations) {
-            //     ...
-            // }
         }
         canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
         // print(canistercallquest);
@@ -248,6 +299,7 @@ class Canister {
                     ], 
                     httpclient: httpclient,
                     caller: caller,
+                    legations: legations,
                     fective_canister_id: fective_canister_id 
                 ); 
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;

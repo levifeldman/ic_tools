@@ -83,3 +83,7 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 
 * new common-lib top-up canister method 
 * updates the create_canister common-lib function with the ledger's-update of the to_canister-field on the notify_dfx method for a principal-type (used to be a blob type)
+
+## 1.0.9
+
+* Legation class 

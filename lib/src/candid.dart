@@ -832,7 +832,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         Vector vec = Vector();
         if (this.values_type! is Nat8) {
             CandidBytes_i finish_nat8s_i = next_vec_item_start_i + vec_len;
-            vec.addAll(candidbytes.sublist(next_vec_item_start_i, finish_nat8s_i).map<Nat8>((int byte)=>Nat8(byte)));
+            vec = Blob(candidbytes.sublist(next_vec_item_start_i, finish_nat8s_i));
             next_vec_item_start_i = finish_nat8s_i;
         } else {
             for (int i=0;i<vec_len;i=i+1) {
@@ -883,8 +883,7 @@ class Blob extends Vector<Nat8> {
         super.add(Nat8(byte));
     }
     void addAll_bytes(Iterable<int> bytes_list) {  
-        List<Nat8> nat8list = bytes_list.map((int byte)=>Nat8(byte)).toList();
-        super.addAll(nat8list);
+        super.addAll(bytes_list.map<Nat8>((int byte)=>Nat8(byte)));
     }
     int get_byte_i(int i) {
         Nat8 nat8byte = this[i] as Nat8;

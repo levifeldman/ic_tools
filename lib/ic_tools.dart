@@ -3,6 +3,7 @@ export 'src/ic_tools.dart' show
     CallerEd25519,
     Canister,
     Principal,
+    Legation,
     icbaseurl,
     icrootkey,
     system_call_reject_codes,
