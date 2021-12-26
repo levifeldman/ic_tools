@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
@@ -205,8 +204,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
 }
 
 
-Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, String wasm_module_file_path, String mode, [Uint8List? canister_install_arg]) async {
-    Uint8List wasm_canister_bytes =  await File(wasm_module_file_path).readAsBytes();
+Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_canister_bytes, String mode, [Uint8List? canister_install_arg]) async {
     Uint8List put_code_sponse_bytes = await management.call(
         caller: caller,
         calltype: 'call',

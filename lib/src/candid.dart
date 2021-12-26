@@ -1104,7 +1104,7 @@ class Variant extends RecordAndVariantMap {
 // are function annotations just a single byte? what happens when there are more than 256 annotations 
 // is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 // can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 
-// is the principalreference-type suppose to be given as an index in a type-table? even in the list of params? for the now, yes.
+
 
 
 abstract class ReferenceType extends CandidType {

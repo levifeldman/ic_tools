@@ -1,9 +1,7 @@
 import 'dart:core';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:async';
 
-import 'package:typed_data/typed_data.dart';
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
@@ -207,7 +205,7 @@ class Canister {
         bool need_close_httpclient = false;
         if (httpclient==null) {
             httpclient = http.Client();
-            need_close_httpclient == true;
+            need_close_httpclient = true;
         }
         http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
         if (need_close_httpclient) { httpclient.close(); }
