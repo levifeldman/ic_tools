@@ -221,7 +221,7 @@ class Canister {
     }
 
 
-    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const []}) async {
+    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const [], Duration timeout_duration = const Duration(minutes: 5)}) async {
         if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         if (caller==null && legations.isNotEmpty) { throw Exception('legations can only be given with a current-caller that is the final legatee of the legations'); }
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
@@ -271,7 +271,7 @@ class Canister {
         // print(canistercallquest);
         // print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
-        BigInt time_check_nanoseconds = BigInt.from(DateTime.now().millisecondsSinceEpoch - Duration(seconds: 30).inMilliseconds) * BigInt.from(1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
+        BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
         if (![202,200].contains(canistercallsponse.statusCode)) {
             throw Exception('ic call: ${canistercallquest} \nhttp-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
@@ -282,9 +282,13 @@ class Canister {
         String? reject_message;
         if (calltype == 'call') {
             List pathsvalues = [];
-            int c = 0;
-            while (!['replied','rejected','done'].contains(callstatus) && c <= 15) {
-                c += 1;
+            BigInt timeout_duration_check_nanoseconds = get_current_time_nanoseconds() + BigInt.from(timeout_duration.inMilliseconds * 1000000);
+            while (!['replied','rejected','done'].contains(callstatus)) {
+                
+                if (get_current_time_nanoseconds() > timeout_duration_check_nanoseconds ) {
+                    throw Exception('timeout duration time limit');
+                }
+                
                 // print(':poll of the system-state.');
                 await Future.delayed(Duration(seconds:2));
                 pathsvalues = await state( 
@@ -301,8 +305,9 @@ class Canister {
                     fective_canister_id: fective_canister_id 
                 ); 
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
-                if (certificate_time_nanoseconds < time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // // time-check, not in verify_certificate-function bc that would create new Datetime.now() on each verify and that is slow. 
-                callstatus = pathsvalues[1];            
+                if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.'); } // // time-check,  
+                
+                callstatus = pathsvalues[1];
             }
             // print(pathsvalues);
             canistersponse = pathsvalues[2];

@@ -91,3 +91,7 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 ## 1.0.91
 
 * take-out dart:io import in the common-lib, put_code_on_the_canister now takes a Uint8List wasm_canister_bytes instead of a file-path
+
+## 1.0.92
+
+* new timeout_duration parameter on the canister.call method

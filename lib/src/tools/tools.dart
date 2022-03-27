@@ -136,6 +136,9 @@ String get_typename_ofthe_toString(String str) => str.substring(13, str.length-1
 
 
 
+BigInt get_current_time_nanoseconds() {
+    return BigInt.from(DateTime.now().millisecondsSinceEpoch) * BigInt.from(1000000);
+}
 
 
 
