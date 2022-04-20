@@ -754,6 +754,10 @@ class Option extends ConstructType {
         }
         return Uint8List.fromList(bytes);
     }
+
+    String toString() {
+        return 'Option: ${this.value}';
+    }
 }
 
 
@@ -1115,13 +1119,13 @@ abstract class ReferenceType extends CandidType {
 
 
 // helper function for the TypeTableReferences in the FuntionReference M_backwards 
-CandidType type_table_ference_as_the_type_stance(TypeTableReference type_table_fer) {
+CandidType type_table_ference_as_a_type_stance(TypeTableReference type_table_fer) {
     CandidType type_table_type = type_table[type_table_fer.type_table_i];
     if (type_table_type is TypeTableReference) {
-        type_table_type = type_table_ference_as_the_type_stance(type_table_type);
+        type_table_type = type_table_ference_as_a_type_stance(type_table_type);
     } 
     if (type_table_type is TypeTableReference) {
-        throw Exception('something cursion is wrong');
+        throw Exception('something is wrong');
     }
     if (type_table_type.isTypeStance==false) {
         throw Exception('this should be true');
@@ -1221,7 +1225,7 @@ class FunctionReference extends ReferenceType {
         for (List<CandidType> types_list in [this.in_types, this.out_types]) {
             for(int i=0;i<types_list.length;i++) {
                 if (types_list[i] is TypeTableReference) {
-                    types_list[i] = type_table_ference_as_the_type_stance(types_list[i] as TypeTableReference);
+                    types_list[i] = type_table_ference_as_a_type_stance(types_list[i] as TypeTableReference);
                 }
             }
         }

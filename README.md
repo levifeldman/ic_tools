@@ -11,16 +11,19 @@ This package is for the Dart &: Flutter, on the Web &: Linux.
 import 'dart:typed_data';
 import 'package:ic_tools/ic_tools.dart';
 import 'package:ic_tools/candid.dart';
+import 'package:ic_tools/common.dart';
 
-Future<void> main() async {
+
+
+main() async {
     Canister ledger = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-    String icp_id = 'ecedd9b3595d88667b78315da6af8e0de29164ef718f96930e0459017d5d8a04';
-    Record record = Record.oftheMap({ 'account': Text(icp_id) });
-    Uint8List sponse_bytes = await ledger.call( calltype: 'call', method_name: 'account_balance_dfx', put_bytes: c_forwards([record]) );
-    Record icpts_balance_record = c_backwards(sponse_bytes)[0] as Record;
-    Nat64 e8s = icpts_balance_record['e8s'] as Nat64;
-    double icp_count = e8s.value / 100000000; 
-    print(icp_count);
+    Caller caller = CallerEd25519.new_keys();
+    String icp_id = caller.principal.icp_id();
+    double icp_balance = await check_icp_balance(icp_id);
+
+    print(caller);
+    print(icp_id);
+    print(icp_balance);
 }
 
 ```

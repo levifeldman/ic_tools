@@ -21,7 +21,7 @@ Uint8List hexstringasthebytes(String hex) {
     return Uint8List.fromList(bytes);
 }
 
-String bytesasahexstring(List<int> bytes) {    
+String bytesasahexstring(List<int> bytes) {
     String s = '';
     for (int i in bytes) {
         String st = i.toRadixString(16);

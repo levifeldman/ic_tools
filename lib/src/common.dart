@@ -30,9 +30,9 @@ Future<double> check_icp_balance(String icp_id) async {
 }
 
 
-Future<Nat64> send_dfx(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes } ) async {
-    fee ??= 0.0001; // what is the method for the calculation of this fee?
-    memo ??= Nat64(123);
+Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes } ) async {
+    fee ??= 0.0001;
+    memo ??= Nat64(0);
     if (check_double_decimal_point_places(mount) > 8 || check_double_decimal_point_places(fee) > 8) {
         throw Exception('mount and fee can have max: 8 decimal-point-number-places');
     }
@@ -51,21 +51,24 @@ Future<Nat64> send_dfx(Caller caller, String fortheicpid, double mount, {double?
 }
 
 
-String principal_as_an_IcpCountId(Principal principal, {List<int>? subaccount_bytes }) {
-    subaccount_bytes ??= Uint8List(32);
-    if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
-    List<int> blobl = [];
-    blobl.addAll(utf8.encode('\x0Aaccount-id'));
-    blobl.addAll(principal.bytes);
-    blobl.addAll(subaccount_bytes);
-    Uint8List blob = Uint8List.fromList(sha224.convert(blobl).bytes);
-    Crc32 crc32 = Crc32();
-    crc32.add(blob);
-    List<int> text_format_bytes = [];
-    text_format_bytes.addAll(crc32.close());
-    text_format_bytes.addAll(blob);
-    String text_format = bytesasahexstring(text_format_bytes);
-    return text_format;
+extension PrincipalIcpId on Principal {
+    String icp_id({List<int>? subaccount_bytes}) {
+        subaccount_bytes ??= Uint8List(32);
+        if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
+        List<int> blobl = [];
+        blobl.addAll(utf8.encode('\x0Aaccount-id'));
+        blobl.addAll(this.bytes);
+        blobl.addAll(subaccount_bytes);
+        Uint8List blob = Uint8List.fromList(sha224.convert(blobl).bytes);
+        Crc32 crc32 = Crc32();
+        crc32.add(blob);
+        List<int> text_format_bytes = [];
+        text_format_bytes.addAll(crc32.close());
+        text_format_bytes.addAll(blob);
+        String text_format = bytesasahexstring(text_format_bytes);
+        return text_format;
+    }
+
 }
 
 
@@ -89,14 +92,14 @@ Principal icpsubaccountbytes_as_a_principal(Uint8List subaccount_bytes) {
 }
 
 
-Future<Principal> create_canister(Caller caller, double icp_mount, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
+Future<Principal> create_canister(Caller caller, double icp_count, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
     Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(caller.principal);
     
     if (block_height == null) {
-        block_height = await send_dfx(
+        block_height = await transfer_icp(
             caller, 
-            principal_as_an_IcpCountId(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
-            icp_mount, 
+            cycles_mint.principal.icp_id(subaccount_bytes: to_subaccount_bytes), 
+            icp_count, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_CREATE_CANISTER_nat64,
         );
@@ -135,9 +138,9 @@ Future<void> top_up_canister(Caller caller, double icp_mount, Principal canister
     Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(canister_id);
 
     if (block_height == null) {
-        block_height = await send_dfx(
+        block_height = await transfer_icp(
             caller, 
-            principal_as_an_IcpCountId(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
+            cycles_mint.principal.icp_id(subaccount_bytes: to_subaccount_bytes), 
             icp_mount, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_TOP_UP_CANISTER_nat64,
@@ -199,7 +202,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
     // memory_size
     canister_status_map['memory_size'] = (canister_status_record['memory_size'] as Nat).value;
     // cycles
-    canister_status_map['Tcycles'] = (canister_status_record['cycles'] as Nat).value / 1000000000000;
+    canister_status_map['cycles'] = (canister_status_record['cycles'] as Nat).value;
     return canister_status_map;
 }
 
