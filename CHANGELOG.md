@@ -98,8 +98,17 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 
 ## 1.0.93
 
-* principal_an_an_icp_id common lib function now is an extension method on Principal 
+* principal_af_an_icp_id common lib function now is an extension method on Principal 
 ```dart 
-String icp_id({List<int>? subaccount_bytes}) 
-``` 
+String icp_id({List<int>? subaccount_bytes})
+```
 * send_dfx common function is now 'transfer_icp'
+
+## 1.0.94
+
+* make public constructicsystemstatetreeroothash
+* re-try read_state calls when http error  
+* clean-up
+
+
+

@@ -32,7 +32,9 @@ class Principal {
     final Uint8List bytes;
     final String text;
     Principal(this.text) : bytes = icidtextasabytes(text) {  
-        // put a check here not more than 29 bytes?
+        if (this.bytes.length > 29) {
+            throw Exception('max principal byte length is 29');
+        }
     }
     static Principal oftheBytes(Uint8List bytes) {
         Principal p = Principal(icidbytesasatext(bytes));
@@ -169,7 +171,7 @@ class Canister {
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
     }
-    // Note that the paths /canisters/<canister_id>/certified_data are not accessible with this method; these paths are only exposed to the canister themselves via the System API (see Certified data).
+    
 
 
     Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, List<Legation> legations = const [], Principal? fective_canister_id}) async {        
@@ -184,15 +186,15 @@ class Canister {
         List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
         Map getstatequestbodymap = {
             "content": { 
-                "request_type": 'read_state',//(text)
+                "request_type": 'read_state',
                 "paths": pathsbytes,  
                 "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
-                "nonce": createicquestnonce(),  // (blob)(optional)(use when make same quest soon between but make sure system sees two seperate quests) , 
-                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the ~1970)
+                "nonce": createicquestnonce(),
+                "ingress_expiry": createicquestingressexpiry()
             }
         };
         if (caller != null) {
-            if (legations.isNotEmpty) {             // The delegation field, if present, must not contain more than four delegations.
+            if (legations.isNotEmpty) {
                 getstatequestbodymap['sender_pubkey'] = legations[0].legator_public_key_DER;
                 getstatequestbodymap['sender_delegation'] = legations.map<Map>((Legation legation)=>legation.as_signed_legation_map()).toList();
             } else {
@@ -207,17 +209,30 @@ class Canister {
             httpclient = http.Client();
             need_close_httpclient = true;
         }
-        http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
-        if (need_close_httpclient) { httpclient.close(); }
-        if (statesponse.statusCode==200) {
-            Map systemstatesponsemap = cbor.cborbytesasadart(statesponse.bodyBytes);
-            Map certificate = cbor.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
-            await verifycertificate(certificate); // will throw an exception if certificate is not valid.
-            List pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
-            return pathsvalues;
-        } else {
-            throw Exception(':statesponse_statuscode: ${statesponse.statusCode}, body:\n${statesponse.body}');
+
+        late List pathsvalues;
+        int i = 4;
+        while ( i > 0 ) {
+            i -= 1;
+            http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
+            if (statesponse.statusCode==200) {
+                if (need_close_httpclient) { httpclient.close(); }
+                Map systemstatesponsemap = cbor.cborbytesasadart(statesponse.bodyBytes);
+                Map certificate = cbor.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
+                await verify_certificate(certificate);
+                pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
+                break;
+            } else {
+                print(':readstatesponse status-code: ${statesponse.statusCode}, body:\n${statesponse.body}');
+                if ( i == 0 ) {
+                    if (need_close_httpclient) { httpclient.close(); }
+                    throw Exception('read_state calls unknown sponse');
+                }
+                
+            } 
         }
+        
+        return pathsvalues;
     }
 
 
@@ -244,22 +259,19 @@ class Canister {
         );
         canistercallquest.headers['content-type'] = 'application/cbor';
         Map canistercallquestbodymap = {
-            //"sender_pubkey": (blob)(optional)(for the authentication of this quest.) (The public key must authenticate the sender principal when it is set. set pubkey and sender_sig when sender is not the anonymous principal)()
-            // "sender_delegation": ([] of the maps) "(array of maps, optional): a chain of delegations, starting with the one signed by sender_pubkey and ending with the one delegating to the key relating to sender_sig."
-            //"sender_sig": (blob)(optional)(for the authentication of this quest.)(by the secret_key-authorization: concatenation of the 11 bytes \x0Aic-request (the domain separator) and the 32 byte request id)
-            "content": { // (quest-id is of this content-map)
-                "request_type": calltype,//(text)
-                "canister_id": this.principal.bytes, //(blob)
-                "method_name": method_name,//(text)(:name: canister-method.),
+            "content": {
+                "request_type": calltype,
+                "canister_id": this.principal.bytes,
+                "method_name": method_name,
                 "arg": put_bytes != null ? put_bytes : c_forwards([]), 
-                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), // anonymous-principal is: byte: 0x04/00000100 .)(:self-authentication-id =  SHA-224(public_key) · 0x02 (29 bytes).))
-                "nonce": createicquestnonce(),  // (blob)(optional)(used when make same quest soon between but make sure system sees two seperate quests) , 
-                "ingress_expiry": createicquestingressexpiry()  // (nat)(:quirement.) (:time of the message-time-out in the nanoseconds since the year-~1970)
+                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]),
+                "nonce": createicquestnonce(),  //(use when make same quest soon between but make sure system sees two seperate quests) 
+                "ingress_expiry": createicquestingressexpiry()
             }
         };
-        Uint8List questId = icdatahash(canistercallquestbodymap['content']); // 32 bytes/256-bits with the sha 256.    
+        Uint8List questId = icdatahash(canistercallquestbodymap['content']);
         if (caller != null) {
-            if (legations.isNotEmpty) {             // The delegation field, if present, must not contain more than four delegations.
+            if (legations.isNotEmpty) {
                 canistercallquestbodymap['sender_pubkey'] = legations[0].legator_public_key_DER;
                 canistercallquestbodymap['sender_delegation'] = legations.map<Map>((Legation legation)=>legation.as_signed_legation_map()).toList();
             } else {
@@ -268,8 +280,6 @@ class Canister {
             canistercallquestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
         }
         canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
-        // print(canistercallquest);
-        // print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
         BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
@@ -396,7 +406,6 @@ Uint8List icdatahash(dynamic datastructure) {
 }
  
 
-// "The recommended textual representation of a request id is a hexadecimal string with lower-case letters prefixed with '0x'. E.g., request id consisting of bytes [00, 01, 02, 03, 04, 05, 06, 07, 08, 09, 0A, 0B, 0C, 0D, 0E, 0F, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 1A, 1B, 1C, 1D, 1E, 1F] should be displayed as 0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f. ""
 String questidbytesasastring(Uint8List questIdBytes) {
     return '0x' + bytesasahexstring(questIdBytes).toLowerCase();
 }
@@ -463,12 +472,12 @@ Uint8List derkeyasablskey(Uint8List derkey) {
 
 }
 
-Future<void> verifycertificate(Map certificate) async {
+Future<void> verify_certificate(Map certificate) async {
     Uint8List treeroothash = constructicsystemstatetreeroothash(certificate['tree']);
     Uint8List derKey;
     if (certificate.containsKey('delegation')) {
         Map legation_certificate = cbor.cborbytesasadart(Uint8List.fromList(certificate['delegation']['certificate']));
-        await verifycertificate(legation_certificate);
+        await verify_certificate(legation_certificate);
         derKey = lookuppathvalueinaniccertificatetree(legation_certificate['tree'], ['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']);
     } else {
         derKey = icrootkey; }
@@ -519,7 +528,7 @@ String getstatetreepathvaluetype(List<dynamic> path) {
             }
         }
     }
-    if (valuetype==null) { throw Exception(':library: ic_tools is with the void-knowledge of the quest-path.'); }
+    if (valuetype==null) { throw Exception('unknown state-tree-path-value-type.'); }
     return valuetype;
 }
 
@@ -557,17 +566,27 @@ Uint8List? lookuppathbvaluebinaniccertificatetree(List tree, List<Uint8List> pat
     }
 }
     
-dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path) {
+dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path, [String? type]) {
     Uint8List? valuebytes = lookuppathbvaluebinaniccertificatetree(tree, pathasapathbyteslist(path));
     if (valuebytes==null) { return valuebytes; }
-    return systemstatepathvaluetypetransform[getstatetreepathvaluetype(path)]!(valuebytes);
+    late String system_state_path_value_type; 
+    if (type != null) {
+        if (!['blob', 'natural', 'text'].contains(type)) { throw Exception("type parameter must be one of the ['blob', 'natural', 'text']"); }
+        system_state_path_value_type = type;
+    } else {
+        try {
+            system_state_path_value_type = getstatetreepathvaluetype(path);
+        } catch(e) {
+            system_state_path_value_type = 'blob';
+        }
+    }
+    
+    return systemstatepathvaluetypetransform[system_state_path_value_type]!(valuebytes);
 }
 
 
 
 String icidbytesasatext(Uint8List idblob) {
-    // Grouped(Base32(CRC32(b) · b)) 
-    // The textual representation is conventionally printed with lower case letters, but parsed case-insensitively.
     Crc32 crc32 = Crc32();
     crc32.add(idblob);
     List<int> crc32checksum = crc32.close();

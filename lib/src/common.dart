@@ -38,8 +38,8 @@ Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {dou
     }
     Record sendargs = Record.oftheMap({
         'memo': memo,
-        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}), // maybe needs Nat64(BigInt)
-        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),      // maybe needs Nat64(BigInt)
+        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}), // Nat64(BigInt)?
+        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),      // Nat64(BigInt)?
         'to': Text(fortheicpid),
         // 'created_at_time': Option()
     });
@@ -221,7 +221,6 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint
             })
         ])
     );
-    print('put code sponse bytes:\n${c_backwards(put_code_sponse_bytes)}');
 }
 
 

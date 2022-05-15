@@ -13,7 +13,7 @@ Uint8List hexstringasthebytes(String hex) {
         hex = hex.substring(2);
     }
     if (hex.length % 2 != 0) {
-        hex = '0' + hex;
+        throw Exception('hex string must be divisable by 2');
     }
     for (int i=0;i<hex.length/2;i++) {
         bytes.add(int.parse(hex.substring(i*2,i*2+2), radix: 16));

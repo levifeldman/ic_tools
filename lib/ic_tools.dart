@@ -11,6 +11,7 @@ export 'src/ic_tools.dart' show
     icdatahash,
     questidbytesasastring,
     questidstringasabytes,
-    verifycertificate,
-    lookuppathvalueinaniccertificatetree
+    verify_certificate,
+    lookuppathvalueinaniccertificatetree,
+    constructicsystemstatetreeroothash
     ;

@@ -1,6 +1,3 @@
-
-// We assume that the fields in a record or variant type are sorted by increasing id and the methods in a service are sorted by name.
-
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:collection';
@@ -211,7 +208,7 @@ Uint8List c_forwards(List<CandidType> candids) {
     candidbytes.addAll(leb128.encodeUnsigned(candids.length));
     candidbytes.addAll(params_list_types_bytes_section);
     candidbytes.addAll(params_list_values_bytes_section);
-    type_table_forward.clear(); // we'll see
+    type_table_forward.clear();
     return Uint8List.fromList(candidbytes);
 }
 
@@ -290,11 +287,11 @@ class Empty extends PrimitiveType {
     final bool isTypeStance;
     Empty({this.isTypeStance = false});
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
+        throw Exception('M(_ : empty) will never be called.'); 
     }
 
     Uint8List M_forward () {
-        throw Exception('M(_ : empty) will never be called.');    // NB: M(_ : empty) will never be called. 
+        throw Exception('M(_ : empty) will never be called.'); 
     }
 
     String toString() => 'Empty';  
@@ -325,9 +322,14 @@ class Nat extends PrimitiveType {
         if (value is! BigInt && value is! int && value!=null) {
             throw Exception('CandidType: Nat value must be either a dart-int or a dart-BigInt.');
         }
-        if (value !=null && value<0) {
-            throw Exception('CandidType: Nat can only hold a value >=0 ');
-        }
+        if (value != null) {
+            late BigInt bigintvalue;
+            if (value is int) { bigintvalue = BigInt.from(value); } else { bigintvalue = value; }
+            if (bigintvalue < BigInt.from(0)) {
+                throw Exception('CandidType: Nat can only hold a value >=0 ');
+            }
+        
+        }    
     }
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -375,14 +377,6 @@ class Nat8 extends PrimitiveType {
     }
  
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        // String nat8_asabitstring = '';
-        // for (CandidBytes_i nat8_byte_i=start_i;nat8_byte_i<start_i+1;nat8_byte_i++) {
-        //     nat8_asabitstring += candidbytes[nat8_byte_i].toRadixString(2); 
-        // }
-        // int value = int.parse(nat8_asabitstring, radix: 2);
-
-        // int value = ByteData.sublistView(candidbytes, start_i, start_i+1).getUint8(0);
-        
         MfuncTuple m_func_tuple = MfuncTuple(Nat8(candidbytes[start_i]), start_i+1);
         return m_func_tuple;    
     }
@@ -639,7 +633,7 @@ class Float64 extends PrimitiveType {
     Float64([this.value]);
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little); // is for the js double the same as the linux-double
+        double value = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little);
         return MfuncTuple(Float64(value), start_i+8);    
     }
 
@@ -658,7 +652,7 @@ class Text extends PrimitiveType {
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
-        int len_utf8_bytes = leb128.decodeUnsigned(leb128_bytes_tuple.item1) as int; // candidbytes list can only index 2^64 ?? w
+        int len_utf8_bytes = leb128.decodeUnsigned(leb128_bytes_tuple.item1) as int;
         CandidBytes_i next_i = leb128_bytes_tuple.item2 + len_utf8_bytes;
         Uint8List utf8_bytes = candidbytes.sublist(leb128_bytes_tuple.item2, next_i);
         return MfuncTuple(Text(utf8.decode(utf8_bytes)), next_i);
@@ -735,7 +729,6 @@ class Option extends ConstructType {
     }
 
     Uint8List T_forward() {
-        // is with the give-back of a sleb128-bytes of a type-table-i
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(Option.type_code));
         Uint8List value_type_t_forward_bytes = this.value != null ? this.value!.T_forward() : this.value_type!.T_forward();
@@ -773,7 +766,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         return vec;
     }
 
-    Vector<C> cast_vector<C extends CandidType>() => Vector.oftheList<C>(this.cast<C>()); // using C here because this gets called on a stance of a Vector which already has a T which is at the usual: the-abstract-type: CandidType and the point of this function is for a concrete-type-vector-cast 
+    Vector<C> cast_vector<C extends CandidType>() => Vector.oftheList<C>(this.cast<C>());
 
     List<T> _list = <T>[];
     _canputinthevectortypecheck(CandidType new_c) {
@@ -785,9 +778,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
                 throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field');
             }
         }
-        if (_list.length > 0) { // dp i need this now that i have the Vector<T extends CandidType> ? i think yes because when Vector() without a <SomeCandidType> it still must be the same specific candidtype
-            _list.forEach((CandidType list_c) { 
-                // test this if
+        if (_list.length > 0) {
+            _list.forEach((CandidType list_c) {
                 if (list_c.runtimeType != new_c.runtimeType) { throw Exception(':CandidType-values in a Vector-list are with the quirement of the same-specific-candidtype-type. :type of the vector-values-now: ${this[0].runtimeType}.'); }
             });
         }
@@ -822,7 +814,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic vec_len_dy = leb128.decodeUnsigned(leb128_bytes_tuple.item1);
-        late int vec_len; // need because leb128 can be bigint but candidbytes is a list and can only index up to 2^64 of the max of the dart-int
+        late int vec_len;
         if (vec_len_dy is BigInt) {
             if (vec_len_dy.isValidInt) {
                 vec_len = vec_len_dy.toInt();  
@@ -902,7 +894,7 @@ class Blob extends Vector<Nat8> {
 abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, CandidType> {
     final bool isTypeStance;
     RecordAndVariantMap({this.isTypeStance=false});
-    Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when this is a record_type of a type_table with an isTypeStance=true
+    Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when this is a record_type of a type_table
     Iterable<int> get keys => _map.keys.toList()..sort();
     Iterable<CandidType> get values => this.keys.map((int k)=>this[k]!);
     CandidType? operator [](dynamic key) { // String or int
@@ -924,7 +916,7 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
         } else 
         if (key is int) {
             if (key >= pow(2,32)) {
-                throw Exception('candid fieldtype-id as an int needs to be < 2^32. "An id value must be smaller than 2^32 and no id may occur twice in the same record type." ');
+                throw Exception('candid fieldtype-id as an int needs to be < 2^32. "An id value must be smaller than 2^32." ');
             }
             k = key;
         }
@@ -979,7 +971,11 @@ class Record extends RecordAndVariantMap {
             FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, next_field_start_candidbytes_i);
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128.decodeUnsigned(field_id_hash_leb128_bytes) as int;
-            // throw here and in variant fieldtypes if field-id-hash is less than any of the field hashes already in the record_types
+            for (int k in record_type.keys) {
+                if (k >= field_id_hash) {
+                    throw Exception('key of the record is out of order');
+                }
+            }
             CandidBytes_i field_type_code_byte_candidbytes_i = leb128_bytes_tuple.item2;
             TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             CandidType ctype = t_func_tuple.item1;
@@ -1051,6 +1047,11 @@ class Variant extends RecordAndVariantMap {
             FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, next_field_start_candidbytes_i);
             Uint8List field_id_hash_leb128_bytes = leb128_bytes_tuple.item1;
             int field_id_hash = leb128.decodeUnsigned(field_id_hash_leb128_bytes) as int;
+            for (int k in variant_type.keys) {
+                if (k >= field_id_hash) {
+                    throw Exception('key of the variant is out of order');
+                }
+            }
             CandidBytes_i field_type_code_byte_candidbytes_i = leb128_bytes_tuple.item2;
             TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, field_type_code_byte_candidbytes_i);
             CandidType ctype = t_func_tuple.item1;
@@ -1067,8 +1068,7 @@ class Variant extends RecordAndVariantMap {
         FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         Uint8List variant_field_i_leb128_bytes = leb128_bytes_tuple.item1;
         int variant_field_i = leb128.decodeUnsigned(variant_field_i_leb128_bytes) as int;
-        List<int> variant_fields_hashs = this.keys.toList(); // .keys are with the sort in the RecordAndVariantMap class
-        // print('variant_fields_hashs: ${variant_fields_hashs}');
+        List<int> variant_fields_hashs = this.keys.toList();
         int variant_field_hash = variant_fields_hashs[variant_field_i];
         CandidType field_ctype = this[variant_field_hash]!;
         MfuncTuple field_m_func_tuple = field_ctype.M(candidbytes, leb128_bytes_tuple.item2);
@@ -1090,7 +1090,7 @@ class Variant extends RecordAndVariantMap {
     }
 
     Uint8List M_forward() {
-        if (this.keys.length > 1) { throw Exception('something went wrong, variant can only hold one value.'); }
+        if (this.keys.length > 1) { throw Exception('variant can only hold one value.'); }
         List<int> m_bytes = [];
         m_bytes.addAll(leb128.encodeUnsigned(0));
         m_bytes.addAll(this.values.first.M_forward());
@@ -1099,14 +1099,9 @@ class Variant extends RecordAndVariantMap {
 
 }
 
-// for the forward of a vec { variant {A,B,C }  } create a vec and for each vec-item: create: new Variant with that item's-specific variant-fieldtype-id and value. Vector() 
-
 
 // ----------------------------------------------
 
-
-// are function annotations just a single byte? what happens when there are more than 256 annotations 
-// is a non-opaque-func-reference automatic(always) with the non-opaque-service? or can a non-opaque-func-reference be with an opaque-service? for the now i will do it so it can be both. if it can be both then what is the point of a non-opaque-func-reference with an opaque-service-reference. 
 // can the datatypes of the in_types & out_types of a func-reference be Index of the type_table or must they be written out within this func-reference-type-table-type 
 
 
@@ -1195,7 +1190,6 @@ class FunctionReference extends ReferenceType {
         bool isQuery = false;
         bool isOneWay = false;
         for (int func_mark_i = 0; func_mark_i < func_marks_len; func_mark_i++) {
-            // leb128? or the single-byte? for the now, the single-byte
             int func_mark_code = candidbytes[next_func_mark_start_i]; 
             if (func_mark_code == 1) {
                 isQuery = true;
@@ -1320,7 +1314,7 @@ class ServiceReference extends ReferenceType {
     } 
 
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
-        if (this.isTypeStance==false) { throw Exception('this function should only be called on a stance with the isTypeStance==true and a Map<Text, FunctionReference> methods_types'); }
+        if (this.isTypeStance==false) { throw Exception('this function is call on a stance with the isTypeStance==true and a Map<Text, FunctionReference> methods_types'); }
         Blob? id_value;
         late CandidBytes_i next_i;
         if (candidbytes[start_i] == 0) {

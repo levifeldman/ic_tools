@@ -3,12 +3,13 @@
 ----------
 This is a package for the connection of the dart-code with the DFINITY-INTERNET-COMPUTER.
 
-This package is for the Dart &: Flutter, on the Web &: Linux.
+This package is for the Dart & Flutter, on the Web & Linux.
+
+See src/common.dart for some samples.
 
 ----------
 
 ```dart
-import 'dart:typed_data';
 import 'package:ic_tools/ic_tools.dart';
 import 'package:ic_tools/candid.dart';
 import 'package:ic_tools/common.dart';
@@ -16,7 +17,6 @@ import 'package:ic_tools/common.dart';
 
 
 main() async {
-    Canister ledger = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
     Caller caller = CallerEd25519.new_keys();
     String icp_id = caller.principal.icp_id();
     double icp_balance = await check_icp_balance(icp_id);

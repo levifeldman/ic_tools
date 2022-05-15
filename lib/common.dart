@@ -9,6 +9,7 @@ export 'src/common.dart' show
     governance,
     root,
     ii,
+    cycles_mint,
     create_canister,
     top_up_canister,
     check_canister_status,
