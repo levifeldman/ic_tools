@@ -5,7 +5,7 @@ This is a package for the connection of the dart-code with the DFINITY-INTERNET-
 
 This package is for the Dart & Flutter, on the Web & Linux.
 
-See src/common.dart for some samples.
+See lib/src/common.dart for some samples.
 
 ----------
 
