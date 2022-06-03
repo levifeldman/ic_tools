@@ -33,22 +33,24 @@ Future<double> check_icp_balance(String icp_id) async {
 Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes } ) async {
     fee ??= 0.0001;
     memo ??= Nat64(0);
+    subaccount_bytes ??= Uint8List(32);
+    if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
     if (check_double_decimal_point_places(mount) > 8 || check_double_decimal_point_places(fee) > 8) {
         throw Exception('mount and fee can have max: 8 decimal-point-number-places');
     }
     Record sendargs = Record.oftheMap({
         'memo': memo,
-        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}), // Nat64(BigInt)?
-        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),      // Nat64(BigInt)?
+        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}),
+        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),
         'to': Text(fortheicpid),
+        'from_subaccount': Option(value: Blob(subaccount_bytes)),
         // 'created_at_time': Option()
     });
-    if (subaccount_bytes != null) {
-        sendargs['from_subaccount'] = Option(value: Blob(subaccount_bytes));
-    }    
     Nat64 block_height = c_backwards(await ledger.call(calltype: 'call', method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller))[0] as Nat64;
     return block_height;
 }
+
+
 
 
 extension PrincipalIcpId on Principal {
