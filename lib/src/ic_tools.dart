@@ -115,40 +115,41 @@ class CallerEd25519 extends Caller {
 
 
 class Legation {
-    final Uint8List pubkey;
-    final int expiration_timestamp_unix_seconds;
+    final Uint8List legatee_public_key_DER;
+    final BigInt expiration_unix_timestamp_nanoseconds;
     final List<Principal>? target_canisters_ids;  
     final Uint8List legator_public_key_DER;
     final Uint8List legator_signature; 
 
-    Legation({required this.pubkey, required this.expiration_timestamp_unix_seconds, this.target_canisters_ids, required this.legator_public_key_DER, required this.legator_signature}); 
+    Legation({required this.legatee_public_key_DER, required this.expiration_unix_timestamp_nanoseconds, this.target_canisters_ids, required this.legator_public_key_DER, required this.legator_signature}); 
 
-    static create(Caller legator, Uint8List pubkey, int expiration_timestamp_unix_seconds, [List<Principal>? target_canisters_ids]) {
-        Uint8List legator_signature = legator.authorize_legation_hash(icdatahash(Legation.create_legation_map(pubkey, expiration_timestamp_unix_seconds, target_canisters_ids)));
+    static Legation create(Caller legator, Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, [List<Principal>? target_canisters_ids]) {
+        Uint8List legator_signature = legator.authorize_legation_hash(icdatahash(Legation.create_legation_map(legatee_public_key_DER, expiration_unix_timestamp_nanoseconds, target_canisters_ids)));
         return Legation(
-            pubkey: pubkey,
-            expiration_timestamp_unix_seconds: expiration_timestamp_unix_seconds,
+            legatee_public_key_DER: legatee_public_key_DER,
+            expiration_unix_timestamp_nanoseconds: expiration_unix_timestamp_nanoseconds,
             target_canisters_ids: target_canisters_ids,
             legator_public_key_DER: legator.public_key_DER,
             legator_signature: legator_signature
         );
     }   
 
-    static Map create_legation_map(Uint8List pubkey, int expiration_timestamp_unix_seconds, List<Principal>? target_canisters_ids) {
-        BigInt expiration_timestamp_unix_nanoseconds = BigInt.from(expiration_timestamp_unix_seconds) * BigInt.from(1000000000);
+    static Map create_legation_map(Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, List<Principal>? target_canisters_ids) {
         return {
-            'pubkey': pubkey,
-            'expiration': expiration_timestamp_unix_nanoseconds.isValidInt ? expiration_timestamp_unix_nanoseconds.toInt() : expiration_timestamp_unix_nanoseconds,
+            'pubkey': legatee_public_key_DER,
+            'expiration': expiration_unix_timestamp_nanoseconds.isValidInt ? expiration_unix_timestamp_nanoseconds.toInt() : expiration_unix_timestamp_nanoseconds,
             if (target_canisters_ids != null) 'targets': target_canisters_ids.map<Uint8List>((Principal canister_id)=>canister_id.bytes).toList()
         };
     }
 
     Map as_signed_legation_map() {
         return {
-            'delegation' : Legation.create_legation_map(this.pubkey, this.expiration_timestamp_unix_seconds, this.target_canisters_ids),
+            'delegation' : Legation.create_legation_map(this.legatee_public_key_DER, this.expiration_unix_timestamp_nanoseconds, this.target_canisters_ids),
             'signature': this.legator_signature
         };
     }
+    
+    String toString() => 'Legation(\n\tlegatee_public_key_DER: ${this.legatee_public_key_DER},\n\texpiration_unix_timestamp_nanoseconds: ${this.expiration_unix_timestamp_nanoseconds},\n\ttarget_canisters_ids: ${this.target_canisters_ids},\n\tlegator_public_key_DER: ${this.legator_public_key_DER},\n\tlegator_signature: ${this.legator_signature}\n)';
 }
 
 

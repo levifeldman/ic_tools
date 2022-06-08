@@ -30,7 +30,7 @@ Future<double> check_icp_balance(String icp_id) async {
 }
 
 
-Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes } ) async {
+Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes, List<Legation> legations = const [] } ) async {
     fee ??= 0.0001;
     memo ??= Nat64(0);
     subaccount_bytes ??= Uint8List(32);
@@ -46,7 +46,7 @@ Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {dou
         'from_subaccount': Option(value: Blob(subaccount_bytes)),
         // 'created_at_time': Option()
     });
-    Nat64 block_height = c_backwards(await ledger.call(calltype: 'call', method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller))[0] as Nat64;
+    Nat64 block_height = c_backwards(await ledger.call(calltype: 'call', method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller, legations: legations))[0] as Nat64;
     return block_height;
 }
 
