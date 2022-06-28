@@ -41,13 +41,12 @@ class Principal {
         if (aresamebytes(p.bytes, bytes) != true) {  throw Exception('ic id functions look '); }
         return p;
     }
-    static Principal ofPublicKeyDER(Uint8List pub_key_der) {
+    static Principal ofthePublicKeyDER(Uint8List pub_key_der) {
         List<int> principal_bytes = [];
         principal_bytes.addAll(sha224.convert(pub_key_der).bytes);
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
-    PrincipalReference get candid => PrincipalReference(id: Blob(this.bytes));
     String toString() => 'Principal: ${this.text}';
 }
 
@@ -56,32 +55,36 @@ class Principal {
 
 abstract class Caller {
     final Uint8List public_key;
-    final Uint8List private_key;
     late final Principal principal; 
+        
     Uint8List get public_key_DER;
-
-    Caller({required this.public_key, required this.private_key}) {
-        this.principal = Principal.ofPublicKeyDER(public_key_DER); 
+    
+    Caller({required this.public_key}) {
+        this.principal = Principal.ofthePublicKeyDER(public_key_DER); 
     }
-    Uint8List private_key_authorize_function(Uint8List message);
+    
+    Future<Uint8List> private_key_authorize_function(Uint8List message);
 
-    Uint8List authorize_call_questId(Uint8List questId) {
+    Future<Uint8List> authorize_call_questId(Uint8List questId) async {
         List<int> message = []; 
         message.addAll(utf8.encode('\x0Aic-request'));
         message.addAll(questId);
-        return private_key_authorize_function(Uint8List.fromList(message));
+        return await private_key_authorize_function(Uint8List.fromList(message));
     }
-    Uint8List authorize_legation_hash(Uint8List legation_hash) {
+    
+    Future<Uint8List> authorize_legation_hash(Uint8List legation_hash) async {
         List<int> message = []; 
         message.addAll(utf8.encode('\x1Aic-request-auth-delegation'));
         message.addAll(legation_hash);
-        return private_key_authorize_function(Uint8List.fromList(message));
+        return await private_key_authorize_function(Uint8List.fromList(message));
     }
 
     String toString() => 'Caller: ' + this.principal.text;
 }
 
-class CallerEd25519 extends Caller {    
+
+class CallerEd25519 extends Caller {
+        
     static Uint8List DER_public_key_start = Uint8List.fromList([
         ...[48, 42], // SEQUENCE
         ...[48, 5], // SEQUENCE
@@ -91,8 +94,12 @@ class CallerEd25519 extends Caller {
         ...[32 + 1], // BIT STRING // ...[Ed25519PublicKey.RAW_KEY_LENGTH + 1],
         ...[0], // 'no padding'
     ]);
+
     Uint8List get public_key_DER => Uint8List.fromList([ ...DER_public_key_start, ...this.public_key]);
-    CallerEd25519({required Uint8List public_key, required Uint8List private_key}) : super(public_key: public_key, private_key: private_key) {
+
+    final Uint8List private_key;
+
+    CallerEd25519({required Uint8List public_key, required Uint8List this.private_key}) : super(public_key: public_key) {
         if (public_key.length != 32 || private_key.length != 32) {
             throw Exception('Ed25519 Public-key and Private-key both must be 32 bytes');
         }
@@ -107,7 +114,7 @@ class CallerEd25519 extends Caller {
     static bool verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) {
         return ed.verify(ed.PublicKey(pubkey), message, signature);
     }
-    Uint8List private_key_authorize_function(Uint8List message) {
+    Future<Uint8List> private_key_authorize_function(Uint8List message) async {
         return ed.sign(ed.newKeyFromSeed(this.private_key), message);
     }
 }
@@ -123,8 +130,8 @@ class Legation {
 
     Legation({required this.legatee_public_key_DER, required this.expiration_unix_timestamp_nanoseconds, this.target_canisters_ids, required this.legator_public_key_DER, required this.legator_signature}); 
 
-    static Legation create(Caller legator, Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, [List<Principal>? target_canisters_ids]) {
-        Uint8List legator_signature = legator.authorize_legation_hash(icdatahash(Legation.create_legation_map(legatee_public_key_DER, expiration_unix_timestamp_nanoseconds, target_canisters_ids)));
+    static Future<Legation> create(Caller legator, Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, [List<Principal>? target_canisters_ids]) async {
+        Uint8List legator_signature = await legator.authorize_legation_hash(icdatahash(Legation.create_legation_map(legatee_public_key_DER, expiration_unix_timestamp_nanoseconds, target_canisters_ids)));
         return Legation(
             legatee_public_key_DER: legatee_public_key_DER,
             expiration_unix_timestamp_nanoseconds: expiration_unix_timestamp_nanoseconds,
@@ -132,12 +139,12 @@ class Legation {
             legator_public_key_DER: legator.public_key_DER,
             legator_signature: legator_signature
         );
-    }   
+    }
 
     static Map create_legation_map(Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, List<Principal>? target_canisters_ids) {
         return {
             'pubkey': legatee_public_key_DER,
-            'expiration': expiration_unix_timestamp_nanoseconds.isValidInt ? expiration_unix_timestamp_nanoseconds.toInt() : expiration_unix_timestamp_nanoseconds,
+            'expiration': isontheweb ? expiration_unix_timestamp_nanoseconds : expiration_unix_timestamp_nanoseconds.isValidInt ? expiration_unix_timestamp_nanoseconds.toInt() : expiration_unix_timestamp_nanoseconds,
             if (target_canisters_ids != null) 'targets': target_canisters_ids.map<Uint8List>((Principal canister_id)=>canister_id.bytes).toList()
         };
     }
@@ -152,6 +159,12 @@ class Legation {
     String toString() => 'Legation(\n\tlegatee_public_key_DER: ${this.legatee_public_key_DER},\n\texpiration_unix_timestamp_nanoseconds: ${this.expiration_unix_timestamp_nanoseconds},\n\ttarget_canisters_ids: ${this.target_canisters_ids},\n\tlegator_public_key_DER: ${this.legator_public_key_DER},\n\tlegator_signature: ${this.legator_signature}\n)';
 }
 
+
+
+enum CallType {
+    call,
+    query
+}
 
 
 class Canister {
@@ -189,7 +202,7 @@ class Canister {
             "content": { 
                 "request_type": 'read_state',
                 "paths": pathsbytes,  
-                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
+                "sender": legations.isNotEmpty ? Principal.ofthePublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
                 "nonce": createicquestnonce(),
                 "ingress_expiry": createicquestingressexpiry()
             }
@@ -202,7 +215,7 @@ class Canister {
                 getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
             }
             Uint8List questId = icdatahash(getstatequestbodymap['content']);
-            getstatequestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
+            getstatequestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
         }
         systemstatequest.bodyBytes = cbor.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
         bool need_close_httpclient = false;
@@ -237,8 +250,8 @@ class Canister {
     }
 
 
-    Future<Uint8List> call({required String calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const [], Duration timeout_duration = const Duration(minutes: 5)}) async {
-        if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
+    Future<Uint8List> call({required CallType calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const [], Duration timeout_duration = const Duration(minutes: 5)}) async {
+        //if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
         if (caller==null && legations.isNotEmpty) { throw Exception('legations can only be given with a current-caller that is the final legatee of the legations'); }
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
@@ -255,17 +268,17 @@ class Canister {
         }
         var canistercallquest = http.Request('POST', 
             icbaseurl.replace(
-                pathSegments: Canister.base_path_segments + [fective_canister_id.text, calltype]
+                pathSegments: Canister.base_path_segments + [fective_canister_id.text, calltype.name]
             )
         );
         canistercallquest.headers['content-type'] = 'application/cbor';
         Map canistercallquestbodymap = {
             "content": {
-                "request_type": calltype,
+                "request_type": calltype.name,
                 "canister_id": this.principal.bytes,
                 "method_name": method_name,
                 "arg": put_bytes != null ? put_bytes : c_forwards([]), 
-                "sender": legations.isNotEmpty ? Principal.ofPublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]),
+                "sender": legations.isNotEmpty ? Principal.ofthePublicKeyDER(legations[0].legator_public_key_DER).bytes : caller != null ? caller.principal.bytes : Uint8List.fromList([4]),
                 "nonce": createicquestnonce(),  //(use when make same quest soon between but make sure system sees two seperate quests) 
                 "ingress_expiry": createicquestingressexpiry()
             }
@@ -278,9 +291,10 @@ class Canister {
             } else {
                 canistercallquestbodymap['sender_pubkey'] = caller.public_key_DER;
             }
-            canistercallquestbodymap['sender_sig'] = caller.authorize_call_questId(questId);
+            canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
         }
         canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
+        //print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
         BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
@@ -291,7 +305,7 @@ class Canister {
         Uint8List? canistersponse;
         int? reject_code;
         String? reject_message;
-        if (calltype == 'call') {
+        if (calltype.name == 'call') {
             List pathsvalues = [];
             BigInt timeout_duration_check_nanoseconds = get_current_time_nanoseconds() + BigInt.from(timeout_duration.inMilliseconds * 1000000);
             while (!['replied','rejected','done'].contains(callstatus)) {
@@ -324,9 +338,9 @@ class Canister {
             canistersponse = pathsvalues[2];
             reject_code = pathsvalues[3];
             reject_message = pathsvalues[4];
-        } 
-
-        else if (calltype == 'query') {
+        }
+        
+        else if (calltype.name == 'query') {
             Map canister_query_sponse_map = cbor.cborbytesasadart(canistercallsponse.bodyBytes); 
             callstatus = canister_query_sponse_map['status'];
             canistersponse = canister_query_sponse_map.keys.toList().contains('reply') && canister_query_sponse_map['reply'].keys.toList().contains('arg') ? Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer) : null;
@@ -334,8 +348,11 @@ class Canister {
             reject_message = canister_query_sponse_map.keys.toList().contains('reject_message') ? canister_query_sponse_map['reject_message'] : null;
         }
         
+        httpclient.close();
+        
         if (callstatus == 'replied') {
             // good
+            return canistersponse!;
         } else if (callstatus=='rejected') {
             throw Exception('Call Reject: reject_code: ${reject_code}: ${system_call_reject_codes[reject_code]}: ${reject_message}.');
         } else if (callstatus=='done') {
@@ -343,9 +360,6 @@ class Canister {
         } else {
             throw Exception('Call error: call-status: ${callstatus}');
         }
-        
-        httpclient.close();
-        return canistersponse!;
     }
 
     String toString() => 'Canister: ${this.principal.text}';

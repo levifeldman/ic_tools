@@ -23,7 +23,7 @@ final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 Future<double> check_icp_balance(String icp_id) async {
     Record record = Record.oftheMap({'account': Text(icp_id)});
-    Uint8List sponse_bytes = await ledger.call(calltype: 'call', method_name: 'account_balance_dfx', put_bytes: c_forwards([record]));
+    Uint8List sponse_bytes = await ledger.call(calltype: CallType.call, method_name: 'account_balance_dfx', put_bytes: c_forwards([record]));
     Record icpts_balance_record = c_backwards(sponse_bytes)[0] as Record;
     Nat64 e8s = icpts_balance_record['e8s'] as Nat64;
     return e8s.value / 100000000; 
@@ -46,7 +46,7 @@ Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {dou
         'from_subaccount': Option(value: Blob(subaccount_bytes)),
         // 'created_at_time': Option()
     });
-    Nat64 block_height = c_backwards(await ledger.call(calltype: 'call', method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller, legations: legations))[0] as Nat64;
+    Nat64 block_height = c_backwards(await ledger.call(calltype: CallType.call, method_name: 'send_dfx', put_bytes: c_forwards([sendargs]), caller: caller, legations: legations))[0] as Nat64;
     return block_height;
 }
 
@@ -120,7 +120,7 @@ Future<Principal> create_canister(Caller caller, double icp_count, {Uint8List? f
         notifycanisterargs['from_subaccount'] = Option(value: Blob(from_subaccount_bytes));
     }
 
-    Uint8List notify_sponse_bytes = await ledger.call(calltype: 'call', method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller);
+    Uint8List notify_sponse_bytes = await ledger.call(calltype: CallType.call, method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller);
     List<CandidType> notify_sponse_candids = c_backwards(notify_sponse_bytes);
     Variant variant = notify_sponse_candids[0] as Variant;
     if (variant.containsKey('CanisterCreated')) {
@@ -162,7 +162,7 @@ Future<void> top_up_canister(Caller caller, double icp_mount, Principal canister
         notifycanisterargs['from_subaccount'] = Option(value: Blob(from_subaccount_bytes));
     }
 
-    Variant variant = c_backwards(await ledger.call(calltype: 'call', method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller))[0] as Variant;
+    Variant variant = c_backwards(await ledger.call(calltype: CallType.call, method_name: 'notify_dfx', put_bytes: c_forwards([notifycanisterargs]), caller: caller))[0] as Variant;
     if (variant.containsKey('ToppedUp')) {
         return;
     } else if (variant.containsKey('Refunded')) {
@@ -177,7 +177,7 @@ Future<void> top_up_canister(Caller caller, double icp_mount, Principal canister
 Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
     Uint8List canister_status_sponse_bytes = await management.call(
         caller: caller,
-        calltype: 'call',
+        calltype: CallType.call,
         method_name: 'canister_status',
         put_bytes: c_forwards([
             Record.oftheMap({
@@ -212,7 +212,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
 Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_canister_bytes, String mode, [Uint8List? canister_install_arg]) async {
     Uint8List put_code_sponse_bytes = await management.call(
         caller: caller,
-        calltype: 'call',
+        calltype: CallType.call,
         method_name: 'install_code',
         put_bytes: c_forwards([
             Record.oftheMap({

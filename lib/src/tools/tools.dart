@@ -6,7 +6,6 @@ export './cross_platform_tools/cbor/main.dart' show cbor;
 export './cross_platform_tools/bls12381/main.dart' show bls12381;
 
 
-
 Uint8List hexstringasthebytes(String hex) {
     List<int> bytes = [];
     if (hex.substring(0,2)=='0x' || hex.substring(0,2)=='\\x') {
