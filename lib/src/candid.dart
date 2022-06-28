@@ -82,10 +82,70 @@ class TypeTableReference extends CandidType {
     MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) => m(candidbytes, start_i);
     TypeTableReference(this.type_table_i) {
         m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
+        
+        // for the empty vector so it can be backwards and then forwards 
+        get_final_type_stance_f = () {
+            CandidType down_the_road = type_table[type_table_i];
+            if (down_the_road is TypeTableReference) {
+                return down_the_road.get_final_type_stance();
+            } 
+            else if (down_the_road is PrimitiveType) {
+                return down_the_road;
+            }
+            else if (down_the_road is ConstructType) {
+                if (down_the_road is Record) {
+                    Record r_type_stance = Record(isTypeStance: true);
+                    for (int k in down_the_road.keys) {
+                        if (down_the_road[k] is TypeTableReference) {
+                            r_type_stance[k] = (down_the_road[k]! as TypeTableReference).get_final_type_stance();
+                        } else {
+                            r_type_stance[k] = down_the_road[k]!;
+                        }
+                    }
+                    return r_type_stance;
+                }
+                else if (down_the_road is Variant) {
+                    Variant v_type_stance = Variant(isTypeStance: true);
+                    for (int k in down_the_road.keys) {
+                        if (down_the_road[k] is TypeTableReference) {
+                            v_type_stance[k] = (down_the_road[k]! as TypeTableReference).get_final_type_stance();
+                        } else {
+                            v_type_stance[k] = down_the_road[k]!;
+                        }
+                    }
+                    return v_type_stance;
+                }
+                else if (down_the_road is Option) {
+                    if (down_the_road.value_type! is TypeTableReference) {
+                        Option opt_type_stance = Option(isTypeStance: true, value_type: (down_the_road.value_type! as TypeTableReference).get_final_type_stance());
+                        return opt_type_stance;
+                    } else {
+                        return down_the_road;
+                    }
+                }
+                else if (down_the_road is Vector) {
+                    if (down_the_road.values_type! is TypeTableReference) {
+                        Vector vec_type_stance = Vector(isTypeStance: true, values_type: (down_the_road.values_type! as TypeTableReference).get_final_type_stance());
+                        return vec_type_stance;
+                    } else {
+                        return down_the_road;
+                    }
+                }
+            }
+            else if (down_the_road is ReferenceType) {
+                //
+            } 
+            
+            return down_the_road; // putting here to satisfy the return type check
+        };
     }
 
     Uint8List T_forward() => throw Exception('shouldnt be calle');
     Uint8List M_forward() => throw Exception('shouldnt-call');
+    
+    // for the empty vector so it can be backwards and then forwards 
+    late CandidType Function() get_final_type_stance_f;
+    CandidType get_final_type_stance() => get_final_type_stance_f();
 }
 
 TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_code_start_candidbytes_i) {
@@ -724,7 +784,7 @@ class Option extends ConstructType {
         else {
             throw Exception('candid Option M bytes must start with a 0 or 1 byte.');
         }
-        Option opt = Option(value: val, value_type: this.value_type); // this.value_type could be a type_table_i, figure_out 
+        Option opt = Option(value: val, value_type: this.value_type is TypeTableReference ? (this.value_type as TypeTableReference).get_final_type_stance() : this.value_type); // this.value_type could be a type_table_i
         return MfuncTuple(opt, next_i);
     }
 
@@ -775,7 +835,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         }
         if (this.values_type != null) {
             if (this.values_type.runtimeType != new_c.runtimeType) {
-                throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field');
+                throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field. this.values_type.runtimeType: ${this.values_type.runtimeType}, new_c.runtimeType: ${new_c.runtimeType}');
             }
         }
         if (_list.length > 0) {
@@ -825,7 +885,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
             vec_len = vec_len_dy as int;
         }
         CandidBytes_i next_vec_item_start_i = leb128_bytes_tuple.item2;
-        Vector vec = Vector();
+        Vector vec = Vector(values_type: this.values_type is TypeTableReference ? (this.values_type as TypeTableReference).get_final_type_stance() : this.values_type);
         if (this.values_type! is Nat8) {
             CandidBytes_i finish_nat8s_i = next_vec_item_start_i + vec_len;
             vec = Blob(candidbytes.sublist(next_vec_item_start_i, finish_nat8s_i));
@@ -837,7 +897,6 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
                 next_vec_item_start_i = m_func_tuple.item2;
             }
         }
-
         return MfuncTuple(vec, next_vec_item_start_i);
     }
 
@@ -885,6 +944,8 @@ class Blob extends Vector<Nat8> {
         Nat8 nat8byte = this[i] as Nat8;
         return nat8byte.value!;
     }
+    
+    String toString() => this.bytes.toString();
 }
 
 
@@ -1390,7 +1451,7 @@ class PrincipalReference extends ReferenceType {
             throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
         } 
     }
-    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}: ${this.principal!.text}';
+    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}: ${this.principal != null ? this.principal!.text : 'opaque'}';
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
@@ -1423,6 +1484,33 @@ class PrincipalReference extends ReferenceType {
         return Uint8List.fromList(m_bytes);
     }
 }
+
+
+
+
+// ------------------------------------------------------------------------
+
+
+
+extension PrincipalCandid on Principal {
+    PrincipalReference get candid => PrincipalReference(id: Blob(this.bytes));
+}
+
+
+// Convert a List<CandidType> into a List<dynamic>. for an easy-get of the values.
+// List<dynamic> candids = c_backwards( ... );
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -28,6 +28,7 @@ export 'src/candid.dart' show
     ServiceReference,
     PrincipalReference,
     Blob,
+    PrincipalCandid,
     magic_bytes,
     c_forwards,
     c_backwards,
