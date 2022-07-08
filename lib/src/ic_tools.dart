@@ -54,16 +54,15 @@ class Principal {
 
 
 abstract class Caller {
-    final Uint8List public_key;
-    late final Principal principal; 
         
-    Uint8List get public_key_DER;
-    
-    Caller({required this.public_key}) {
-        this.principal = Principal.ofthePublicKeyDER(public_key_DER); 
-    }
+    final Uint8List public_key_DER;
+        
+    Caller({required this.public_key_DER});
     
     Future<Uint8List> private_key_authorize_function(Uint8List message);
+
+
+    Principal get principal => Principal.ofthePublicKeyDER(this.public_key_DER); 
 
     Future<Uint8List> authorize_call_questId(Uint8List questId) async {
         List<int> message = []; 
@@ -95,15 +94,15 @@ class CallerEd25519 extends Caller {
         ...[0], // 'no padding'
     ]);
 
-    Uint8List get public_key_DER => Uint8List.fromList([ ...DER_public_key_start, ...this.public_key]);
-
+    Uint8List get public_key => this.public_key_DER.sublist(CallerEd25519.DER_public_key_start.length);
     final Uint8List private_key;
 
-    CallerEd25519({required Uint8List public_key, required Uint8List this.private_key}) : super(public_key: public_key) {
+    CallerEd25519({required Uint8List public_key, required Uint8List this.private_key}) : super(public_key_DER: Uint8List.fromList([ ...DER_public_key_start, ...public_key])) {
         if (public_key.length != 32 || private_key.length != 32) {
             throw Exception('Ed25519 Public-key and Private-key both must be 32 bytes');
         }
     }
+
     static CallerEd25519 new_keys() {
         ed.KeyPair ed_key_pair = ed.generateKey();
         return CallerEd25519(
@@ -111,11 +110,13 @@ class CallerEd25519 extends Caller {
             private_key : ed.seed(ed_key_pair.privateKey)
         );
     }
-    static bool verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) {
-        return ed.verify(ed.PublicKey(pubkey), message, signature);
-    }
+    
     Future<Uint8List> private_key_authorize_function(Uint8List message) async {
         return ed.sign(ed.newKeyFromSeed(this.private_key), message);
+    }
+
+    static bool verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) {
+        return ed.verify(ed.PublicKey(pubkey), message, signature);
     }
 }
 
@@ -249,9 +250,10 @@ class Canister {
         return pathsvalues;
     }
 
+    
 
-    Future<Uint8List> call({required CallType calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const [], Duration timeout_duration = const Duration(minutes: 5)}) async {
-        //if(calltype != 'call' && calltype != 'query') { throw Exception('calltype must be "call" or "query"'); }
+
+    Future<Uint8List> call({required CallType calltype, required String method_name, Uint8List? put_bytes, Caller? caller, List<Legation> legations = const [], Duration timeout_duration = const Duration(minutes: 5) /*, bool cold_storage_mode = false, Uint8List? call_with_cold_storage_bytes*/}) async {
         if (caller==null && legations.isNotEmpty) { throw Exception('legations can only be given with a current-caller that is the final legatee of the legations'); }
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
@@ -293,10 +295,16 @@ class Canister {
             }
             canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
         }
-        canistercallquest.bodyBytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
+        Uint8List quest_bytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
+        /*
+        if (cold_storage_mode == true) {
+            return Uint8List.fromList([ ...questId, ...quest_bytes ]);
+        }
+        */
+        canistercallquest.bodyBytes = quest_bytes;
         //print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
-        BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the possible-slippage in the time-syncronization of the nodes. 
+        BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
         if (![202,200].contains(canistercallsponse.statusCode)) {
             throw Exception('ic call: ${canistercallquest} \nhttp-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
@@ -361,6 +369,14 @@ class Canister {
             throw Exception('Call error: call-status: ${callstatus}');
         }
     }
+    
+    
+    
+    
+    
+    
+    
+    
 
     String toString() => 'Canister: ${this.principal.text}';
 
