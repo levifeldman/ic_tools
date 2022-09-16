@@ -34,5 +34,6 @@ export 'src/candid.dart' show
     c_backwards,
     candid_text_hash,
     isPrimTypeCode,
-    isConsOrRefTypeCode
+    isConsOrRefTypeCode,
+    match_variant
     ;

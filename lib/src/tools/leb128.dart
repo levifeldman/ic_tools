@@ -7,11 +7,13 @@ import './tools.dart';
 
 class leb128 {
 
-    static Uint8List encodeUnsigned(x) {
-        if (!(x is int) && !(x is BigInt)) {
-            throw Exception('leb128 encodeunsigned have either an int or a BigInt.');
+    static Uint8List encodeUnsigned(dynamic d) {
+        if (d is! BigInt && d is! int) {
+            throw Exception('leb128 encode parameter must be an int or a BigInt');
         }
-        if (!(x is BigInt)) { x = BigInt.from(x); }
+        
+        BigInt x = d is int ? BigInt.from(d) : d;
+        
         if (x < BigInt.from(0)) {
             throw Exception('leb128 encode unsigned variable must be >= 0');
         }
@@ -33,7 +35,7 @@ class leb128 {
         return Uint8List.fromList(leb128_bytes);
     }
 
-    static dynamic decodeUnsigned(List<int> bytes) {
+    static BigInt decodeUnsigned(List<int> bytes) {
         String bitstring = '';
         bitstring += bytes[bytes.length-1].toRadixString(2);
         for (int byte in bytes.reversed.toList().sublist(1)) {
@@ -41,21 +43,23 @@ class leb128 {
             if (bitstring_7_part.length != 7) { throw Exception('look at this, seems leb128 byte is with the wrong-code?'); }
             bitstring = bitstring + bitstring_7_part;
         }
-        dynamic givebackvaluebigint = BigInt.parse(bitstring, radix: 2);
-        return givebackvaluebigint.isValidInt ? givebackvaluebigint.toInt() : givebackvaluebigint;
+        BigInt valuebigint = BigInt.parse(bitstring, radix: 2);
+        return valuebigint;
     }
 
-    static Uint8List encodeSigned(x) {
-        if (!(x is int) && !(x is BigInt)) {
-            throw Exception('leb128 encodesigned have either an int or a BigInt.');
+    static Uint8List encodeSigned(dynamic d) {
+        if (d is! BigInt && d is! int) {
+            throw Exception('leb128 encode parameter must be an int or a BigInt');
         }
-        if (!(x is BigInt)) { x = BigInt.from(x); }
+        
+        BigInt x = d is int ? BigInt.from(d) : d;
 
+        
         late String tc_bitstring;
         if (x < BigInt.from(0)) {
             int bit_size = x.abs().toRadixString(2).length + 1; // + 1 for the sign-bit
             while (bit_size % 7 != 0) { bit_size += 1; }
-            tc_bitstring = integers_as_the_twos_compliment_bitstring(x, bit_size: bit_size);
+            tc_bitstring = bigint_as_the_twos_compliment_bitstring(x, bit_size: bit_size);
         }
         else if (x >= BigInt.from(0)) {
             tc_bitstring = '0' + x.toRadixString(2); // '0' +  for the sign-bit
@@ -70,7 +74,7 @@ class leb128 {
         return Uint8List.fromList(bytes.reversed.toList());        
     }
 
-    static dynamic decodeSigned(List<int> bytes) {
+    static BigInt decodeSigned(List<int> bytes) {
         String bitstring = '';
         int first_byte = bytes[bytes.length-1];
         bitstring = first_byte.toRadixString(2);
@@ -78,7 +82,7 @@ class leb128 {
             String bitstring_7_part = byte.toRadixString(2).substring(1);
             bitstring = bitstring + bitstring_7_part;
         }
-        return twos_compliment_bitstring_as_the_integer(bitstring, bit_size: bytes.length*7);
+        return twos_compliment_bitstring_as_the_bigint(bitstring, bit_size: bytes.length*7);
     }
     
 }

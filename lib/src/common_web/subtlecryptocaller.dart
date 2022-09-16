@@ -18,15 +18,33 @@ import 'subtlecryptocallerjslib.dart';
 
 class SubtleCryptoECDSAP256Caller extends Caller {
     
-    static Uint8List DER_public_key_start = Uint8List.fromList([48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4]);
+    //static Uint8List DER_public_key_start = Uint8List.fromList([48, 89, 48, 19, 6, 7, 42, 134, 72, 206, 61, 2, 1, 6, 8, 42, 134, 72, 206, 61, 3, 1, 7, 3, 66, 0, 4]);
     
     CryptoKey private_key;
-    CryptoKey public_key;
     
-    SubtleCryptoECDSAP256Caller({required super.public_key_DER, required this.private_key, required this.public_key});
+    Future<CryptoKey> get public_key {
+        return promiseToFuture(callMethod(window.crypto!.subtle!, 'importKey', [
+            'spki', 
+            this.public_key_DER,
+            EcKeyImportParams(
+                name: 'ECDSA',
+                namedCurve: 'P-256'
+            ),
+            true, // its a public-key here
+            ['verify']
+        ]));
+    }
+    
+    SubtleCryptoECDSAP256Caller._({required super.public_key_DER, required this.private_key});
 
+    static Future<SubtleCryptoECDSAP256Caller> of_the_cryptokeys({public_key: CryptoKey, private_key: CryptoKey}) async {
+        return SubtleCryptoECDSAP256Caller._(
+            public_key_DER: (await promiseToFuture(callMethod(window.crypto!.subtle!, 'exportKey', ['spki', public_key]))).asUint8List(), 
+            private_key: private_key
+        ); 
+    }    
 
-    static Future<SubtleCryptoECDSAP256Caller> new_keys() async {
+    static Future<SubtleCryptoECDSAP256Caller> new_keys({bool extractable = false}) async {
         if (Crypto.supported == false || window.crypto!.subtle == null ) {
             throw UnsupportedError('Subtle Crypto api not supported on this browser');
         }
@@ -36,7 +54,7 @@ class SubtleCryptoECDSAP256Caller extends Caller {
                 name: 'ECDSA',
                 namedCurve: 'P-256'
             ),
-            false, // extractable: 
+            extractable, // extractable: 
             jsify(['sign'])
         ]));
         
@@ -46,10 +64,9 @@ class SubtleCryptoECDSAP256Caller extends Caller {
         // 'spki' format is with the clude of the DER bytes
         ByteBuffer public_key_DER_native_byte_buffer = await promiseToFuture(callMethod(window.crypto!.subtle!, 'exportKey', ['spki', public_key]));   
         
-        return SubtleCryptoECDSAP256Caller(
+        return SubtleCryptoECDSAP256Caller._(
             public_key_DER: public_key_DER_native_byte_buffer.asUint8List(), 
-            private_key: private_key, 
-            public_key: public_key
+            private_key: private_key
         ); 
         
     }

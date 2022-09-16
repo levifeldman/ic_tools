@@ -22,17 +22,26 @@ final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 
 Future<double> check_icp_balance(String icp_id) async {
-    Record record = Record.oftheMap({'account': Text(icp_id)});
-    Uint8List sponse_bytes = await ledger.call(calltype: CallType.call, method_name: 'account_balance_dfx', put_bytes: c_forwards([record]));
+    //Record record = Record.oftheMap({'account': Text(icp_id)});
+    //Uint8List sponse_bytes = await ledger.call(calltype: CallType.call, method_name: 'account_balance_dfx', put_bytes: c_forwards([record]));
+    Uint8List sponse_bytes = await ledger.call(
+        calltype: CallType.call,
+        method_name: 'account_balance',
+        put_bytes: c_forwards([
+            Record.oftheMap({
+                'account': Blob(hexstringasthebytes(icp_id))
+            })
+        ])
+    );
     Record icpts_balance_record = c_backwards(sponse_bytes)[0] as Record;
     Nat64 e8s = icpts_balance_record['e8s'] as Nat64;
-    return e8s.value / 100000000; 
+    return e8s.value / BigInt.from(100000000); 
 }
 
 
 Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {double? fee, Nat64? memo, List<int>? subaccount_bytes, List<Legation> legations = const [] } ) async {
     fee ??= 0.0001;
-    memo ??= Nat64(0);
+    memo ??= Nat64(BigInt.from(0));
     subaccount_bytes ??= Uint8List(32);
     if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
     if (check_double_decimal_point_places(mount) > 8 || check_double_decimal_point_places(fee) > 8) {
@@ -40,8 +49,8 @@ Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {dou
     }
     Record sendargs = Record.oftheMap({
         'memo': memo,
-        'amount': Record.oftheMap({'e8s': Nat64((mount * 100000000).toInt())}),
-        'fee': Record.oftheMap({'e8s': Nat64((fee * 100000000).toInt())}),
+        'amount': Record.oftheMap({'e8s': Nat64(BigInt.from((mount * 100000000).toInt()))}),
+        'fee': Record.oftheMap({'e8s': Nat64(BigInt.from((fee * 100000000).toInt()))}),
         'to': Text(fortheicpid),
         'from_subaccount': Option(value: Blob(subaccount_bytes)),
         // 'created_at_time': Option()
@@ -52,6 +61,23 @@ Future<Nat64> transfer_icp(Caller caller, String fortheicpid, double mount, {dou
 
 
 
+
+String icp_id(Principal principal, {List<int>? subaccount_bytes}) {
+    subaccount_bytes ??= Uint8List(32);
+    if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
+    List<int> blobl = [];
+    blobl.addAll(utf8.encode('\x0Aaccount-id'));
+    blobl.addAll(principal.bytes);
+    blobl.addAll(subaccount_bytes);
+    Uint8List blob = Uint8List.fromList(sha224.convert(blobl).bytes);
+    Crc32 crc32 = Crc32();
+    crc32.add(blob);
+    List<int> text_format_bytes = [];
+    text_format_bytes.addAll(crc32.close());
+    text_format_bytes.addAll(blob);
+    String text_format = bytesasahexstring(text_format_bytes);
+    return text_format;
+}
 
 extension PrincipalIcpId on Principal {
     String icp_id({List<int>? subaccount_bytes}) {
@@ -77,8 +103,8 @@ extension PrincipalIcpId on Principal {
 
 
 
-final Nat64 MEMO_CREATE_CANISTER_nat64 = Nat64(1095062083); // int.parse(bytesasabitstring(hexstringasthebytes('0x41455243')), radix: 2); // == 'CREA'
-final Nat64 MEMO_TOP_UP_CANISTER_nat64 = Nat64(1347768404); // int.parse(bytesasabitstring(hexstringasthebytes('0x50555054')), radix: 2); // == 'TPUP'
+final Nat64 MEMO_CREATE_CANISTER_nat64 = Nat64(BigInt.from(1095062083)); // int.parse(bytesasabitstring(hexstringasthebytes('0x41455243')), radix: 2); // == 'CREA'
+final Nat64 MEMO_TOP_UP_CANISTER_nat64 = Nat64(BigInt.from(1347768404)); // int.parse(bytesasabitstring(hexstringasthebytes('0x50555054')), radix: 2); // == 'TPUP'
 
 Uint8List principal_as_an_icpsubaccountbytes(Principal principal) {
     List<int> bytes = []; // an icp subaccount is 32 bytes
@@ -112,7 +138,7 @@ Future<Principal> create_canister(Caller caller, double icp_count, {Uint8List? f
 
     Record notifycanisterargs = Record.oftheMap({
         'block_height' : block_height,
-        'max_fee'      : Record.oftheMap({'e8s': Nat64((0.0001 * 100000000).toInt())}),
+        'max_fee'      : Record.oftheMap({'e8s': Nat64(BigInt.from((0.0001 * 100000000).toInt()))}),
         'to_canister'  : cycles_mint.principal.candid,
         'to_subaccount': Option(value: Blob( to_subaccount_bytes )) 
     });
@@ -154,7 +180,7 @@ Future<void> top_up_canister(Caller caller, double icp_mount, Principal canister
 
     Record notifycanisterargs = Record.oftheMap({
         'block_height' : block_height,
-        'max_fee'      : Record.oftheMap({'e8s': Nat64((0.0001 * 100000000).toInt())}),
+        'max_fee'      : Record.oftheMap({'e8s': Nat64(BigInt.from((0.0001 * 100000000).toInt()))}),
         'to_canister'  : cycles_mint.principal.candid, 
         'to_subaccount': Option(value: Blob( to_subaccount_bytes )) 
     });

@@ -51,6 +51,7 @@ bool aresamebytes(List<int> b1, List<int> b2) {
     for (int i=0;i<b1.length; i++) {
         if (b1[i] != b2[i]) {
             isqual = false;
+            break;
         }
     }
     return isqual;
@@ -59,11 +60,7 @@ bool aresamebytes(List<int> b1, List<int> b2) {
 
 
 
-String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_size}) { // bit_size can technically be BigInt or Int
-    if (!(x is int) && !(x is BigInt)) {
-        throw Exception('must give either int or a BigInt.');
-    }
-    if (!(x is BigInt)) { x = BigInt.from(x); }
+String bigint_as_the_twos_compliment_bitstring(BigInt x, {required int bit_size}) { // bit_size can technically be BigInt or Int
     final BigInt max_size = BigInt.from(2).pow(bit_size-1)-BigInt.from(1);
     final BigInt min_size = -BigInt.from(2).pow(bit_size-1);
     if (x > max_size || x < min_size) {
@@ -87,7 +84,7 @@ String integers_as_the_twos_compliment_bitstring(dynamic x, {required int bit_si
 }
 
 
-dynamic twos_compliment_bitstring_as_the_integer(String bit_string, {required int bit_size}) { // bit_size can technically be BigInt or Int
+BigInt twos_compliment_bitstring_as_the_bigint(String bit_string, {required int bit_size}) {
     final BigInt max_size = BigInt.from(2).pow(bit_size-1) - BigInt.from(1);
     final BigInt min_size = -BigInt.from(2).pow(bit_size-1);
     BigInt bit_string_number = BigInt.parse(bit_string, radix: 2);
@@ -101,7 +98,7 @@ dynamic twos_compliment_bitstring_as_the_integer(String bit_string, {required in
     if (bi > max_size || bi < min_size) {
         throw Exception(' value must be >= ${min_size} and value <= ${max_size} for a ${bit_size} bit integers. ');
     }
-    return bi.isValidInt ? bi.toInt() : bi;
+    return bi;
 }
 
 Uint8List bitstring_as_the_bytes(String bitstring) {
@@ -139,8 +136,13 @@ BigInt get_current_time_nanoseconds() {
     return BigInt.from(DateTime.now().millisecondsSinceEpoch) * BigInt.from(1000000);
 }
 
+BigInt get_current_time_seconds() {
+    return BigInt.parse((BigInt.from(DateTime.now().millisecondsSinceEpoch) / BigInt.from(1000)).toString().split('.').first);
+}
 
-
+BigInt seconds_of_the_nanos(BigInt nanos) {
+    return BigInt.parse((nanos / BigInt.from(1000000000)).toString().split('.').first);
+}
 
 
 

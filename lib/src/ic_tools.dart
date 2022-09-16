@@ -28,13 +28,11 @@ Future<Map> ic_status() async {
 
 
 
-class Principal {
-    final Uint8List bytes;
+class Principal extends PrincipalReference {
+    Uint8List get bytes => super.id!.bytes;
     final String text;
-    Principal(this.text) : bytes = icidtextasabytes(text) {  
-        if (this.bytes.length > 29) {
-            throw Exception('max principal byte length is 29');
-        }
+    Principal(this.text) : super(id: Blob(icidtextasabytes(text)))  /*bytes = icidtextasabytes(text)*/ {  
+        
     }
     static Principal oftheBytes(Uint8List bytes) {
         Principal p = Principal(icidbytesasatext(bytes));
@@ -85,13 +83,13 @@ abstract class Caller {
 class CallerEd25519 extends Caller {
         
     static Uint8List DER_public_key_start = Uint8List.fromList([
-        ...[48, 42], // SEQUENCE
-        ...[48, 5], // SEQUENCE
-        ...[6, 3], // OBJECT
-        ...[43, 101, 112], // Ed25519 OID
-        ...[3], // OBJECT
-        ...[32 + 1], // BIT STRING // ...[Ed25519PublicKey.RAW_KEY_LENGTH + 1],
-        ...[0], // 'no padding'
+        ...[48, 42],
+        ...[48, 5],
+        ...[6, 3],
+        ...[43, 101, 112],
+        ...[3], 
+        ...[32 + 1],
+        ...[0],
     ]);
 
     Uint8List get public_key => this.public_key_DER.sublist(CallerEd25519.DER_public_key_start.length);
@@ -165,6 +163,17 @@ class Legation {
 enum CallType {
     call,
     query
+}
+
+
+class CallException implements Exception {
+    final int reject_code;
+    final String reject_message;
+    CallException({required this.reject_code, required this.reject_message});
+    
+    String toString() {
+        return '${system_call_reject_codes[reject_code]} \n${reject_message}';    
+    }
 }
 
 
@@ -342,9 +351,9 @@ class Canister {
                 
                 callstatus = pathsvalues[1];
             }
-            // print(pathsvalues);
+            //print(pathsvalues);
             canistersponse = pathsvalues[2];
-            reject_code = pathsvalues[3];
+            reject_code = pathsvalues[3] is BigInt ? pathsvalues[3].toInt() : pathsvalues[3];
             reject_message = pathsvalues[4];
         }
         
@@ -362,11 +371,14 @@ class Canister {
             // good
             return canistersponse!;
         } else if (callstatus=='rejected') {
-            throw Exception('Call Reject: reject_code: ${reject_code}: ${system_call_reject_codes[reject_code]}: ${reject_message}.');
+            throw CallException(
+                reject_code: reject_code!,
+                reject_message: reject_message!
+            );
         } else if (callstatus=='done') {
-            throw Exception('call-status is "done", cant see the canister-reply');
+            throw Exception('call-status is "done", cannot see the canister-reply');
         } else {
-            throw Exception('Call error: call-status: ${callstatus}');
+            throw Exception('unknown call-status: ${callstatus}');
         }
     }
     
@@ -635,7 +647,16 @@ String icidbytesasatext(Uint8List idblob) {
 Uint8List icidtextasabytes(String idtext) {
     String idbase32code = idtext.replaceAll('-', '');
     if (idbase32code.length%2!=0) { idbase32code+='='; }
-    return Uint8List.fromList(base32.decode(idbase32code).sublist(4));
+    List<int> base32_decode = base32.decode(idbase32code);
+    List<int> crc32checksum = base32_decode.sublist(0,4);
+    List<int> principal_bytes = base32_decode.sublist(4);
+    Crc32 crc32 = Crc32();
+    crc32.add(principal_bytes);
+    List<int> calculate_crc32 = crc32.close();
+    if (aresamebytes(calculate_crc32, crc32checksum) == false) {
+        throw Exception('crc32 checksum is invalid.');
+    }
+    return Uint8List.fromList(principal_bytes);
 }
 
 

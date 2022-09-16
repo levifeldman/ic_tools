@@ -1,9 +1,8 @@
 export 'src/common.dart' show 
     check_icp_balance,
     transfer_icp,
+    icp_id,
     PrincipalIcpId,
-    principal_as_an_icpsubaccountbytes,
-    icpsubaccountbytes_as_a_principal,
     management,
     ledger,
     governance,
