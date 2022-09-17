@@ -117,6 +117,9 @@ String icp_id({List<int>? subaccount_bytes})
 * new SubtleCrypto Caller with exctractable = false for secure legation on the web
 * new candid match_variant function
 * new Record.find_option method, since a candid option that is null within a record can be left out of the record or can be put into an option-type with a null value, this function checks for both of those possibilties in one function. 
-
-
+* IcpTokens extends Record type in the common lib
+* icp_id standalone function
+```dart 
+String icp_id(Principal principal, {List<int>? subaccount_bytes})
+```
 

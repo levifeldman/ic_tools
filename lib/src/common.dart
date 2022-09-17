@@ -254,3 +254,64 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint
 
 
 
+class IcpTokens extends Record {
+    final BigInt e8s;
+    IcpTokens({required this.e8s}) { 
+        super['e8s'] = Nat64(this.e8s);
+    }
+    String toString() {
+        String s = this.e8s.toRadixString(10);
+        while (s.length < IcpTokens.DECIMAL_PLACES + 1) { s = '0$s'; }
+        int split_i = s.length - IcpTokens.DECIMAL_PLACES;
+        s = '${s.substring(0, split_i)}.${s.substring(split_i)}';
+        while (s[s.length - 1] == '0' && s.length > 3/*minimum '0.0'*/) { s = s.substring(0, s.length - 1); }
+        return s;   
+    }
+    static IcpTokens oftheRecord(CandidType icptokensrecord) {
+        Nat64 e8s_nat64 = (icptokensrecord as Record)['e8s'] as Nat64; 
+        return IcpTokens(
+            e8s: e8s_nat64.value
+        );
+    }
+    static IcpTokens oftheDouble(double icp) {
+        if (check_double_decimal_point_places(icp) > IcpTokens.DECIMAL_PLACES) {
+            throw Exception('max ${IcpTokens.DECIMAL_PLACES} decimal places for the icp');
+        }
+        return IcpTokens(
+            e8s: BigInt.parse((icp * IcpTokens.DIVIDABLE_BY.toDouble()).toString().split('.')[0])
+        );
+    }
+    static int DECIMAL_PLACES = 8;    
+    static BigInt DIVIDABLE_BY = BigInt.from(pow(10, IcpTokens.DECIMAL_PLACES));
+    
+    IcpTokens operator + (IcpTokens t) {
+        return IcpTokens(e8s: this.e8s + t.e8s);
+    }    
+    IcpTokens operator - (IcpTokens t) {
+        return IcpTokens(e8s: this.e8s - t.e8s);
+    } 
+    IcpTokens operator * (IcpTokens t) {
+        return IcpTokens(e8s: this.e8s * t.e8s);
+    } 
+    IcpTokens operator ~/ (IcpTokens t) {
+        return IcpTokens(e8s: this.e8s ~/ t.e8s);
+    } 
+    bool operator > (IcpTokens t) {
+        return this.e8s > t.e8s;
+    } 
+    bool operator < (IcpTokens t) {
+        return this.e8s < t.e8s;
+    } 
+    bool operator >= (IcpTokens t) {
+        return this.e8s >= t.e8s;
+    } 
+    bool operator <= (IcpTokens t) {
+        return this.e8s <= t.e8s;
+    } 
+    
+
+}
+
+
+
+

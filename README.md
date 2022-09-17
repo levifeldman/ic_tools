@@ -18,14 +18,13 @@ import 'package:ic_tools/common.dart';
 
 main() async {
     Caller caller = CallerEd25519.new_keys();
-    String icp_id = caller.principal.icp_id();
-    double icp_balance = await check_icp_balance(icp_id);
+    String caller_icp_id = icp_id(caller.principal);
+    double icp_balance = await check_icp_balance(caller_icp_id);
 
     print(caller);
-    print(icp_id);
+    print(caller_icp_id);
     print(icp_balance);
 }
-
 ```
 
 ----------
