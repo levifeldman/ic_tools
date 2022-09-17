@@ -126,3 +126,8 @@ String icp_id(Principal principal, {List<int>? subaccount_bytes})
 
 * IcpTokens extends Record type in the common lib
 
+## 1.1.1
+
+* import 'dart:math'; in the common-lib
+
+
