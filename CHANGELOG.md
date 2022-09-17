@@ -107,8 +107,16 @@ String icp_id({List<int>? subaccount_bytes})
 ## 1.0.94
 
 * make public constructicsystemstatetreeroothash
-* re-try read_state calls when http error  
+* re-try read_state calls when http error
 * clean-up
+
+## 1.0.95
+
+* general clean up
+* new catchable CallException with the reject code and reject message
+* new SubtleCrypto Caller with exctractable = false for secure legation on the web
+* new candid match_variant function
+* new Record.find_option method, since a candid option that is null within a record can be left out of the record or can be put into an option-type with a null value, this function checks for both of those possibilties in one function. 
 
 
 

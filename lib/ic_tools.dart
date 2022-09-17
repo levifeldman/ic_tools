@@ -2,6 +2,7 @@ export 'src/ic_tools.dart' show
     Caller,
     CallerEd25519,
     CallType,
+    CallException,
     Canister,
     Principal,
     Legation,
