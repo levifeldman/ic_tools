@@ -1,7 +1,7 @@
 # ic_tools
 
 ----------
-This is a package for the connection of the dart-code with the DFINITY-INTERNET-COMPUTER.
+This is a package that connects dart-code with the DFINITY-INTERNET-COMPUTER.
 
 This package is for the Dart & Flutter, on the Web & Linux.
 
@@ -19,7 +19,7 @@ import 'package:ic_tools/common.dart';
 main() async {
     Caller caller = CallerEd25519.new_keys();
     String caller_icp_id = icp_id(caller.principal);
-    double icp_balance = await check_icp_balance(caller_icp_id);
+    IcpTokens icp_balance = await check_icp_balance(caller_icp_id);
 
     print(caller);
     print(caller_icp_id);
@@ -42,7 +42,7 @@ On the Linux:
 
 On the web:
  - copy the ic_tools_webfiles folder ( https://github.com/levifeldman/ic_tools_dart/tree/master/ic_tools_webfiles ) into the flutter web folder.
- - put this in the flutter index.html file right before the main.dart.js script tag:  
+ - put this in the flutter index.html file right before the main.dart.js script tag:
 
 ```html
 <script src="ic_tools_webfiles/unpkg_bignumber.js"></script>  

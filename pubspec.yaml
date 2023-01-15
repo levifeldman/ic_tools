@@ -1,6 +1,6 @@
 name: ic_tools
 description: "ic_tools in the dart-language."
-version: 1.1.1
+version: 1.1.2
 homepage: https://github.com/levifeldman/ic_tools_dart
 
 
@@ -12,7 +12,7 @@ dependencies:
   http: ^0.13.3
   cbor: 4.0.2
   typed_data: ^1.3.0 
-  archive: 3.1.2 # crc32 checksum functions
+  archive: ^3.1.2 # crc32 checksum functions
   base32: 2.0.0
   crypto: 3.0.1 
   ffi: ^1.1.2

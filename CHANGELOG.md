@@ -130,4 +130,11 @@ String icp_id(Principal principal, {List<int>? subaccount_bytes})
 
 * import 'dart:math'; in the common-lib
 
+## 1.1.2
 
+* `IcpTokens.oftheDoubleString` function without using doubles
+* `IcpTokens round_decimal_places` function without using doubles
+* common lib `transfer_icp` returns the Ok/Err variant
+* common lib `create_canister`, `topup_canister`, `transfer_icp`, and `check_icp_balance` use the IcpTokens class
+* `CandidType.asOption<T extends CandidType>()` for the candid option subtyping rules.
+* candid `cast_option<T extends CandidType>()`

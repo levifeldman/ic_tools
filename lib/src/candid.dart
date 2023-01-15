@@ -239,22 +239,20 @@ abstract class CandidType {
     
     Uint8List T_forward();
     Uint8List M_forward();
+    
+    Option<T> asOption<T extends CandidType>() {
+        if (this is Option) {
+            return (this as Option).cast_option<T>();
+        } else {
+            return Option<T>(value: this as T);
+        }
+    }
 }
 
 
 abstract class PrimitiveType extends CandidType {
     final _v = null;
     bool get isTypeStance => this._v == null;
-    //get value => this._v!;
-    
-    Uint8List T_forward() {
-        for (MapEntry me in backwards_primtypes_opcodes_for_the_primtype_type_stances.entries) {
-            if (this.runtimeType == me.value.runtimeType) {
-                return leb128.encodeSigned(me.key);
-            } 
-        }
-        throw Exception('should be a type_code of this static class in the backwards_primtypes map');
-    }
 
     String toString() {
         String s = get_typename_ofthe_toString(super.toString());
@@ -279,6 +277,10 @@ class Null extends PrimitiveType {
     Uint8List M_forward() {
         return Uint8List(0);
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Null.type_code);
+    }
 
     String toString() => 'Null';  
 }
@@ -296,6 +298,10 @@ class Reserved extends PrimitiveType {
         return Uint8List(0);
     }
 
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Reserved.type_code);
+    }
+
     String toString() => 'Reserved';  
 } 
 
@@ -310,6 +316,10 @@ class Empty extends PrimitiveType {
 
     Uint8List M_forward () {
         throw Exception('M(_ : empty) will never be called.'); 
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Empty.type_code);
     }
 
     String toString() => 'Empty';  
@@ -332,6 +342,11 @@ class Bool extends PrimitiveType {
         l[0] = this.value==true ? 1 : 0;
         return l;
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Bool.type_code);
+    }
+
 }
 
 
@@ -358,6 +373,10 @@ class Nat extends PrimitiveType {
     Uint8List M_forward() {
         return leb128.encodeUnsigned(this.value);
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Nat.type_code);
+    }
 
 } 
 
@@ -378,6 +397,10 @@ class Int extends PrimitiveType {
     
     Uint8List M_forward() {
         return leb128.encodeSigned(this.value);
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Int.type_code);
     }
 
 } 
@@ -402,6 +425,10 @@ class Nat8 extends PrimitiveType {
     
     Uint8List M_forward() {
         return Uint8List.fromList([this.value]);
+    }
+
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Nat8.type_code);
     }
 
 } 
@@ -442,6 +469,10 @@ class Nat16 extends PrimitiveType {
             bytes.add(int.parse(rstr.substring(i*8, i*8+8), radix: 2));   
         }
         return Uint8List.fromList(bytes.reversed.toList());// as Uint8List;
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Nat16.type_code);
     }
 
 
@@ -484,6 +515,10 @@ class Nat32 extends PrimitiveType {
         }
         return Uint8List.fromList(bytes.reversed.toList());
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Nat32.type_code);
+    }
 } 
 
 
@@ -521,6 +556,10 @@ class Nat64 extends PrimitiveType {
         }
         return Uint8List.fromList(bytes.reversed.toList());
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Nat64.type_code);
+    }
 
 } 
 
@@ -547,6 +586,10 @@ class Int8 extends PrimitiveType {
         ByteData bytedata = ByteData(1);
         bytedata.setInt8(0, this.value);
         return Uint8List.view(bytedata.buffer);
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Int8.type_code);
     }
 
 } 
@@ -575,6 +618,10 @@ class Int16 extends PrimitiveType {
         bytedata.setInt16(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Int16.type_code);
+    }
 } 
 
 class Int32 extends PrimitiveType {
@@ -600,6 +647,10 @@ class Int32 extends PrimitiveType {
         ByteData bytedata = ByteData(4);
         bytedata.setInt32(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Int32.type_code);
     }
 } 
 
@@ -627,6 +678,10 @@ class Int64 extends PrimitiveType {
         Uint8List bytes = bitstring_as_the_bytes(tc_bitstring);
         return Uint8List.fromList(bytes.reversed.toList());        
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Int64.type_code);
+    }
 } 
 
 class Float32 extends PrimitiveType {
@@ -648,6 +703,10 @@ class Float32 extends PrimitiveType {
         bytedata.setFloat32(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Float32.type_code);
+    }
 
 } 
 
@@ -668,6 +727,10 @@ class Float64 extends PrimitiveType {
         ByteData bytedata = ByteData(8);
         bytedata.setFloat64(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Float64.type_code);
     }
 
 } 
@@ -692,6 +755,10 @@ class Text extends PrimitiveType {
         bytes.addAll(leb128.encodeUnsigned(this.value.length));
         bytes.addAll(utf8.encode(this.value));
         return Uint8List.fromList(bytes);
+    }
+    
+    Uint8List T_forward() {
+        return leb128.encodeSigned(Text.type_code);
     }
 } 
 
@@ -730,6 +797,10 @@ class Option<T extends CandidType> extends ConstructType {
                 throw Exception('The value_type CandidType must have .isTypeStance == true');
             }           
         }
+    }
+    
+    Option<C> cast_option<C extends CandidType>() {
+        return Option<C>(value: this.value as C?, value_type: this.value_type as C?, isTypeStance: this.isTypeStance);
     }
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -787,7 +858,11 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     static const int type_code = -19;
     final T? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
     final bool isTypeStance;
-    Vector({this.values_type, this.isTypeStance= false});
+    Vector({this.values_type, this.isTypeStance= false}) {
+        /*if (this.values_type == null && this.length == 0) {
+            throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs the type of the vector-values to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-parameter of a candidtype with isTypeStance: true, when creating this vector. Vector(values_type: Int64()/Text()/Record.oftheMap({\'key\': Nat()}, isTypeStance: true)/...)');
+        }*/
+    }
 
     static Vector<T> oftheList<T extends CandidType>(Iterable<T> list ) {
         Vector<T> vec = Vector<T>();
@@ -796,7 +871,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     }
 
     Vector<C> cast_vector<C extends CandidType>() => Vector.oftheList<C>(this.cast<C>());
-
+    
     List<T> _list = <T>[];
     _canputinthevectortypecheck(/*T new_c*/) {
         if (this.isTypeStance == true) { 
@@ -1002,7 +1077,7 @@ class Record extends RecordAndVariantMap {
     
     T? find_option<T extends CandidType>(dynamic key) {
         if (this.containsKey(key)) {
-            return (this[key] as Option<T>).value; // as T?;    
+            return this[key]!.asOption<T>().value;   
         }   
         return null;
     }
