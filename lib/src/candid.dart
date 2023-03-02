@@ -182,12 +182,16 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
 
 // backwards
 List<CandidType> c_backwards(Uint8List candidbytes) {
-    // print(bytesasahexstring(candidbytes));
-    if (candidbytes.length < 6) { throw Exception('candidbytes are a minimum of 6 bytes.'); }
-    if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
-    CandidBytes_i param_count_i = crawl_type_table(candidbytes);
-    List<CandidType> candids = crawl_memory_bytes(candidbytes, param_count_i);
-    return candids;
+    try {
+        if (candidbytes.length < 6) { throw Exception('candidbytes are a minimum of 6 bytes.'); }
+        if (!(aresamebytes(candidbytes.sublist(0, 4), magic_bytes))) { throw Exception(':void: magic-bytes.'); }
+        CandidBytes_i param_count_i = crawl_type_table(candidbytes);
+        List<CandidType> candids = crawl_memory_bytes(candidbytes, param_count_i);
+        return candids;
+    } catch(e,s) {
+        print('candid: $candidbytes');
+        throw e;
+    }
 }
 
 
@@ -800,7 +804,11 @@ class Option<T extends CandidType> extends ConstructType {
     }
     
     Option<C> cast_option<C extends CandidType>() {
-        return Option<C>(value: this.value as C?, value_type: this.value_type as C?, isTypeStance: this.isTypeStance);
+        return Option<C>(
+            value: this.value == null ? null : C == Blob ? Blob.oftheVector((this.value as Vector).cast_vector<Nat8>()) as C : this.value as C, 
+            value_type: this.value_type == null ? null : C == Blob ? Blob([],isTypeStance:true) as C : this.value_type as C, 
+            isTypeStance: this.isTypeStance
+        );
     }
 
     static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
@@ -972,8 +980,10 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
 
 class Blob extends Vector<Nat8> { 
-    Blob([ Iterable<int>? bytes_list ]) : super(values_type: Nat8()) {
-        if (bytes_list != null) { this.addAll_bytes(bytes_list); }
+    Blob(Iterable<int> bytes_list, {super.isTypeStance = false}) : super(values_type: Nat8()) {
+        if (bytes_list.length > 0) {
+            this.addAll_bytes(bytes_list);
+        }
     }
     static Blob oftheVector(Vector<Nat8> vecnat8) {
         return Blob(vecnat8.map<int>((Nat8 nat8byte)=>nat8byte.value).toList());

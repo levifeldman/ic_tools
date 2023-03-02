@@ -15,7 +15,7 @@ import './candid.dart';
 
 
 
-Uri icbaseurl = Uri.parse('https://ic0.app');
+Uri icbaseurl = Uri.parse('https://icp-api.io');
 Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 1, 2, 1, 6, 12, 43, 6, 1, 4, 1, 130, 220, 124, 5, 3, 2, 1, 3, 97, 0, 129, 76, 14, 110, 199, 31, 171, 88, 59, 8, 189, 129, 55, 60, 37, 92, 60, 55, 27, 46, 132, 134, 60, 152, 164, 241, 224, 139, 116, 35, 93, 20, 251, 93, 156, 12, 213, 70, 217, 104, 95, 145, 58, 12, 11, 44, 197, 52, 21, 131, 191, 75, 67, 146, 228, 103, 219, 150, 214, 91, 155, 180, 203, 113, 113, 18, 248, 71, 46, 13, 90, 77, 20, 80, 95, 253, 116, 132, 176, 18, 145, 9, 28, 95, 135, 185, 136, 131, 70, 63, 152, 9, 26, 11, 170, 174]);
 
 
@@ -45,7 +45,13 @@ class Principal extends PrincipalReference {
         principal_bytes.add(2);
         return Principal.oftheBytes(Uint8List.fromList(principal_bytes));
     }
-    String toString() => 'Principal: ${this.text}';
+    String toString() => '${this.text}';
+    
+    @override
+    bool operator ==(covariant Principal other) => other is Principal && aresamebytes(other.bytes, this.bytes);
+
+    @override
+    int get hashCode => this.bytes.first + this.bytes.last;
 }
 
 
@@ -384,9 +390,11 @@ class Canister {
     
     
     
-    
-    
-    
+    @override
+    bool operator ==(/*covariant Canister*/ other) => other is Canister && other.principal == this.principal;
+
+    @override
+    int get hashCode => this.principal.hashCode;    
     
     
 

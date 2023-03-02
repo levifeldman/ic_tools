@@ -13,5 +13,11 @@ export 'src/common.dart' show
     top_up_canister,
     check_canister_status,
     put_code_on_the_canister,
-    IcpTokens
+    IcpTokens,
+    Icrc1Ledger,
+    Icrc1Ledgers,
+    Tokens,
+    Icrc1Account,
+    Ok,
+    Err
     ;

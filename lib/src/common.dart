@@ -19,6 +19,10 @@ final Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
 final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 
+const String Ok  = 'Ok';
+const String Err = 'Err';
+
+
 
 
 
@@ -274,7 +278,7 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint
                 'mode': Variant.oftheMap({mode: Null()}),
                 'canister_id': canister_id.candid,
                 'wasm_module': Blob(wasm_canister_bytes),
-                'arg': canister_install_arg != null ? Blob(canister_install_arg) : Blob()
+                'arg': canister_install_arg != null ? Blob(canister_install_arg) : Blob([])
             })
         ])
     );
@@ -372,4 +376,235 @@ class IcpTokens extends Record {
 
 
 
+
+class Icrc1Ledger {
+    final Canister ledger;
+    final String symbol;
+    final String name;
+    final int decimals;
+    BigInt fee;
+    Tokens get fee_tokens => Tokens(token_quantums: fee, decimal_places: decimals);
+    final String? logo_data_url;
+    final Canister? index;
+    
+    Icrc1Ledger({
+        required this.ledger, 
+        required this.symbol, 
+        required this.name, 
+        required this.decimals, 
+        required this.fee, 
+        this.logo_data_url,
+        this.index
+    });
+    
+    static Future<Icrc1Ledger> load(Principal icrc1_ledger_id) async {
+        Canister icrc1_ledger = Canister(icrc1_ledger_id);
+        Vector<Record> metadata = (c_backwards(await icrc1_ledger.call(
+            method_name: 'icrc1_metadata',
+            calltype: CallType.call,
+        ))[0] as Vector).cast_vector<Record>();
+        late final String symbol;
+        late final String name;
+        late final int decimals;
+        late final BigInt fee;
+        String? logo_data_url;
+        for (Record r in metadata) {
+            if ((r[0] as Text).value == 'icrc1:decimals') {
+                decimals = ((r[1] as Variant)['Nat'] as Nat).value.toInt();
+            } else if ((r[0] as Text).value == 'icrc1:name') {
+                name = ((r[1] as Variant)['Text'] as Text).value;
+            } else if ((r[0] as Text).value == 'icrc1:symbol') {
+                symbol = ((r[1] as Variant)['Text'] as Text).value;
+            } else if ((r[0] as Text).value == 'icrc1:fee') {
+                fee = ((r[1] as Variant)['Nat'] as Nat).value;
+            } else if ((r[0] as Text).value == 'icrc1:logo') {
+                logo_data_url = ((r[1] as Variant)['Text'] as Text).value;
+            }
+        }
+        // call icrc1_supported_standards and find the icrc building blocks
+        return Icrc1Ledger(
+            symbol: symbol,
+            name:name,
+            decimals:decimals,
+            fee:fee,
+            ledger: Canister(icrc1_ledger_id),
+            logo_data_url: logo_data_url
+        );
+    }
+
+    String toString() {
+        return 'Icrc1Ledger: ${this.name}';
+    }
+
+    @override
+    bool operator ==(/*covariant Icrc1Ledger*/ other) => other is Icrc1Ledger && other.ledger == this.ledger;
+
+    @override
+    int get hashCode => this.ledger.hashCode;
+    
+}    
+class Icrc1Ledgers {
+    static Icrc1Ledger ICP = _ICP;
+    static Icrc1Ledger SNS1 = _SNS1;
+    static Icrc1Ledger ckBTC = _ckBTC;
+    static List<Icrc1Ledger> all = [ICP,SNS1,ckBTC];
+}
+final Icrc1Ledger _ICP = Icrc1Ledger(
+    //logo_data_url: ,
+    symbol: 'ICP',
+    name:'Internet Computer',
+    decimals:8,
+    fee:BigInt.from(10000),
+    ledger: ledger
+);
+final Icrc1Ledger _SNS1 = Icrc1Ledger(
+    //logo_data_url: ,
+    symbol: 'SNS1',
+    name:'SNS-1',
+    decimals:8,
+    fee:BigInt.from(1000),
+    ledger: Canister(Principal('zfcdd-tqaaa-aaaaq-aaaga-cai')),
+    index: Canister(Principal('zlaol-iaaaa-aaaaq-aaaha-cai'))
+    
+);
+final Icrc1Ledger _ckBTC = Icrc1Ledger(
+    logo_data_url: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQ2IiBoZWlnaHQ9IjE0NiIgdmlld0JveD0iMCAwIDE0NiAxNDYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxNDYiIGhlaWdodD0iMTQ2IiByeD0iNzMiIGZpbGw9IiMzQjAwQjkiLz4KPHBhdGggZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xNi4zODM3IDc3LjIwNTJDMTguNDM0IDEwNS4yMDYgNDAuNzk0IDEyNy41NjYgNjguNzk0OSAxMjkuNjE2VjEzNS45MzlDMzcuMzA4NyAxMzMuODY3IDEyLjEzMyAxMDguNjkxIDEwLjA2MDUgNzcuMjA1MkgxNi4zODM3WiIgZmlsbD0idXJsKCNwYWludDBfbGluZWFyXzExMF81NzIpIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNjguNzY0NiAxNi4zNTM0QzQwLjc2MzggMTguNDAzNiAxOC40MDM3IDQwLjc2MzcgMTYuMzUzNSA2OC43NjQ2TDEwLjAzMDMgNjguNzY0NkMxMi4xMDI3IDM3LjI3ODQgMzcuMjc4NSAxMi4xMDI2IDY4Ljc2NDYgMTAuMDMwMkw2OC43NjQ2IDE2LjM1MzRaIiBmaWxsPSIjMjlBQkUyIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTI5LjYxNiA2OC43MzQzQzEyNy41NjYgNDAuNzMzNSAxMDUuMjA2IDE4LjM3MzQgNzcuMjA1MSAxNi4zMjMyTDc3LjIwNTEgMTBDMTA4LjY5MSAxMi4wNzI0IDEzMy44NjcgMzcuMjQ4MiAxMzUuOTM5IDY4LjczNDNMMTI5LjYxNiA2OC43MzQzWiIgZmlsbD0idXJsKCNwYWludDFfbGluZWFyXzExMF81NzIpIi8+CjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNNzcuMjM1NCAxMjkuNTg2QzEwNS4yMzYgMTI3LjUzNiAxMjcuNTk2IDEwNS4xNzYgMTI5LjY0NyA3Ny4xNzQ5TDEzNS45NyA3Ny4xNzQ5QzEzMy44OTcgMTA4LjY2MSAxMDguNzIyIDEzMy44MzcgNzcuMjM1NCAxMzUuOTA5TDc3LjIzNTQgMTI5LjU4NloiIGZpbGw9IiMyOUFCRTIiLz4KPHBhdGggZD0iTTk5LjgyMTcgNjQuNzI0NUMxMDEuMDE0IDU2Ljc1MzggOTQuOTQ0NyA1Mi40Njg5IDg2LjY0NTUgNDkuNjEwNEw4OS4zMzc2IDM4LjgxM0w4Mi43NjQ1IDM3LjE3NUw4MC4xNDM1IDQ3LjY4NzlDNzguNDE1NSA0Ny4yNTczIDc2LjY0MDYgNDYuODUxMSA3NC44NzcxIDQ2LjQ0ODdMNzcuNTE2OCAzNS44NjY1TDcwLjk0NzQgMzQuMjI4NUw2OC4yNTM0IDQ1LjAyMjJDNjYuODIzIDQ0LjY5NjUgNjUuNDE4OSA0NC4zNzQ2IDY0LjA1NiA0NC4wMzU3TDY0LjA2MzUgNDQuMDAyTDU0Ljk5ODUgNDEuNzM4OEw1My4yNDk5IDQ4Ljc1ODZDNTMuMjQ5OSA0OC43NTg2IDU4LjEyNjkgNDkuODc2MiA1OC4wMjM5IDQ5Ljk0NTRDNjAuNjg2MSA1MC42MSA2MS4xNjcyIDUyLjM3MTUgNjEuMDg2NyA1My43NjhDNTguNjI3IDYzLjYzNDUgNTYuMTcyMSA3My40Nzg4IDUzLjcxMDQgODMuMzQ2N0M1My4zODQ3IDg0LjE1NTQgNTIuNTU5MSA4NS4zNjg0IDUwLjY5ODIgODQuOTA3OUM1MC43NjM3IDg1LjAwMzQgNDUuOTIwNCA4My43MTU1IDQ1LjkyMDQgODMuNzE1NUw0Mi42NTcyIDkxLjIzODlMNTEuMjExMSA5My4zNzFDNTIuODAyNSA5My43Njk3IDU0LjM2MTkgOTQuMTg3MiA1NS44OTcxIDk0LjU4MDNMNTMuMTc2OSAxMDUuNTAxTDU5Ljc0MjYgMTA3LjEzOUw2Mi40MzY2IDk2LjMzNDNDNjQuMjMwMSA5Ni44MjEgNjUuOTcxMiA5Ny4yNzAzIDY3LjY3NDkgOTcuNjkzNEw2NC45OTAyIDEwOC40NDhMNzEuNTYzNCAxMTAuMDg2TDc0LjI4MzYgOTkuMTg1M0M4NS40OTIyIDEwMS4zMDYgOTMuOTIwNyAxMDAuNDUxIDk3LjQ2ODQgOTAuMzE0MUMxMDAuMzI3IDgyLjE1MjQgOTcuMzI2MSA3Ny40NDQ1IDkxLjQyODggNzQuMzc0NUM5NS43MjM2IDczLjM4NDIgOTguOTU4NiA3MC41NTk0IDk5LjgyMTcgNjQuNzI0NVpNODQuODAzMiA4NS43ODIxQzgyLjc3MiA5My45NDM4IDY5LjAyODQgODkuNTMxNiA2NC41NzI3IDg4LjQyNTNMNjguMTgyMiA3My45NTdDNzIuNjM4IDc1LjA2ODkgODYuOTI2MyA3Ny4yNzA0IDg0LjgwMzIgODUuNzgyMVpNODYuODM2NCA2NC42MDY2Qzg0Ljk4MyA3Mi4wMzA3IDczLjU0NDEgNjguMjU4OCA2OS44MzM1IDY3LjMzNEw3My4xMDYgNTQuMjExN0M3Ni44MTY2IDU1LjEzNjQgODguNzY2NiA1Ni44NjIzIDg2LjgzNjQgNjQuNjA2NloiIGZpbGw9IndoaXRlIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9InBhaW50MF9saW5lYXJfMTEwXzU3MiIgeDE9IjUzLjQ3MzYiIHkxPSIxMjIuNzkiIHgyPSIxNC4wMzYyIiB5Mj0iODkuNTc4NiIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiPgo8c3RvcCBvZmZzZXQ9IjAuMjEiIHN0b3AtY29sb3I9IiNFRDFFNzkiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNTIyNzg1Ii8+CjwvbGluZWFyR3JhZGllbnQ+CjxsaW5lYXJHcmFkaWVudCBpZD0icGFpbnQxX2xpbmVhcl8xMTBfNTcyIiB4MT0iMTIwLjY1IiB5MT0iNTUuNjAyMSIgeDI9IjgxLjIxMyIgeTI9IjIyLjM5MTQiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agb2Zmc2V0PSIwLjIxIiBzdG9wLWNvbG9yPSIjRjE1QTI0Ii8+CjxzdG9wIG9mZnNldD0iMC42ODQxIiBzdG9wLWNvbG9yPSIjRkJCMDNCIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+Cg==",
+    symbol: 'ckBTC',
+    name: 'ckBTC',
+    decimals: 8,
+    fee: BigInt.from(10),
+    ledger: Canister(Principal('mxzaz-hqaaa-aaaar-qaada-cai')),
+    index: Canister(Principal('n5wcd-faaaa-aaaar-qaaea-cai'))
+);
+
+
+class Tokens extends Nat {
+    BigInt get token_quantums => super.value;
+    final int decimal_places;
+    Tokens({required BigInt token_quantums, required this.decimal_places}) : super(token_quantums);
+    String toString() {
+        String s = this.token_quantums.toRadixString(10);
+        while (s.length < this.decimal_places + 1) { s = '0$s'; }
+        int split_i = s.length - this.decimal_places;
+        s = '${s.substring(0, split_i)}.${s.substring(split_i)}';
+        while (s[s.length - 1] == '0' && s[s.length - 2] != '.') { s = s.substring(0, s.length - 1); }
+        return s;   
+    }
+    Tokens round_decimal_places(int round_decimal_places) {
+        List<String> tokens_string_split = this.toString().split('.');
+        if (tokens_string_split.length <= 1) {
+            return this;
+        }
+        String decimal_places_string = tokens_string_split[1];
+        if (round_decimal_places >= decimal_places_string.length) {
+            return this;
+        }
+        String decimal_places_split_at_round = decimal_places_string.substring(0, round_decimal_places);
+        return Tokens.oftheDoubleString('${tokens_string_split[0]}.${BigInt.parse(decimal_places_split_at_round)+BigInt.from(1)}', decimal_places: this.decimal_places);
+    }
+    static Tokens oftheNat(CandidType tokens_nat, {required int decimal_places}) {
+        return Tokens(token_quantums: (tokens_nat as Nat).value, decimal_places: decimal_places);
+    }
+    static Tokens oftheDoubleString(String token_string, {required int decimal_places}) {
+        token_string = token_string.trim();
+        if (token_string == '') {
+            throw Exception('must be a number');
+        }
+        List<String> token_string_split = token_string.split('.');
+        if (token_string_split.length > 2) {
+            throw Exception('invalid number.');
+        } 
+        BigInt whole_tokens = BigInt.parse(token_string_split[0]);
+        BigInt tokens_less_than_1 = BigInt.from(0);        
+        if (token_string_split.length == 2) {
+            String token_string_decimal_places = token_string_split[1];     
+            if (token_string_decimal_places.length > IcpTokens.DECIMAL_PLACES) {
+                throw Exception('Max ${IcpTokens.DECIMAL_PLACES} decimal places for the IcpTokens');
+            }
+            while (token_string_decimal_places.length < IcpTokens.DECIMAL_PLACES) {
+                token_string_decimal_places = '${token_string_decimal_places}0';
+            }
+            tokens_less_than_1 = BigInt.parse(token_string_decimal_places);
+        }
+        Tokens tokens = Tokens(token_quantums: (whole_tokens * BigInt.from(pow(10, decimal_places))) + tokens_less_than_1, decimal_places: decimal_places);
+        return tokens;
+    }
+    BigInt get dividable_by => BigInt.from(pow(10, this.decimal_places));
+
+    @override
+    bool operator ==(/*covariant */ other) => other is Tokens && other.decimal_places == this.decimal_places && other.token_quantums == this.token_quantums;
+
+    @override
+    int get hashCode => this.token_quantums.toInt() + this.decimal_places;
+
+}
+
+
+
+class Icrc1Account extends Record {
+    final Principal owner;
+    final Uint8List subaccount; // 32 bytes
+    Icrc1Account({required this.owner, Uint8List? subaccount}) : subaccount = subaccount == null ? Uint8List(32) : subaccount {
+        /*
+        if (subaccount != null) { 
+            this.subaccount = subaccount; 
+        } else {
+            this.subaccount = Uint8List(32);
+        } 
+        */
+        if (this.subaccount.length != 32) { throw Exception('icrc1 subaccount must be 32-bytes'); }
+        
+        this['owner'] = this.owner;
+        this['subaccount'] = Blob(this.subaccount);
+    }
+    static Icrc1Account oftheRecord(Record r) {
+        //print(r['subaccount'].runtimeType);
+        Blob? b = r.find_option<Blob>('subaccount');
+        Uint8List? subaccount = b == null ? null : b.bytes; 
+        return Icrc1Account(
+            owner: r['owner'] as Principal,
+            subaccount: subaccount
+        );
+    } 
+    static Icrc1Account oftheId(String icrc1_id) {
+        Uint8List b = Principal(icrc1_id).bytes;
+        if (b.last != final_byte) {
+            return Icrc1Account(
+                owner: Principal.oftheBytes(b)
+            );
+        } else {
+            b.removeLast();
+            int subaccount_length = b.removeLast();
+            if (subaccount_length > 32 || subaccount_length == 0) { throw Exception('invalid account id'); }
+            Uint8List subaccount = b.sublist(b.length - subaccount_length, b.length);
+            Uint8List owner_bytes = b.sublist(0, b.length - subaccount_length);
+            if (subaccount.first == 0) { throw Exception('invalid account id'); }
+            subaccount = Uint8List.fromList([...Uint8List(32 - subaccount_length), ...subaccount]);
+            return Icrc1Account(
+                owner: Principal.oftheBytes(owner_bytes),
+                subaccount: subaccount
+            );
+        }
+    }
+    String id() {
+        if (aresamebytes(this.subaccount, Uint8List(32))) {
+            return this.owner.text;
+        }
+        Uint8List subaccount_shrink = Uint8List.fromList(this.subaccount.toList());
+        while (subaccount_shrink[0] == 0) { 
+            subaccount_shrink.removeAt(0); 
+        }
+        Uint8List id_bytes = Uint8List.fromList([...this.owner.bytes, ...subaccount_shrink, subaccount_shrink.length, final_byte]);
+        return Principal.oftheBytes(id_bytes).text;   
+    }
+    
+    static const final_byte = 127; 
+    
+    @override
+    bool operator ==(/*covariant */ other) => other is Icrc1Account && other.owner == this.owner && aresamebytes(other.subaccount, this.subaccount);
+
+    @override
+    int get hashCode => this.owner.hashCode + this.subaccount.hashCode;
+    
+}
 
