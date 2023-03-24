@@ -10,13 +10,15 @@ import './candid.dart';
 import './tools/tools.dart';
 
 
+class SYSTEM_CANISTERS {
+    static final Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
+    static final Canister management  = Canister(Principal('aaaaa-aa'));
+    static final Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
+    static final Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
+    static final Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
+    static final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
+}
 
-final Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
-final Canister management  = Canister(Principal('aaaaa-aa'));
-final Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
-final Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
-final Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
-final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 
 
 const String Ok  = 'Ok';
@@ -27,7 +29,7 @@ const String Err = 'Err';
 
 
 Future<IcpTokens> check_icp_balance(String icp_id, {CallType? calltype}) async {
-    Uint8List sponse_bytes = await ledger.call(
+    Uint8List sponse_bytes = await SYSTEM_CANISTERS.ledger.call(
         calltype: calltype ?? CallType.call,
         method_name: 'account_balance',
         put_bytes: c_forwards([
@@ -56,7 +58,7 @@ Future<Variant> transfer_icp(Caller caller, String fortheicpid, IcpTokens mount,
             'timestamp_nanos' : Nat64(get_current_time_nanoseconds())
         }))
     });
-    Variant transfer_result = c_backwards(await ledger.call(calltype: CallType.call, method_name: 'transfer', put_bytes: c_forwards([sendargs]), caller: caller, legations: legations))[0] as Variant;
+    Variant transfer_result = c_backwards(await SYSTEM_CANISTERS.ledger.call(calltype: CallType.call, method_name: 'transfer', put_bytes: c_forwards([sendargs]), caller: caller, legations: legations))[0] as Variant;
     return transfer_result;
 }
 
@@ -145,7 +147,7 @@ Future<Principal> create_canister(Caller caller, IcpTokens icp_count, {Uint8List
     if (block_height == null) {
         block_height = match_variant<Nat64>(await transfer_icp(
             caller, 
-            icp_id(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
+            icp_id(SYSTEM_CANISTERS.cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
             icp_count, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_CREATE_CANISTER_nat64,
@@ -167,7 +169,7 @@ Future<Principal> create_canister(Caller caller, IcpTokens icp_count, {Uint8List
         'block_index' : block_height,
     });
 
-    Variant notify_create_canister_result = c_backwards(await cycles_mint.call(
+    Variant notify_create_canister_result = c_backwards(await SYSTEM_CANISTERS.cycles_mint.call(
         calltype: CallType.call, 
         method_name: 'notify_create_canister', 
         put_bytes: c_forwards([notifycanisterarg]), 
@@ -191,7 +193,7 @@ Future<Nat> top_up_canister(Caller caller, IcpTokens icp_mount, Principal canist
     if (block_height == null) {
         block_height = match_variant<Nat64>(await transfer_icp(
             caller, 
-            icp_id(cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
+            icp_id(SYSTEM_CANISTERS.cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
             icp_mount, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_TOP_UP_CANISTER_nat64,
@@ -213,7 +215,7 @@ Future<Nat> top_up_canister(Caller caller, IcpTokens icp_mount, Principal canist
         'canister_id' : canister_id,
     });
 
-    Variant notify_top_up_result = c_backwards(await cycles_mint.call(
+    Variant notify_top_up_result = c_backwards(await SYSTEM_CANISTERS.cycles_mint.call(
         calltype: CallType.call, 
         method_name: 'notify_top_up', 
         put_bytes: c_forwards([notifytopupargs]), 
@@ -234,7 +236,7 @@ Future<Nat> top_up_canister(Caller caller, IcpTokens icp_mount, Principal canist
 
 
 Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
-    Uint8List canister_status_sponse_bytes = await management.call(
+    Uint8List canister_status_sponse_bytes = await SYSTEM_CANISTERS.management.call(
         caller: caller,
         calltype: CallType.call,
         method_name: 'canister_status',
@@ -269,7 +271,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
 
 
 Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_canister_bytes, String mode, [Uint8List? canister_install_arg]) async {
-    Uint8List put_code_sponse_bytes = await management.call(
+    Uint8List put_code_sponse_bytes = await SYSTEM_CANISTERS.management.call(
         caller: caller,
         calltype: CallType.call,
         method_name: 'install_code',
@@ -455,7 +457,7 @@ final Icrc1Ledger _ICP = Icrc1Ledger(
     name:'Internet Computer',
     decimals:8,
     fee:BigInt.from(10000),
-    ledger: ledger
+    ledger: SYSTEM_CANISTERS.ledger
 );
 final Icrc1Ledger _SNS1 = Icrc1Ledger(
     //logo_data_url: ,

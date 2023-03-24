@@ -213,7 +213,33 @@ class Canister {
             )
         );
         systemstatequest.headers['Content-Type'] = 'application/cbor';
-        List<List<Uint8List>> pathsbytes = paths.map((path)=>pathasapathbyteslist(path)).toList();
+        
+        // temp workaround
+        List<List<dynamic>> call_paths = [];
+        if (paths.fold(false, (bool b, List<dynamic> path){
+            if (b == true) { return b; }
+            if (path[0] == 'request_status') {
+                return true;
+            }
+            return false;
+        })) {
+            bool did_put_request_status_path = false;
+            for (int i=0;i<paths.length;i++) {
+                if (paths[i][0] != 'request_status') {
+                    call_paths.add(paths[i]);
+                    continue;
+                }       
+                if (did_put_request_status_path == false) {
+                    call_paths.add(['request_status', paths[i][1]]);
+                    did_put_request_status_path = true;
+                }
+            }
+        } else {
+            call_paths = paths;
+        }
+        //print(call_paths);
+        
+        List<List<Uint8List>> pathsbytes = call_paths.map((path)=>pathasapathbyteslist(path)).toList();
         Map getstatequestbodymap = {
             "content": { 
                 "request_type": 'read_state',
@@ -355,6 +381,7 @@ class Canister {
                 BigInt certificate_time_nanoseconds = pathsvalues[0] is int ? BigInt.from(pathsvalues[0] as int) : pathsvalues[0] as BigInt;
                 if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.\ncertificate-timestamp: ${certificate_time_nanoseconds}'); } // // time-check,  
                 
+                //print(pathsvalues);
                 callstatus = pathsvalues[1];
             }
             //print(pathsvalues);
