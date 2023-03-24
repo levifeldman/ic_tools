@@ -138,3 +138,8 @@ String icp_id(Principal principal, {List<int>? subaccount_bytes})
 * common lib `create_canister`, `topup_canister`, `transfer_icp`, and `check_icp_balance` use the IcpTokens class
 * `CandidType.asOption<T extends CandidType>()` for the candid option subtyping rules.
 * candid `cast_option<T extends CandidType>()`
+
+## 1.1.3
+* SubtleCrypto Caller for the web is in a new package [ic_tools_web](https://pub.dev/packages/ic_tools_web)
+* common system canisters are now static properties of the `SYSTEM_CANISTERS` class
+* Temp workaround for `read_state` `request_status` paths while [this commit](https://github.com/dfinity/ic/commit/6d47900d7dc34cbce76b50923ae67fa594b94c0b) waits for the next network upgrade.
