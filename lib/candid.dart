@@ -1,6 +1,6 @@
 export 'src/candid.dart' show 
     CandidType,
-    PrimitiveCandidType,
+    PrimitiveType,
     ConstructType,
     ReferenceType,
     Null,
