@@ -1,7 +1,7 @@
 name: ic_tools
 description: "ic_tools in the dart-language."
 version: 1.1.3
-homepage: https://github.com/levifeldman/ic_tools_dart
+homepage: https://github.com/levifeldman/ic_tools
 
 
 environment:
