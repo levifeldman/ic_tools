@@ -201,8 +201,8 @@ class Canister {
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
     }
-    Future<Uint8List> metadata(String name) async {
-        List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'metadata', name]]);
+    Future<Uint8List> metadata(String name, {Caller? caller, List<Legation> legations = const []}) async {
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'metadata', name]], caller:caller, legations:legations);
         return paths_values[0] as Uint8List;
     }
     Future<String> candid_service_metadata() async {
