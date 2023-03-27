@@ -201,7 +201,13 @@ class Canister {
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
     }
-    
+    Future<Uint8List> metadata(String name) async {
+        List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'metadata', name]]);
+        return paths_values[0] as Uint8List;
+    }
+    Future<String> candid_service_metadata() async {
+        return utf8.decode(await this.metadata('candid:service'));
+    }
 
 
     Future<List> state({required List<List<dynamic>> paths, http.Client? httpclient, Caller? caller, List<Legation> legations = const [], Principal? fective_canister_id}) async {        
