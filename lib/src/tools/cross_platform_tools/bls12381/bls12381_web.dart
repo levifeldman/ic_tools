@@ -1,11 +1,8 @@
 import 'main.dart';
 import 'dart:typed_data';
-import 'package:js/js.dart';
 import 'package:js/js_util.dart';
-import '../js/jslib.dart';
 import 'bls12381_jslib.dart';
-import 'dart:js' as js;
-import '../../tools.dart';
+
 
 
 class bls12381_web extends Bls12381Flutter {

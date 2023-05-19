@@ -271,7 +271,7 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
 
 
 Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_canister_bytes, String mode, [Uint8List? canister_install_arg]) async {
-    Uint8List put_code_sponse_bytes = await SYSTEM_CANISTERS.management.call(
+    await SYSTEM_CANISTERS.management.call(
         caller: caller,
         calltype: CallType.call,
         method_name: 'install_code',

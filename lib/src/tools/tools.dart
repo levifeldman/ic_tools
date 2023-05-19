@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 export './leb128.dart';
 export './cross_platform_tools/onthewebcheck/main.dart' show isontheweb;
-export './cross_platform_tools/cbor/main.dart' show cbor;
 export './cross_platform_tools/bls12381/main.dart' show bls12381;
 
 

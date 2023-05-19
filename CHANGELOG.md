@@ -143,3 +143,8 @@ String icp_id(Principal principal, {List<int>? subaccount_bytes})
 * SubtleCrypto Caller for the web is in a new package [ic_tools_web](https://pub.dev/packages/ic_tools_web)
 * common system canisters are now static properties of the `SYSTEM_CANISTERS` class
 * Temp workaround for `read_state` `request_status` paths while [this commit](https://github.com/dfinity/ic/commit/6d47900d7dc34cbce76b50923ae67fa594b94c0b) waits for the next network upgrade.
+
+## 1.1.4
+* New use cbor dart lib for the web.
+* Update Canister .call with the changes of https://github.com/dfinity/interface-spec/pull/143. /call requests can now return http 200 with a reject response map.
+

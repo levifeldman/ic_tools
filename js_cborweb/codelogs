@@ -1,2 +1,0 @@
-npx browserify node_modules/cbor-web/dist/cbor.js > cbor-web.js --standalone=cbor
-

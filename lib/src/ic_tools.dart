@@ -7,6 +7,8 @@ import 'package:crypto/crypto.dart';
 import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
+import './cbor/cbor.dart';
+import './cbor/simple.dart' as cbor_simple;
 
 import './tools/tools.dart';
 import './candid.dart';
@@ -22,7 +24,8 @@ Uint8List icrootkey = Uint8List.fromList([48, 129, 130, 48, 29, 6, 13, 43, 6, 1,
 
 Future<Map> ic_status() async {
     http.Response statussponse = await http.get(icbaseurl.replace(pathSegments: ['api', 'v2', 'status']));
-    return cbor.cborbytesasadart(statussponse.bodyBytes);
+    Object? r = cbor_simple.cbor.decode(statussponse.bodyBytes);
+    return r as Map;
 }
 
 
@@ -48,7 +51,7 @@ class Principal extends PrincipalReference {
     String toString() => '${this.text}';
     
     @override
-    bool operator ==(covariant Principal other) => other is Principal && aresamebytes(other.bytes, this.bytes);
+    bool operator ==(covariant Principal other) => /*other is Principal && */aresamebytes(other.bytes, this.bytes);
 
     @override
     int get hashCode => this.bytes.first + this.bytes.last;
@@ -149,8 +152,8 @@ class Legation {
     static Map create_legation_map(Uint8List legatee_public_key_DER, BigInt expiration_unix_timestamp_nanoseconds, List<Principal>? target_canisters_ids) {
         return {
             'pubkey': legatee_public_key_DER,
-            'expiration': isontheweb ? expiration_unix_timestamp_nanoseconds : expiration_unix_timestamp_nanoseconds.isValidInt ? expiration_unix_timestamp_nanoseconds.toInt() : expiration_unix_timestamp_nanoseconds,
-            if (target_canisters_ids != null) 'targets': target_canisters_ids.map<Uint8List>((Principal canister_id)=>canister_id.bytes).toList()
+            'expiration': expiration_unix_timestamp_nanoseconds,
+            if (target_canisters_ids != null) 'targets': target_canisters_ids.map<Uint8List>((Principal canister_id)=>Uint8List.fromList(canister_id.bytes)).toList()
         };
     }
 
@@ -175,10 +178,21 @@ enum CallType {
 class CallException implements Exception {
     final int reject_code;
     final String reject_message;
-    CallException({required this.reject_code, required this.reject_message});
+    final String? error_code;
+    CallException({required this.reject_code, required this.reject_message, this.error_code});
     
     String toString() {
-        return '${system_call_reject_codes[reject_code]} \n${reject_message}';    
+        return 'CallException: \nreject_code: ${reject_code}, ${system_call_reject_codes[reject_code]}\nreject_message: ${reject_message}${error_code != null ? '\nerror_code: ${error_code}' : ''}';    
+    }
+}
+
+class Http4xx5xxCallException implements Exception {
+    final int http_status_code;
+    final String response_body;
+    Http4xx5xxCallException({required this.http_status_code, required this.response_body});
+    
+    String toString() {
+        return 'HTTP status: ${http_status_code}\n${response_body}';
     }
 }
 
@@ -196,7 +210,7 @@ class Canister {
     }
     Future<List<Principal>> controllers() async {
         List<dynamic> paths_values = await state(paths: [['canister', this.principal.bytes, 'controllers']]);
-        List<dynamic> controllers_list = cbor.cborbytesasadart(paths_values[0]); //?buffer? orr List
+        List<dynamic> controllers_list = cbor_simple.cbor.decode(paths_values[0]) as List<dynamic>;
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.oftheBytes(controller_bytes)).toList();
         return controllers_list_principals;
@@ -246,6 +260,7 @@ class Canister {
         //print(call_paths);
         
         List<List<Uint8List>> pathsbytes = call_paths.map((path)=>pathasapathbyteslist(path)).toList();
+        
         Map getstatequestbodymap = {
             "content": { 
                 "request_type": 'read_state',
@@ -265,7 +280,7 @@ class Canister {
             Uint8List questId = icdatahash(getstatequestbodymap['content']);
             getstatequestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
         }
-        systemstatequest.bodyBytes = cbor.codeMap(getstatequestbodymap, withaselfscribecbortag: true);
+        systemstatequest.bodyBytes = cbor.encode(CborMap(dart_value_as_a_cbor_value(getstatequestbodymap) as CborMap, tags: [CborTag.selfDescribeCbor]));
         bool need_close_httpclient = false;
         if (httpclient==null) {
             httpclient = http.Client();
@@ -279,14 +294,14 @@ class Canister {
             http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
             if (statesponse.statusCode==200) {
                 if (need_close_httpclient) { httpclient.close(); }
-                Map systemstatesponsemap = cbor.cborbytesasadart(statesponse.bodyBytes);
-                Map certificate = cbor.cborbytesasadart(Uint8List.fromList(systemstatesponsemap['certificate'].toList()));
+                Map systemstatesponsemap = cbor_simple.cbor.decode(statesponse.bodyBytes) as Map;
+                Map certificate = cbor_simple.cbor.decode(Uint8List.fromList(systemstatesponsemap['certificate'].toList())) as Map;
                 await verify_certificate(certificate);
                 pathsvalues = paths.map((path)=>lookuppathvalueinaniccertificatetree(certificate['tree'], path)).toList();
                 break;
             } else {
                 print(':readstatesponse status-code: ${statesponse.statusCode}, body:\n${statesponse.body}');
-                if ( i == 0 ) {
+                if ( i == 1 ) {
                     if (need_close_httpclient) { httpclient.close(); }
                     throw Exception('read_state calls unknown sponse');
                 }
@@ -342,7 +357,7 @@ class Canister {
             }
             canistercallquestbodymap['sender_sig'] = await caller.authorize_call_questId(questId);
         }
-        Uint8List quest_bytes = cbor.codeMap(canistercallquestbodymap, withaselfscribecbortag: true);
+        Uint8List quest_bytes = Uint8List.fromList(cbor.encode(CborMap(dart_value_as_a_cbor_value(canistercallquestbodymap) as CborMap, tags: [CborTag.selfDescribeCbor])));
         /*
         if (cold_storage_mode == true) {
             return Uint8List.fromList([ ...questId, ...quest_bytes ]);
@@ -353,14 +368,27 @@ class Canister {
         var httpclient = http.Client();
         BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
-        if (![202,200].contains(canistercallsponse.statusCode)) {
-            throw Exception('ic call: ${canistercallquest} \nhttp-sponse-status: ${canistercallsponse.statusCode}, with the body: ${canistercallsponse.body}');
-        }
         String? callstatus;
         Uint8List? canistersponse;
         int? reject_code;
         String? reject_message;
+        String? error_code;
         if (calltype.name == 'call') {
+            if (canistercallsponse.statusCode != 202) {
+                if (canistercallsponse.statusCode == 200) {
+                    Map bodymap = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map;
+                    throw CallException(
+                        reject_code: bodymap['reject_code'] as int,
+                        reject_message: bodymap['reject_message'] as String,
+                        error_code: bodymap['error_code'] as String?
+                    );
+                } else {
+                    throw Http4xx5xxCallException(
+                        http_status_code: canistercallsponse.statusCode,
+                        response_body: utf8.decode(canistercallsponse.bodyBytes)
+                    );
+                }
+            }
             List pathsvalues = [];
             BigInt timeout_duration_check_nanoseconds = get_current_time_nanoseconds() + BigInt.from(timeout_duration.inMilliseconds * 1000000);
             while (!['replied','rejected','done'].contains(callstatus)) {
@@ -377,8 +405,9 @@ class Canister {
                         ['request_status', questId, 'status'], 
                         ['request_status', questId, 'reply'],
                         ['request_status', questId, 'reject_code'],
-                        ['request_status', questId, 'reject_message']
-                    ], 
+                        ['request_status', questId, 'reject_message'],
+                        ['request_status', questId, 'error_code'],
+                    ],
                     httpclient: httpclient,
                     caller: caller,
                     legations: legations,
@@ -392,27 +421,34 @@ class Canister {
             }
             //print(pathsvalues);
             canistersponse = pathsvalues[2];
-            reject_code = pathsvalues[3] is BigInt ? pathsvalues[3].toInt() : pathsvalues[3];
+            reject_code = pathsvalues[3];
             reject_message = pathsvalues[4];
+            error_code = pathsvalues[5];
         }
-        
         else if (calltype.name == 'query') {
-            Map canister_query_sponse_map = cbor.cborbytesasadart(canistercallsponse.bodyBytes); 
+            if (canistercallsponse.statusCode != 200) {
+                throw Http4xx5xxCallException(
+                    http_status_code: canistercallsponse.statusCode,
+                    response_body: utf8.decode(canistercallsponse.bodyBytes)
+                );
+            }
+            Map canister_query_sponse_map = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map; 
             callstatus = canister_query_sponse_map['status'];
             canistersponse = canister_query_sponse_map.keys.toList().contains('reply') && canister_query_sponse_map['reply'].keys.toList().contains('arg') ? Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer) : null;
-            reject_code = canister_query_sponse_map.keys.toList().contains('reject_code') ? canister_query_sponse_map['reject_code'] : null;
-            reject_message = canister_query_sponse_map.keys.toList().contains('reject_message') ? canister_query_sponse_map['reject_message'] : null;
+            reject_code = canister_query_sponse_map['reject_code'];
+            reject_message = canister_query_sponse_map['reject_message'];
+            error_code = canister_query_sponse_map['error_code'];
         }
         
         httpclient.close();
         
         if (callstatus == 'replied') {
-            // good
             return canistersponse!;
         } else if (callstatus=='rejected') {
             throw CallException(
-                reject_code: reject_code!,
-                reject_message: reject_message!
+                reject_code: reject_code as int,
+                reject_message: reject_message as String,
+                error_code: error_code as String?
             );
         } else if (callstatus=='done') {
             throw Exception('call-status is "done", cannot see the canister-reply');
@@ -464,6 +500,8 @@ List<Uint8List> pathasapathbyteslist(List<dynamic> path) {
 
 
 Uint8List icdatahash(dynamic datastructure) {
+    //print(datastructure);
+    //print(datastructure.runtimeType);
     var valueforthehash = <int>[];
     if (datastructure is String) {
         valueforthehash = utf8.encode(datastructure); }
@@ -472,7 +510,7 @@ Uint8List icdatahash(dynamic datastructure) {
     else if (datastructure is Uint8List) {
         valueforthehash= datastructure; }
     else if (datastructure is List) {
-        valueforthehash= datastructure.fold(<int>[], (p,c)=> p + icdatahash(c)); } 
+        valueforthehash= datastructure.fold(<int>[], (p,c)=> p + icdatahash(c)); }
     else if (datastructure is Map) {
         List<List<int>> datafieldshashs = [];
         for (String key in datastructure.keys) {
@@ -483,9 +521,9 @@ Uint8List icdatahash(dynamic datastructure) {
         }
         datafieldshashs.sort((a,b) => bytesasabitstring(a).compareTo(bytesasabitstring(b)));
         valueforthehash = datafieldshashs.fold(<int>[],(p,c)=>p+c); }
-    else { 
+    else {
         throw Exception('icdatahash: check: type of the datastructure: ${datastructure.runtimeType}');    
-    } 
+    }
     return Uint8List.fromList(sha256.convert(valueforthehash).bytes);
 }
  
@@ -503,16 +541,12 @@ Uint8List createicquestnonce() {
     return Uint8List.fromList(DateTime.now().hashCode.toRadixString(2).split('').map(int.parse).toList());
 }
 
-dynamic createicquestingressexpiry([Duration? duration]) { //can be a bigint or an int
+BigInt createicquestingressexpiry([Duration? duration]) {
     if (duration==null) {
-        duration = (Duration(minutes: 4));
+        duration = Duration(minutes: 4);
     }
     BigInt bigint = BigInt.from(DateTime.now().add(duration).millisecondsSinceEpoch) * BigInt.from(1000000); // microsecondsSinceEpoch*1000;
-    if (isontheweb) {
-        return bigint;
-    } else {
-        return bigint.isValidInt ? bigint.toInt() : bigint;
-    }
+    return bigint;
 }
 
 Uint8List createdomainseparatorbytes(String domainsepstring) {
@@ -540,7 +574,7 @@ Uint8List constructicsystemstatetreeroothash(List tree) {
     else if (tree[0] == 4) {
         assert(tree.length==2);
         v = tree[1];
-    }    
+    }
     else {
         throw Exception(':system-state-tree is in the wrong-format.');
     }
@@ -560,7 +594,7 @@ Future<void> verify_certificate(Map certificate) async {
     Uint8List treeroothash = constructicsystemstatetreeroothash(certificate['tree']);
     Uint8List derKey;
     if (certificate.containsKey('delegation')) {
-        Map legation_certificate = cbor.cborbytesasadart(Uint8List.fromList(certificate['delegation']['certificate']));
+        Map legation_certificate = cbor_simple.cbor.decode(Uint8List.fromList(certificate['delegation']['certificate'])) as Map;
         await verify_certificate(legation_certificate);
         derKey = lookuppathvalueinaniccertificatetree(legation_certificate['tree'], ['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']);
     } else {
@@ -648,6 +682,7 @@ Uint8List? lookuppathbvaluebinaniccertificatetree(List tree, List<Uint8List> pat
             return Uint8List.fromList(tree[1]);
         }
     }
+    return null;
 }
     
 dynamic lookuppathvalueinaniccertificatetree(List tree, List<dynamic> path, [String? type]) {
@@ -701,7 +736,29 @@ Uint8List icidtextasabytes(String idtext) {
 }
 
 
-
+CborValue dart_value_as_a_cbor_value(dynamic dart_value) {
+    if (dart_value is Map) {
+        return CborMap((dart_value).map<CborValue, CborValue>((k,v)=>MapEntry(dart_value_as_a_cbor_value(k), dart_value_as_a_cbor_value(v))));
+    }
+    else if (dart_value is String) {
+        return CborString(dart_value);
+    }
+    else if (dart_value is BigInt) {
+        return CborInt(dart_value);
+    }
+    else if (dart_value is int) {
+        return CborInt(BigInt.from(dart_value));
+    }
+    else if (dart_value is Uint8List) {
+        return CborBytes(dart_value);
+    }
+    else if (dart_value is List) {
+        return CborList((dart_value).map<CborValue>((item)=>dart_value_as_a_cbor_value(item)).toList());
+    }
+    else {
+        throw Exception('unknown dart value type: ${dart_value.runtimeType}');
+    }
+}
 
 
 

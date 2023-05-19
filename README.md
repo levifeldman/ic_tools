@@ -27,13 +27,11 @@ main() async {
 }
 ```
 
-----------
 
-runs with the sound-null-safety.
 
 ----------
 
-On the Linux:
+On A Linux:
  - create a folder: 'rust_bls12381' in the same directory as the pubspec.yaml file
  - put this file: https://github.com/levifeldman/ic_tools_dart/tree/master/rust_bls12381/librust_bls12381.so in that folder.
 
@@ -45,8 +43,6 @@ On the web:
  - put this in the flutter index.html file right before the main.dart.js script tag:
 
 ```html
-<script src="ic_tools_webfiles/unpkg_bignumber.js"></script>  
-<script src="ic_tools_webfiles/cbor-web.js"></script>  
 <script src="ic_tools_webfiles/rust_wasm_bls12381/rust_wasm_bls12381.js"></script>   
 ```
 

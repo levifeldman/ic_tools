@@ -65,7 +65,7 @@ int candid_text_hash(String text) {
     for (int b in utf8.encode(text)) {
         hash = (((hash * 223) % pow(2, 32) as int) + b) % pow(2, 32) as int;  
     }
-    return hash as int;
+    return hash;
 }
 
 
@@ -188,7 +188,7 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
         CandidBytes_i param_count_i = crawl_type_table(candidbytes);
         List<CandidType> candids = crawl_memory_bytes(candidbytes, param_count_i);
         return candids;
-    } catch(e,s) {
+    } catch(e) {
         print('candid: $candidbytes');
         throw e;
     }
@@ -464,7 +464,6 @@ class Nat16 extends PrimitiveType {
 
     Uint8List M_forward() {
         String rstr = this.value.toRadixString(2);
-        List<String> bytes_bitstrings = [];
         while (rstr.length<16) {
             rstr = '0' + rstr;
         }
@@ -509,7 +508,6 @@ class Nat32 extends PrimitiveType {
 
     Uint8List M_forward() {
         String rstr = this.value.toRadixString(2);
-        List<String> bytes_bitstrings = [];
         while (rstr.length<32) {
             rstr = '0' + rstr;
         }
@@ -550,7 +548,6 @@ class Nat64 extends PrimitiveType {
 
     Uint8List M_forward() {
         String rstr = this.value.toRadixString(2);
-        List<String> bytes_bitstrings = [];
         while (rstr.length<64) {
             rstr = '0' + rstr;
         }
@@ -999,7 +996,7 @@ class Blob extends Vector<Nat8> {
         super.addAll(bytes_list.map<Nat8>((int byte)=>Nat8(byte)));
     }
     int get_byte_i(int i) {
-        Nat8 nat8byte = this[i] as Nat8;
+        Nat8 nat8byte = this[i];
         return nat8byte.value;
     }
     

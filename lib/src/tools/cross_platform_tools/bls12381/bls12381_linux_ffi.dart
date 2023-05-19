@@ -1,6 +1,5 @@
 import 'dart:ffi' as ffi;
 import 'package:ffi/ffi.dart' show Utf8;
-import 'dart:convert';
 
 typedef rust_bls_stantiate = ffi.Int64 Function();
 typedef rust_bls_verify = ffi.Int64 Function(ffi.Pointer<Utf8> autograph, ffi.Pointer<Utf8> message, ffi.Pointer<Utf8> public_key);
