@@ -1,5 +1,5 @@
 # ic_tools
-
+[![Pub Version](https://shields.io/pub/v/ic_tools)](https://pub.dev/packages/ic_tools)
 ----------
 This is a package that connects dart-code with the DFINITY-INTERNET-COMPUTER.
 
