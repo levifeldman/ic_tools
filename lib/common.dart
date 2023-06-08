@@ -13,5 +13,6 @@ export 'src/common.dart' show
     Tokens,
     Icrc1Account,
     Ok,
-    Err
+    Err,
+    check_icrc1_balance
     ;

@@ -30,18 +30,6 @@ String bytesasahexstring(List<int> bytes) {
 }
 
 
-String bytesasabitstring(List<int> bytes) {
-    String s = '';
-    for (int i in bytes) {
-        String it = i.toRadixString(2);
-        while (it.length<8) {
-            it = '0' + it;
-        }
-        s += it;
-    }
-    return s;
-}
-
 bool aresamebytes(List<int> b1, List<int> b2) {
     if (b1.length != b2.length) {
         return false;
@@ -112,7 +100,7 @@ Uint8List bitstring_as_the_bytes(String bitstring) {
 }
 
 
-String bytes_as_the_bitstring(Uint8List bytes) {
+String bytes_as_the_bitstring(Iterable<int> bytes) {
     String bitstring = '';
     for (int byte in bytes) {
         String byte_bitstring = byte.toRadixString(2);
@@ -121,6 +109,10 @@ String bytes_as_the_bitstring(Uint8List bytes) {
     }
     return bitstring;
 }
+
+
+String bytesasabitstring(List<int> bytes) => bytes_as_the_bitstring(bytes); 
+
 
 
 
@@ -145,6 +137,17 @@ BigInt seconds_of_the_nanos(BigInt nanos) {
 
 
 
+
+
+extension NullMap<T> on T? {
+    F? nullmap<F>(F Function(T) f) {
+        if (this != null) {
+            return f(this!);
+        } else {
+            return null;
+        }
+    }
+}
 
 
 

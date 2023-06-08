@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:archive/archive.dart';
+import 'package:base32/base32.dart';
 
 import './ic_tools.dart';
 import './candid.dart';
@@ -557,60 +558,73 @@ class Icrc1Account extends Record {
     final Principal owner;
     final Uint8List subaccount; // 32 bytes
     Icrc1Account({required this.owner, Uint8List? subaccount}) : subaccount = subaccount == null ? Uint8List(32) : subaccount {
-        /*
-        if (subaccount != null) { 
-            this.subaccount = subaccount; 
-        } else {
-            this.subaccount = Uint8List(32);
-        } 
-        */
+        
         if (this.subaccount.length != 32) { throw Exception('icrc1 subaccount must be 32-bytes'); }
         
         this['owner'] = this.owner;
         this['subaccount'] = Blob(this.subaccount);
     }
     static Icrc1Account oftheRecord(Record r) {
-        //print(r['subaccount'].runtimeType);
-        Blob? b = r.find_option<Blob>('subaccount');
-        Uint8List? subaccount = b == null ? null : b.bytes; 
+        Blob? blob = r.find_option<Blob>('subaccount');
+        Uint8List? subaccount = blob.nullmap((b)=>b.bytes); 
         return Icrc1Account(
             owner: r['owner'] as Principal,
             subaccount: subaccount
         );
     } 
     static Icrc1Account oftheId(String icrc1_id) {
-        Uint8List b = Principal(icrc1_id).bytes;
-        if (b.last != final_byte) {
-            return Icrc1Account(
-                owner: Principal.oftheBytes(b)
-            );
-        } else {
-            b.removeLast();
-            int subaccount_length = b.removeLast();
-            if (subaccount_length > 32 || subaccount_length == 0) { throw Exception('invalid account id'); }
-            Uint8List subaccount = b.sublist(b.length - subaccount_length, b.length);
-            Uint8List owner_bytes = b.sublist(0, b.length - subaccount_length);
-            if (subaccount.first == 0) { throw Exception('invalid account id'); }
-            subaccount = Uint8List.fromList([...Uint8List(32 - subaccount_length), ...subaccount]);
-            return Icrc1Account(
-                owner: Principal.oftheBytes(owner_bytes),
-                subaccount: subaccount
-            );
+        
+        if (icrc1_id.contains('.') == false) {
+            return Icrc1Account(owner: Principal(icrc1_id));
         }
+        List<String> id_split_period = icrc1_id.split('.');
+        if (id_split_period.length > 2) {
+            throw Exception('invalid icrc1-id.');
+        }
+        
+        String subaccount_hex = id_split_period.last;
+        while (subaccount_hex.length < 64) { subaccount_hex = '0' + subaccount_hex; } 
+        Uint8List subaccount = hexstringasthebytes(subaccount_hex);
+        
+        String principal_and_checksum = id_split_period.first;
+        Principal principal = Principal(principal_and_checksum.substring(0, principal_and_checksum.lastIndexOf('-')));
+        String checksum_base32 = principal_and_checksum.substring(principal_and_checksum.lastIndexOf('-')+1);
+        if (checksum_base32.length%2!=0) { checksum_base32+='='; } // add padding for the decode function
+        List<int> checksum = base32.decode(checksum_base32);
+        
+        Crc32 crc32 = Crc32();
+        crc32.add(principal.bytes);
+        crc32.add(subaccount);
+        List<int> calculate_crc32 = crc32.close();
+        if (aresamebytes(checksum, calculate_crc32) == false) {
+            throw Exception('crc32 checksum is invalid.');
+        }
+        
+        return Icrc1Account(
+            owner: principal,
+            subaccount: subaccount
+        );
     }
+    
     String id() {
         if (aresamebytes(this.subaccount, Uint8List(32))) {
             return this.owner.text;
         }
-        Uint8List subaccount_shrink = Uint8List.fromList(this.subaccount.toList());
-        while (subaccount_shrink[0] == 0) { 
-            subaccount_shrink.removeAt(0); 
-        }
-        Uint8List id_bytes = Uint8List.fromList([...this.owner.bytes, ...subaccount_shrink, subaccount_shrink.length, final_byte]);
-        return Principal.oftheBytes(id_bytes).text;   
+        
+        Crc32 crc32 = Crc32();
+        crc32.add(this.owner.bytes);
+        crc32.add(this.subaccount);
+        Uint8List calculate_crc32 = Uint8List.fromList(crc32.close());
+        String checksum_fmt = base32.encode(calculate_crc32);
+        if (checksum_fmt.contains('=')) { checksum_fmt = checksum_fmt.substring(0, checksum_fmt.indexOf('=')); } // remove padding
+        
+        String subaccount_fmt = bytesasahexstring(this.subaccount);
+        while (subaccount_fmt[0] == '0') { subaccount_fmt = subaccount_fmt.substring(1); }
+        
+        return '${owner.text}-${checksum_fmt}.${subaccount_fmt}'.toLowerCase();
     }
     
-    static const final_byte = 127; 
+    String toString() => this.id();
     
     @override
     bool operator ==(/*covariant */ other) => other is Icrc1Account && other.owner == this.owner && aresamebytes(other.subaccount, this.subaccount);
@@ -619,4 +633,14 @@ class Icrc1Account extends Record {
     int get hashCode => this.owner.hashCode + this.subaccount.hashCode;
     
 }
+
+Future<BigInt> check_icrc1_balance({required Principal ledger_canister_id, required Icrc1Account account, required CallType calltype}) async {
+    BigInt balance = (c_backwards(await Canister(ledger_canister_id).call(
+        method_name: 'icrc1_balance_of',
+        put_bytes: c_forwards([account]),
+        calltype: calltype
+    )).first as Nat).value;
+    return balance;
+}
+
 
