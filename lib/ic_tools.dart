@@ -1,3 +1,8 @@
+
+
+/// The core library for communicating with the internet-computer.
+library;
+
 export 'src/ic_tools.dart' show 
     Caller,
     CallerEd25519,
@@ -8,11 +13,8 @@ export 'src/ic_tools.dart' show
     Legation,
     icbaseurl,
     icrootkey,
-    system_call_reject_codes,
     ic_status,
     icdatahash,
-    questidbytesasastring,
-    questidstringasabytes,
     verify_certificate,
     lookuppathvalueinaniccertificatetree,
     constructicsystemstatetreeroothash
