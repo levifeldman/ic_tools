@@ -271,7 +271,7 @@ abstract class CandidType {
     }
 }
 
-/// The [value](PrimitiveType.value) getter on a [PrimitiveType] gets its corresponding dart value. 
+
 abstract class PrimitiveType extends CandidType {
     final _v = null;
     dynamic get value;
@@ -792,8 +792,8 @@ class Text extends PrimitiveType {
 abstract class ConstructType extends CandidType {}
 
 
-
-/// Creating an Option.
+/// Option candid type.
+/// 
 /// ```dart
 /// var non_null_optional_text = Option(value: Text('hi'));
 /// var null_optional_text = Option(value: null, value_type: Text());
@@ -887,6 +887,7 @@ class Option<T extends CandidType?> extends ConstructType {
 }
 
 /// Vector candid type with a [ListMixin].
+/// 
 /// Creating a Vector.
 /// ```dart
 /// var vector_of_text = Vector.oftheList([Text('hi'), Text('The sky is blue')]);
@@ -1106,8 +1107,9 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
     }
 }
 
-/// Record candid type.
-/// A [Record] is created using a [Map] structure with the keys being [int] and the values being [CandidType]s.
+/// A Record is structured using a [Map] structure.
+///
+/// The [Map] keys are of the type [int] and the values are [CandidType]s.
 /// It is possible to use a [String] for the field-name when setting a field or looking up a value, 
 /// however the [String] field-name gets converted into an [int] using the [candid_text_hash] according to the candid-specification. 
 /// So when iterating through the keys/field-names of the Record the key is an [int] type. 
@@ -1209,8 +1211,8 @@ class Record extends RecordAndVariantMap {
 }
 
 
-/// Variant candid type.
-/// A Variant is created using a [Map] structure. 
+/// A Variant is structured using a [Map] structure.
+///  
 /// Only **one** field key and value is needed to specify the chosen variant and value.
 /// ```dart
 /// var variant = Variant.oftheMap({
