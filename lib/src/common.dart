@@ -10,19 +10,28 @@ import './ic_tools.dart';
 import './candid.dart';
 import './tools/tools.dart';
 
-
+/// Common NNS canisters.
 class SYSTEM_CANISTERS {
+    /// The system root canister.
     static final Canister root        = Canister(Principal('r7inp-6aaaa-aaaaa-aaabq-cai'));
+    /// The management canister.
     static final Canister management  = Canister(Principal('aaaaa-aa'));
+    /// The ICP ledger canister.
     static final Canister ledger      = Canister(Principal('ryjl3-tyaaa-aaaaa-aaaba-cai'));
+    /// The NNS governance canister.
     static final Canister governance  = Canister(Principal('rrkah-fqaaa-aaaaa-aaaaq-cai'));
+    /// The cycles-minter-canister.
+    ///
+    /// Known for minting cycles and keeping the current ICP/XDR exchange rate.
     static final Canister cycles_mint = Canister(Principal('rkp4c-7iaaa-aaaaa-aaaca-cai'));
+    /// The [Internet-Identity](https://identity.ic0.app) canister.
     static final Canister ii          = Canister(Principal('rdmx6-jaaaa-aaaaa-aaadq-cai'));
 }
 
 
-
+/// Convenient variable for the `Ok` variant when handling `Result<Ok,Err>` [Variant]s.
 const String Ok  = 'Ok';
+/// Convenient variable for the `Err` variant when handling `Result<Ok,Err>` [Variant]s.
 const String Err = 'Err';
 
 
@@ -42,7 +51,7 @@ Future<IcpTokens> check_icp_balance(String icp_id, {CallType? calltype}) async {
     return IcpTokens.oftheRecord(c_backwards(sponse_bytes)[0] as Record);
 }
 
-
+/// Returns the [Variant] response of this call - the `Result<Ok, Err>` variant. Check the ICP ledger's candid service file for the specific structure of this variant response to this call.
 Future<Variant> transfer_icp(Caller caller, String fortheicpid, IcpTokens mount, {IcpTokens? fee, Nat64? memo, List<int>? subaccount_bytes, List<Legation> legations = const [] } ) async {
     fee ??= IcpTokens.oftheDoubleString('0.0001');
     memo ??= Nat64(BigInt.from(0));
@@ -65,7 +74,7 @@ Future<Variant> transfer_icp(Caller caller, String fortheicpid, IcpTokens mount,
 
 
 
-
+/// This function computes the textual ICP-account-identifier of a [Principal] account owner and an optional 32-bytes subaccount. 
 String icp_id(Principal principal, {List<int>? subaccount_bytes}) {
     subaccount_bytes ??= Uint8List(32);
     if (subaccount_bytes.length != 32) { throw Exception(': subaccount_bytes-parameter of this function is with the length-quirement: 32-bytes.'); }
@@ -141,15 +150,30 @@ Map<String, Never Function(CandidType)> cmc_notify_error_match_map = {
     }
 };
 
-
-Future<Principal> create_canister(Caller caller, IcpTokens icp_count, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
+/// Creates a canister using the NNS ledger and the cycles-minting-canister.
+///
+/// Returns the new canister's [Principal].
+/// 
+/// Transforms the [icp_tokens] into cycles for the canister.
+/// 
+/// Use an optional [from_subaccount_bytes] to use ICP in a subaccount of the [caller].
+///
+/// This function makes two calls. One for the ICP ledger to transfer ICP-tokens to the cycles-minter-canister's account, 
+/// and one for the cycles-minter-canister to trigger it to use that ICP to create a canister with cycles.
+/// A scenario can occur where the first call to transfer ICP-tokens can succeed but the second call to notify the cycles-minter-canister can fail (due to network load or similar).     
+/// In this scenario, this function will print the `Nat64(block_height)` of the first ICP-transfer call.
+/// Use the [block_height] of the first call to complete this canister-creation by calling this function again with the same [caller] and [from_subaccount_bytes] and with the [block_height] parameter.
+/// 
+/// When the [block_height] is not given, this function will make a new icp-transfer.
+/// When the [block_height] is given, this function will skip the first icp-transfer call, and will call the cycles-minter-canister with the given [block_height]. 
+Future<Principal> create_canister(Caller caller, IcpTokens icp_tokens, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
     Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(caller.principal);
     
     if (block_height == null) {
         block_height = match_variant<Nat64>(await transfer_icp(
             caller, 
             icp_id(SYSTEM_CANISTERS.cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
-            icp_count, 
+            icp_tokens, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_CREATE_CANISTER_nat64,
         ), {
@@ -188,14 +212,24 @@ Future<Principal> create_canister(Caller caller, IcpTokens icp_count, {Uint8List
 }
 
 
-Future<Nat> top_up_canister(Caller caller, IcpTokens icp_mount, Principal canister_id, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
+/// Top-up the cycles on a canister with some ICP using the NNS ledger and the cycles-minting-canister.
+///
+/// Returns the amount of the cycles that the canister is topped up with.
+/// 
+/// Transforms the [icp_tokens] into cycles for the canister.
+/// 
+/// Use an optional [from_subaccount_bytes] to use ICP in a subaccount of the [caller].
+///
+/// The [block_height] parameter has the same usage as in the [create_canister] function. 
+/// Check the documentation for the [create_canister] function about the [block_height] parameter.
+Future<Nat> top_up_canister(Caller caller, IcpTokens icp_tokens, Principal canister_id, {Uint8List? from_subaccount_bytes, Nat64? block_height}) async {
     Uint8List to_subaccount_bytes = principal_as_an_icpsubaccountbytes(canister_id);
 
     if (block_height == null) {
         block_height = match_variant<Nat64>(await transfer_icp(
             caller, 
             icp_id(SYSTEM_CANISTERS.cycles_mint.principal, subaccount_bytes: to_subaccount_bytes), 
-            icp_mount, 
+            icp_tokens, 
             subaccount_bytes: from_subaccount_bytes,
             memo: MEMO_TOP_UP_CANISTER_nat64,
         ), {
@@ -235,7 +269,9 @@ Future<Nat> top_up_canister(Caller caller, IcpTokens icp_mount, Principal canist
 }
 
 
-
+/// Returns a status map for the convenience using the `canister_status` method on the management canister.
+/// 
+/// The [caller] must be a controller of the [canister_id].
 Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
     Uint8List canister_status_sponse_bytes = await SYSTEM_CANISTERS.management.call(
         caller: caller,
@@ -271,16 +307,27 @@ Future<Map> check_canister_status(Caller caller, Principal canister_id) async {
 }
 
 
-Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_canister_bytes, String mode, [Uint8List? canister_install_arg]) async {
+enum CanisterInstallMode {
+    install,
+    reinstall,
+    upgrade
+}
+
+/// Installs the [wasm_module] onto the [canister_id] using the management canister's `install_code` method.
+/// WARNING: This function does not stop or start the canister. If your canister needs to be stopped before upgrading, 
+/// make sure to call the management canister's `stop_canister` method before calling this function.
+///
+/// The [caller] must be a controller of the [canister_id].
+Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint8List wasm_module, CanisterInstallMode mode, [Uint8List? canister_install_arg]) async {
     await SYSTEM_CANISTERS.management.call(
         caller: caller,
         calltype: CallType.call,
         method_name: 'install_code',
         put_bytes: c_forwards([
             Record.oftheMap({
-                'mode': Variant.oftheMap({mode: Null()}),
+                'mode': Variant.oftheMap({mode.name: Null()}),
                 'canister_id': canister_id.candid,
-                'wasm_module': Blob(wasm_canister_bytes),
+                'wasm_module': Blob(wasm_module),
                 'arg': canister_install_arg != null ? Blob(canister_install_arg) : Blob([])
             })
         ])
@@ -531,10 +578,10 @@ class Tokens extends Nat {
         BigInt tokens_less_than_1 = BigInt.from(0);        
         if (token_string_split.length == 2) {
             String token_string_decimal_places = token_string_split[1];     
-            if (token_string_decimal_places.length > IcpTokens.DECIMAL_PLACES) {
-                throw Exception('Max ${IcpTokens.DECIMAL_PLACES} decimal places for the IcpTokens');
+            if (token_string_decimal_places.length > decimal_places) {
+                throw Exception('Max ${decimal_places} decimal places');
             }
-            while (token_string_decimal_places.length < IcpTokens.DECIMAL_PLACES) {
+            while (token_string_decimal_places.length < decimal_places) {
                 token_string_decimal_places = '${token_string_decimal_places}0';
             }
             tokens_less_than_1 = BigInt.parse(token_string_decimal_places);
