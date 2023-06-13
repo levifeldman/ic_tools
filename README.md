@@ -38,7 +38,7 @@ On A Linux:
 ----------
 
 
-On the web:
+On the Web:
  - copy the ic_tools_webfiles folder ( https://github.com/levifeldman/ic_tools_dart/tree/master/ic_tools_webfiles ) into the flutter web folder.
  - put this in the flutter index.html file right before the main.dart.js script tag:
 
