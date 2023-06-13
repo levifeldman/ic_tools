@@ -50,9 +50,17 @@ class Principal extends PrincipalReference {
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#textual-ids>
     final String text;
     
+    /// The [text] is the textual-representation of a [Principal].
     Principal(this.text) : super(id: Blob(icidtextasabytes(text)))  /*bytes = icidtextasabytes(text)*/ {  
         
     }
+    
+    /// The [candid] library uses this constructor when creating a [Principal] in **TypeStance** mode. 
+    /// Check the [candid] library main page documentation for more on the **TypeStance** mode of a [CandidType].
+    /// 
+    /// Calling the [bytes] getter on a Principal created with this constructor will throw an error.
+    Principal.typestance() : text = '', super(isTypeStance: true);
+    
     static Principal oftheBytes(Uint8List bytes) {
         Principal p = Principal(icidbytesasatext(bytes));
         if (aresamebytes(p.bytes, bytes) != true) {  throw Exception('ic id functions look '); }

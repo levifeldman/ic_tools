@@ -44,13 +44,13 @@ final Map<int, PrimitiveType> backwards_primtypes_opcodes_for_the_primtype_type_
 // static T_backwards functions start_i starts after the type_code-signed-leb128bytes
 
 final Map<int, TfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i)> constypes_and_reftypes_opcodes_for_the_static_T_backwards_function = {
-    Option.type_code  : Option.T_backward,
-    Vector.type_code  : Vector.T_backward,
-    Record.type_code  : Record.T_backward,
-    Variant.type_code : Variant.T_backward,
-    FunctionReference.type_code : FunctionReference.T_backward,
-    ServiceReference.type_code  : ServiceReference.T_backward,
-    PrincipalReference.type_code: PrincipalReference.T_backward
+    Option.type_code  : Option._T_backward,
+    Vector.type_code  : Vector._T_backward,
+    Record.type_code  : Record._T_backward,
+    Variant.type_code : Variant._T_backward,
+    FunctionReference.type_code : FunctionReference._T_backward,
+    ServiceReference.type_code  : ServiceReference._T_backward,
+    PrincipalReference.type_code: PrincipalReference._T_backward
 };
 
 bool isPrimTypeCode(int type_code) => backwards_primtypes_opcodes_for_the_primtype_type_stances.keys.contains(type_code);
@@ -59,6 +59,8 @@ bool isConsOrRefTypeCode(int type_code) => constypes_and_reftypes_opcodes_for_th
 
 
 
+/// The [text-hash](https://github.com/dfinity/candid/blob/master/spec/Candid.md#shorthand-symbolic-field-ids) that is used when using a [String] for the field name of a [Record] or [Variant],
+/// converting the field name to the [int] representation which is how it is sent over the wire. 
 int candid_text_hash(String text) { 
     // hash(id) = ( Sum_(i=0..k) utf8(id)[i] * 223^(k-i) ) mod 2^32 where k = |utf8(id)|-1
     int hash = 0;
@@ -80,14 +82,14 @@ class TypeTableReference extends CandidType {
     final int type_table_i; 
     
     late MfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i) m;
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) => m(candidbytes, start_i);
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) => m(candidbytes, start_i);
     
     // for the empty vector and a null-option.value so it can be backwards and then forwards 
     late CandidType Function() get_final_type_stance_f;
     CandidType get_final_type_stance() => get_final_type_stance_f();
     
     TypeTableReference(this.type_table_i) {
-        m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i].M(candidbytes, start_i);
+        m = (Uint8List candidbytes, CandidBytes_i start_i) => type_table[type_table_i]._M(candidbytes, start_i);
         
         // for the empty vector and a null-option.value so it can be backwards and then forwards    
         get_final_type_stance_f = () {
@@ -100,8 +102,8 @@ class TypeTableReference extends CandidType {
         };
     }
 
-    Uint8List T_forward() => throw Exception('shouldnt be calle');
-    Uint8List M_forward() => throw Exception('shouldnt-call');
+    Uint8List _T_forward() => throw Exception('Method not needed');
+    Uint8List _M_forward() => throw Exception('Method not needed');
 
 }
 
@@ -169,7 +171,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
             throw Exception('params_list_types codes can either be a type_table_i or a primtypecode or a principal-reference'); // this is because a PrincipalReference even though not a primitive-type it is considered a non-composite type because its T-function has only its type_code so it is not put in the type-table.
         }
 
-        MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_param_value_start_i);
+        MfuncTuple ctype_m_func_tuple = ctype._M(candidbytes, next_param_value_start_i);
         CandidType cvalue = ctype_m_func_tuple.item1;
         if (cvalue.isTypeStance==true) { throw Exception('M functions need to return a CandidType with an isTypeStance=false'); }
         candids.add(cvalue);
@@ -181,6 +183,7 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
 
 
 // backwards
+/// De-serialize bytes into a List of [CandidType]s.
 List<CandidType> c_backwards(Uint8List candidbytes) {
     try {
         if (candidbytes.length < 6) { throw Exception('candidbytes are a minimum of 6 bytes.'); }
@@ -193,11 +196,15 @@ List<CandidType> c_backwards(Uint8List candidbytes) {
         throw e;
     }
 }
-
+// can't take a T type param and return it cast it bc it might be a non-null option value but sent as the value itself without the option. candid subtyping rules.
+/// Like [c_backwards] but returns one value. When the caller knows that the response contains only one value this is convenient.
+CandidType c_backwards_one(Uint8List candidbytes) {
+    return c_backwards(candidbytes).first;
+}
 
 
 // forwards
-List<List<int>> type_table_forward = []; // each [inner] list is a candid(cons)types.T_forward() 
+List<List<int>> type_table_forward = []; // each [inner] list is a candid(cons)types._T_forward() 
 
 int put_t_in_the_type_table_forward(List<int> t_bytes) {
     int? same_type_i;
@@ -215,14 +222,15 @@ int put_t_in_the_type_table_forward(List<int> t_bytes) {
 }
 
 // forwards
+/// Serialize a List of [CandidType]s into the binary over-the-wire format.
 Uint8List c_forwards(List<CandidType> candids) {
     candids.forEach((CandidType c){ if (c.isTypeStance==true) { throw Exception('c_forwards must be with the candids of the isTypeStance=false'); }});
     List<int> candidbytes = magic_bytes.toList();
     List<int> params_list_types_bytes_section = [];
     List<int> params_list_values_bytes_section = [];
     for (CandidType candid in candids) {
-        params_list_types_bytes_section.addAll(candid.T_forward()); // sleb128-bytes() of either primtype -opcode or type_table_i    // composite-types (types with a T-function that has more data/parameters beside the opcode) use the type_table_forward list for the T function to put the types and gives back the type_table_i-leb128-code-bytes. 
-        params_list_values_bytes_section.addAll(candid.M_forward()); 
+        params_list_types_bytes_section.addAll(candid._T_forward()); // sleb128-bytes() of either primtype -opcode or type_table_i    // composite-types (types with a T-function that has more data/parameters beside the opcode) use the type_table_forward list for the T function to put the types and gives back the type_table_i-leb128-code-bytes. 
+        params_list_values_bytes_section.addAll(candid._M_forward()); 
     }
     candidbytes.addAll(leb128.encodeUnsigned(BigInt.from(type_table_forward.length)));
     for (List<int> type_bytes in type_table_forward) { candidbytes.addAll(type_bytes); }
@@ -232,19 +240,29 @@ Uint8List c_forwards(List<CandidType> candids) {
     type_table_forward.clear();
     return Uint8List.fromList(candidbytes);
 }
-
+/// Like [c_forwards] but when serializing a single value this is convenient.
+Uint8List c_forwards_one(CandidType c) {
+    return c_forwards([c]);
+}
 
 
 
 abstract class CandidType {
     bool get isTypeStance;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i);
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i);
     
-    Uint8List T_forward();
-    Uint8List M_forward();
+    Uint8List _T_forward();
+    Uint8List _M_forward();
     
-    Option<T> asOption<T extends CandidType>() {
+    /// Useful when deserializing an Option Response but working with Candid's subtyping rules.
+    /// Candid's rules state that an Option with a non-null value can be sent as the value itself without the Option wrapping it. 
+    /// This function makes that check for you and returns the Option type even if the value is sent by itself for the consistency.    
+    /// ```dart
+    /// Uint8List candidbytes = ...;
+    /// Option<Nat> optional_nat = c_backwards_one(candidbytes).as_option<Nat>();
+    /// ```
+    Option<T> as_option<T extends CandidType>() {
         if (this is Option) {
             return (this as Option).cast_option<T>();
         } else {
@@ -253,9 +271,10 @@ abstract class CandidType {
     }
 }
 
-
+/// The [value](PrimitiveType.value) getter on a [PrimitiveType] gets its corresponding dart value. 
 abstract class PrimitiveType extends CandidType {
     final _v = null;
+    dynamic get value;
     bool get isTypeStance => this._v == null;
 
     String toString() {
@@ -274,15 +293,15 @@ class Null extends PrimitiveType {
     final bool isTypeStance;
     Null({this.isTypeStance = false});
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         return MfuncTuple(Null(), start_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         return Uint8List(0);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Null.type_code);
     }
 
@@ -294,15 +313,15 @@ class Reserved extends PrimitiveType {
     get value => throw Exception('CandidType: Reserved is with the lack of a value.');
     final bool isTypeStance;
     Reserved({this.isTypeStance = false});
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         return MfuncTuple(Reserved(), start_i);      
     }
     
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         return Uint8List(0);
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Reserved.type_code);
     }
 
@@ -314,15 +333,15 @@ class Empty extends PrimitiveType {
     get value => throw Exception('CandidType: Empty is with the lack of a value.');
     final bool isTypeStance;
     Empty({this.isTypeStance = false});
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
-        throw Exception('M(_ : empty) will never be called.'); 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
+        throw Exception('_M(_ : empty) will never be called.'); 
     }
 
-    Uint8List M_forward () {
-        throw Exception('M(_ : empty) will never be called.'); 
+    Uint8List _M_forward () {
+        throw Exception('_M(_ : empty) will never be called.'); 
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Empty.type_code);
     }
 
@@ -337,17 +356,17 @@ class Bool extends PrimitiveType {
     
     bool get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         return MfuncTuple(Bool(candidbytes[start_i]==1), start_i + 1);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         Uint8List l = Uint8List(1);
         l[0] = this.value==true ? 1 : 0;
         return l;
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Bool.type_code);
     }
 
@@ -368,17 +387,17 @@ class Nat extends PrimitiveType {
     
     BigInt get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         BigInt leb128_nat = leb128.decodeUnsigned(leb128_bytes_tuple.item1);
         return MfuncTuple(Nat(leb128_nat), leb128_bytes_tuple.item2);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         return leb128.encodeUnsigned(this.value);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Nat.type_code);
     }
 
@@ -393,17 +412,17 @@ class Int extends PrimitiveType {
     
     BigInt get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         FindLeb128BytesTuple sleb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         BigInt sleb128_int = leb128.decodeSigned(sleb128_bytes_tuple.item1);
         return MfuncTuple(Int(sleb128_int), sleb128_bytes_tuple.item2);
     }
     
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         return leb128.encodeSigned(this.value);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Int.type_code);
     }
 
@@ -422,16 +441,16 @@ class Nat8 extends PrimitiveType {
     
     int get value => this._v!;
  
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         MfuncTuple m_func_tuple = MfuncTuple(Nat8(candidbytes[start_i]), start_i+1);
         return m_func_tuple;    
     }
     
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         return Uint8List.fromList([this.value]);
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Nat8.type_code);
     }
 
@@ -450,7 +469,7 @@ class Nat16 extends PrimitiveType {
     
     int get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat16_asabitstring = '';
         // for (CandidBytes_i nat16_byte_i=start_i;nat16_byte_i<start_i+2;nat16_byte_i++) {
         //     nat16_asabitstring += candidbytes[nat16_byte_i].toRadixString(2); 
@@ -462,7 +481,7 @@ class Nat16 extends PrimitiveType {
         return m_func_tuple;          
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         String rstr = this.value.toRadixString(2);
         while (rstr.length<16) {
             rstr = '0' + rstr;
@@ -474,7 +493,7 @@ class Nat16 extends PrimitiveType {
         return Uint8List.fromList(bytes.reversed.toList());// as Uint8List;
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Nat16.type_code);
     }
 
@@ -494,7 +513,7 @@ class Nat32 extends PrimitiveType {
     
     int get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // String nat32_asabitstring = '';
         // for (CandidBytes_i nat32_byte_i=start_i;nat32_byte_i<start_i+4;nat32_byte_i++) {
         //     nat32_asabitstring += candidbytes[nat32_byte_i].toRadixString(2); 
@@ -506,7 +525,7 @@ class Nat32 extends PrimitiveType {
         return m_func_tuple;                 
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         String rstr = this.value.toRadixString(2);
         while (rstr.length<32) {
             rstr = '0' + rstr;
@@ -518,7 +537,7 @@ class Nat32 extends PrimitiveType {
         return Uint8List.fromList(bytes.reversed.toList());
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Nat32.type_code);
     }
 } 
@@ -538,7 +557,7 @@ class Nat64 extends PrimitiveType {
     
     BigInt get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         // get BigInt/int of the candid_nat64 
         String nat64_asabitstring = bytes_as_the_bitstring(Uint8List.fromList(candidbytes.sublist(start_i, start_i + 8).reversed.toList()));
         BigInt va = BigInt.parse(nat64_asabitstring, radix: 2);
@@ -546,7 +565,7 @@ class Nat64 extends PrimitiveType {
         return m_func_tuple;                 
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         String rstr = this.value.toRadixString(2);
         while (rstr.length<64) {
             rstr = '0' + rstr;
@@ -558,7 +577,7 @@ class Nat64 extends PrimitiveType {
         return Uint8List.fromList(bytes.reversed.toList());
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Nat64.type_code);
     }
 
@@ -577,19 +596,19 @@ class Int8 extends PrimitiveType {
     
     int get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int v = ByteData.sublistView(candidbytes, start_i, start_i+1).getInt8(0);
         MfuncTuple m_func_tuple = MfuncTuple(Int8(v), start_i+1);
         return m_func_tuple;                  
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         ByteData bytedata = ByteData(1);
         bytedata.setInt8(0, this.value);
         return Uint8List.view(bytedata.buffer);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Int8.type_code);
     }
 
@@ -608,19 +627,19 @@ class Int16 extends PrimitiveType {
     
     int get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int v = ByteData.sublistView(candidbytes, start_i, start_i+2).getInt16(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int16(v), start_i+2);
         return m_func_tuple;           
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         ByteData bytedata = ByteData(2);
         bytedata.setInt16(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Int16.type_code);
     }
 } 
@@ -638,19 +657,19 @@ class Int32 extends PrimitiveType {
     
     int get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         int v = ByteData.sublistView(candidbytes, start_i, start_i+4).getInt32(0, Endian.little);
         MfuncTuple m_func_tuple = MfuncTuple(Int32(v), start_i+4);
         return m_func_tuple;            
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         ByteData bytedata = ByteData(4);
         bytedata.setInt32(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Int32.type_code);
     }
 } 
@@ -668,19 +687,19 @@ class Int64 extends PrimitiveType {
     
     BigInt get value => this._v!;
     
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         String int64_asabitstring = bytes_as_the_bitstring(Uint8List.fromList(candidbytes.sublist(start_i, start_i + 8).reversed.toList())); // .reverse for the little-endian
         BigInt v = twos_compliment_bitstring_as_the_bigint(int64_asabitstring, bit_size: 64); // int or BigInt
         return MfuncTuple(Int64(v), start_i+8);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         String tc_bitstring = bigint_as_the_twos_compliment_bitstring(this.value, bit_size: 64);
         Uint8List bytes = bitstring_as_the_bytes(tc_bitstring);
         return Uint8List.fromList(bytes.reversed.toList());        
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Int64.type_code);
     }
 } 
@@ -694,18 +713,18 @@ class Float32 extends PrimitiveType {
 
     double get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         double v = ByteData.sublistView(candidbytes, start_i, start_i+4).getFloat32(0, Endian.little);
         return MfuncTuple(Float32(v), start_i+4);     
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         ByteData bytedata = ByteData(4);
         bytedata.setFloat32(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Float32.type_code);
     }
 
@@ -719,18 +738,18 @@ class Float64 extends PrimitiveType {
 
     double get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         double v = ByteData.sublistView(candidbytes, start_i, start_i+8).getFloat64(0, Endian.little);
         return MfuncTuple(Float64(v), start_i+8);    
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         ByteData bytedata = ByteData(8);
         bytedata.setFloat64(0, this.value, Endian.little);
         return Uint8List.view(bytedata.buffer);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Float64.type_code);
     }
 
@@ -743,7 +762,7 @@ class Text extends PrimitiveType {
 
     String get value => this._v!;
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) { 
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         int len_utf8_bytes = leb128.decodeUnsigned(leb128_bytes_tuple.item1).toInt();
         CandidBytes_i next_i = leb128_bytes_tuple.item2 + len_utf8_bytes;
@@ -751,14 +770,14 @@ class Text extends PrimitiveType {
         return MfuncTuple(Text(utf8.decode(utf8_bytes)), next_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> bytes = [];
         bytes.addAll(leb128.encodeUnsigned(this.value.length));
         bytes.addAll(utf8.encode(this.value));
         return Uint8List.fromList(bytes);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(Text.type_code);
     }
 } 
@@ -774,10 +793,17 @@ abstract class ConstructType extends CandidType {}
 
 
 
-
-class Option<T extends CandidType> extends ConstructType {
+/// Creating an Option.
+/// ```dart
+/// var non_null_optional_text = Option(value: Text('hi'));
+/// var null_optional_text = Option(value: null, value_type: Text());
+/// ```
+/// Check the documentation on the [candid] library page for more on creating an Option with a null value.
+class Option<T extends CandidType?> extends ConstructType {
     static const int type_code = -18;
+    /// The value within the Option. Can be set to null. When setting to null make sure the [value_type] is specified. Check the documentation on the [candid] library page for more.  
     late final T? value; 
+    /// A [CandidType] in the TypeStance mode. Check the documentation on the [candid] library page for more.
     late final T? value_type;
     late final bool isTypeStance;
     Option({this.value, this.value_type, this.isTypeStance=false}) { 
@@ -800,6 +826,8 @@ class Option<T extends CandidType> extends ConstructType {
         }
     }
     
+    /// Casts an [Option<CandidType>] into an [Option<C extends CandidType>].
+    /// Useful for casting the type of [this.value] into a **specific** [CandidType]
     Option<C> cast_option<C extends CandidType>() {
         return Option<C>(
             value: this.value == null ? null : C == Blob ? Blob.oftheVector((this.value as Vector).cast_vector<Nat8>()) as C : this.value as C, 
@@ -808,13 +836,13 @@ class Option<T extends CandidType> extends ConstructType {
         );
     }
 
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
-        // type_code-cursion
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
+        // type_code-whirlpool
         TfuncTuple value_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Option opt_type = Option(value_type: value_t_func_tuple.item1, isTypeStance: true);
         return TfuncTuple(opt_type, value_t_func_tuple.item2);
     }
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         int opt_first_byte = candidbytes[start_i];
         late CandidBytes_i next_i;
         late CandidType? val; 
@@ -822,7 +850,7 @@ class Option<T extends CandidType> extends ConstructType {
             val = null;
             next_i = start_i + 1;
         } else if (opt_first_byte==1) {
-            MfuncTuple value_type_m_func_tuple = this.value_type!.M(candidbytes, start_i + 1);
+            MfuncTuple value_type_m_func_tuple = this.value_type!._M(candidbytes, start_i + 1);
             val = value_type_m_func_tuple.item1;
             next_i = value_type_m_func_tuple.item2;
         }
@@ -833,22 +861,22 @@ class Option<T extends CandidType> extends ConstructType {
         return MfuncTuple(opt, next_i);
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(Option.type_code));
-        Uint8List value_type_t_forward_bytes = this.value != null ? this.value!.T_forward() : this.value_type!.T_forward();
+        Uint8List value_type_t_forward_bytes = this.value != null ? this.value!._T_forward() : this.value_type!._T_forward();
         t_bytes.addAll(value_type_t_forward_bytes);
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i); 
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> bytes = [];
         if (this.value == null) {
             bytes.add(0);
         } else if (this.value != null) {
             bytes.add(1);
-            bytes.addAll(this.value!.M_forward());
+            bytes.addAll(this.value!._M_forward());
         }
         return Uint8List.fromList(bytes);
     }
@@ -858,7 +886,13 @@ class Option<T extends CandidType> extends ConstructType {
     }
 }
 
-
+/// Vector candid type with a [ListMixin].
+/// Creating a Vector.
+/// ```dart
+/// var vector_of_text = Vector.oftheList([Text('hi'), Text('The sky is blue')]);
+/// var empty_vector_of_text = Vector.oftheList([], values_type: Text()); 
+/// ```
+/// Check the documentation on the [candid] library page for more on creating an empty Vector with a length of 0.
 class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {         
     static const int type_code = -19;
     final T? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
@@ -869,8 +903,8 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         }*/
     }
 
-    static Vector<T> oftheList<T extends CandidType>(Iterable<T> list ) {
-        Vector<T> vec = Vector<T>();
+    static Vector<T> oftheList<T extends CandidType>(Iterable<T> list, {T? values_type}) {
+        Vector<T> vec = Vector<T>(values_type: values_type);
         vec.addAll(list);
         return vec;
     }
@@ -922,12 +956,12 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
     } 
 
 
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         TfuncTuple values_type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
         Vector vec = Vector(values_type: values_type_t_func_tuple.item1, isTypeStance: true);
         return TfuncTuple(vec, values_type_t_func_tuple.item2);
     } 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         Tuple2<Uint8List,CandidBytes_i> leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         BigInt vec_len_b = leb128.decodeUnsigned(leb128_bytes_tuple.item1);
         late int vec_len;
@@ -945,7 +979,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         } else {
             vec = Vector(values_type: this.values_type is TypeTableReference ? (this.values_type as TypeTableReference).get_final_type_stance() : this.values_type);
             for (int i=0;i<vec_len;i=i+1) {
-                MfuncTuple m_func_tuple = this.values_type!.M(candidbytes, next_vec_item_start_i);
+                MfuncTuple m_func_tuple = this.values_type!._M(candidbytes, next_vec_item_start_i);
                 vec.add(m_func_tuple.item1);
                 next_vec_item_start_i = m_func_tuple.item2;
             }
@@ -953,29 +987,29 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
         return MfuncTuple(vec, next_vec_item_start_i);
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(Vector.type_code));
         if (this.values_type == null && this.length == 0) {
             throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs a vector-values-type to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-param when creating this vector. Vector(values_type: Int64()/Text()/...)');
         }
-        Uint8List values_type_t_forward_bytes = this.values_type != null ? this.values_type!.T_forward() : this[0].T_forward();
+        Uint8List values_type_t_forward_bytes = this.values_type != null ? this.values_type!._T_forward() : this[0]._T_forward();
         t_bytes.addAll(values_type_t_forward_bytes);
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> m_bytes = [];
         m_bytes.addAll(leb128.encodeUnsigned(this.length));
         for (CandidType c in this) {
-            m_bytes.addAll(c.M_forward());
+            m_bytes.addAll(c._M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
 }
 
-
+/// Blob extends Vector<Nat8> with useful functionality for direct handling of the bytes of a Blob without the [Nat8] type in between.
 class Blob extends Vector<Nat8> { 
     Blob(Iterable<int> bytes_list, {super.isTypeStance = false}) : super(values_type: Nat8()) {
         if (bytes_list.length > 0) {
@@ -985,6 +1019,7 @@ class Blob extends Vector<Nat8> {
     static Blob oftheVector(Vector<Nat8> vecnat8) {
         return Blob(vecnat8.map<int>((Nat8 nat8byte)=>nat8byte.value).toList());
     }
+    /// Turns this list of [Nat8]s into standard dart bytes [Uint8List].
     Uint8List get bytes {
         List<int> l = map((Nat8 nat8byte)=>nat8byte.value).toList();
         return Uint8List.fromList(l); 
@@ -1071,7 +1106,29 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
     }
 }
 
-
+/// Record candid type.
+/// A [Record] is created using a [Map] structure with the keys being [int] and the values being [CandidType]s.
+/// It is possible to use a [String] for the field-name when setting a field or looking up a value, 
+/// however the [String] field-name gets converted into an [int] using the [candid_text_hash] according to the candid-specification. 
+/// So when iterating through the keys/field-names of the Record the key is an [int] type. 
+/// Use the [candid_text_hash] function to get the [int] representation of a [String] field-name.
+/// Creating a Record.
+/// ```dart
+/// var record = Record.oftheMap({
+///     'greeting': Text('Hi'),
+///     'name': Text('Bob'),
+///     'address_info': Record.oftheMap({
+///         'zip_code': Nat(12345),
+///         'street_name': Text('Mountain'),
+///     }),
+///     'ready': Bool(true)
+/// });
+///
+/// var tuple_style_record = Record.oftheMap({
+///     0: Nat(5),
+///     1: Text('green')
+/// });
+/// ```
 class Record extends RecordAndVariantMap {
     static const int type_code = -20;
     Record({isTypeStance=false}) : super(isTypeStance: isTypeStance);
@@ -1082,14 +1139,17 @@ class Record extends RecordAndVariantMap {
         return record;
     }
     
+    /// Candid subtyping rules state that an [Option] can be missing within a record if it is sent with a null-value.
+    /// Use this function when looking for an [Option] in a [Record].
+    /// [key] can be a [String] or an [int].
     T? find_option<T extends CandidType>(dynamic key) {
         if (this.containsKey(key)) {
-            return this[key]!.asOption<T>().value;   
+            return this[key]!.as_option<T>().value;   
         }   
         return null;
     }
     
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         Record record_type = Record(isTypeStance: true);
         FindLeb128BytesTuple record_len_find_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic record_len = leb128.decodeUnsigned(record_len_find_leb128bytes_tuple.item1);
@@ -1113,35 +1173,35 @@ class Record extends RecordAndVariantMap {
         return TfuncTuple(record_type, next_field_start_candidbytes_i);
     }
 
-    MfuncTuple M(Uint8List candidbytes, int start_i) {
+    MfuncTuple _M(Uint8List candidbytes, int start_i) {
         Record record = Record();
         CandidBytes_i next_i = start_i;
         for (int hash_key in this.keys) { //  is with the sort on the keys property
             CandidType ctype = this[hash_key]!;
-            MfuncTuple ctype_m_func_tuple = ctype.M(candidbytes, next_i);
+            MfuncTuple ctype_m_func_tuple = ctype._M(candidbytes, next_i);
             record[hash_key]= ctype_m_func_tuple.item1;
             next_i =        ctype_m_func_tuple.item2;
         }
         return MfuncTuple(record, next_i);            
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(Record.type_code));
         Iterable<int> hash_keys = this.keys;
         t_bytes.addAll(leb128.encodeUnsigned(hash_keys.length));
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128.encodeUnsigned(hash_key));
-            t_bytes.addAll(this[hash_key]!.T_forward());
+            t_bytes.addAll(this[hash_key]!._T_forward());
         }
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> m_bytes = [];
         for (int hashkey in this.keys) {
-            m_bytes.addAll(this[hashkey]!.M_forward());
+            m_bytes.addAll(this[hashkey]!._M_forward());
         } 
         return Uint8List.fromList(m_bytes);
     }
@@ -1149,7 +1209,20 @@ class Record extends RecordAndVariantMap {
 }
 
 
-
+/// Variant candid type.
+/// A Variant is created using a [Map] structure. 
+/// Only **one** field key and value is needed to specify the chosen variant and value.
+/// ```dart
+/// var variant = Variant.oftheMap({
+///     'blue': Nat(555)
+/// });
+/// ```
+/// For variant types without associated values such as: `variant {install; reinstall; upgrade}`, the field value is the [Null] type.
+/// ```dart
+/// var variant = Variant.oftheMap({
+///     'upgrade': Null()
+/// });
+/// ```
 class Variant extends RecordAndVariantMap {
     static const int type_code = -21;
     Variant({isTypeStance=false}) : super(isTypeStance: isTypeStance);
@@ -1165,7 +1238,7 @@ class Variant extends RecordAndVariantMap {
         return variant;
     }
     
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         Variant variant_type = Variant(isTypeStance: true);
         FindLeb128BytesTuple variant_type_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic variant_len = leb128.decodeUnsigned(variant_type_len_leb128bytes_tuple.item1);
@@ -1191,7 +1264,7 @@ class Variant extends RecordAndVariantMap {
 
     }
 
-    MfuncTuple M(Uint8List candidbytes, int start_i) {
+    MfuncTuple _M(Uint8List candidbytes, int start_i) {
         Variant variant = Variant();
         FindLeb128BytesTuple leb128_bytes_tuple = find_leb128bytes(candidbytes, start_i);
         Uint8List variant_field_i_leb128_bytes = leb128_bytes_tuple.item1;
@@ -1199,29 +1272,29 @@ class Variant extends RecordAndVariantMap {
         List<int> variant_fields_hashs = this.keys.toList();
         int variant_field_hash = variant_fields_hashs[variant_field_i];
         CandidType field_ctype = this[variant_field_hash]!;
-        MfuncTuple field_m_func_tuple = field_ctype.M(candidbytes, leb128_bytes_tuple.item2);
+        MfuncTuple field_m_func_tuple = field_ctype._M(candidbytes, leb128_bytes_tuple.item2);
         variant[variant_field_hash]= field_m_func_tuple.item1;
         return MfuncTuple(variant, field_m_func_tuple.item2);   
     }
 
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(Variant.type_code));
         Iterable<int> hash_keys = this.keys;
         t_bytes.addAll(leb128.encodeUnsigned(hash_keys.length));   
         for (int hash_key in hash_keys) {
             t_bytes.addAll(leb128.encodeUnsigned(hash_key));
-            t_bytes.addAll(this[hash_key]!.T_forward());
+            t_bytes.addAll(this[hash_key]!._T_forward());
         }
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         if (this.keys.length > 1) { throw Exception('variant can only hold one value.'); }
         List<int> m_bytes = [];
         m_bytes.addAll(leb128.encodeUnsigned(0));
-        m_bytes.addAll(this.values.first.M_forward());
+        m_bytes.addAll(this.values.first._M_forward());
         return Uint8List.fromList(m_bytes);
     }
 
@@ -1296,7 +1369,7 @@ class FunctionReference extends ReferenceType {
     }
     String toString() => '${get_typename_ofthe_toString(super.toString())}: (${this.in_types.toString().substring(1, this.in_types.toString().length - 1)}) -> (${this.out_types.toString().substring(1, this.out_types.toString().length - 1)})${isQuery ? ' query' : ''}${isOneWay ? ' oneway' : ''}, service: ${this.service}, method_name: ${this.method_name}.';
 
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         List<CandidType> in_types = [];
         List<CandidType> out_types = [];
         CandidBytes_i next_types_list_start_i = start_i;
@@ -1331,16 +1404,16 @@ class FunctionReference extends ReferenceType {
         return TfuncTuple(func_fer, next_func_mark_start_i);
     } 
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         late CandidBytes_i next_i;
         ServiceReference? service_value;
         Text? method_name_value;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true, methods_types: {}).M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
+            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true, methods_types: {})._M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
             service_value = service_m_func_tuple.item1 as ServiceReference; 
-            MfuncTuple method_name_text_m_func_tuple = Text().M(candidbytes, service_m_func_tuple.item2);
+            MfuncTuple method_name_text_m_func_tuple = Text()._M(candidbytes, service_m_func_tuple.item2);
             method_name_value = method_name_text_m_func_tuple.item1 as Text;
             next_i = method_name_text_m_func_tuple.item2;
         }
@@ -1365,13 +1438,13 @@ class FunctionReference extends ReferenceType {
         return MfuncTuple(func_fer, next_i);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         List<int> t_bytes = [];
         t_bytes.addAll(leb128.encodeSigned(FunctionReference.type_code));
         for (List<CandidType> types_list in [this.in_types, this.out_types]) {
             t_bytes.addAll(leb128.encodeUnsigned(types_list.length));
             for (CandidType ctype in types_list) {
-                t_bytes.addAll(ctype.T_forward());
+                t_bytes.addAll(ctype._T_forward());
             }
         }
         int func_marks_len = 0;
@@ -1383,12 +1456,12 @@ class FunctionReference extends ReferenceType {
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
     }
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> m_bytes = [];
         if (this.service != null) {
             m_bytes.add(1);
-            m_bytes.addAll(this.service!.M_forward());
-            m_bytes.addAll(this.method_name!.M_forward());
+            m_bytes.addAll(this.service!._M_forward());
+            m_bytes.addAll(this.method_name!._M_forward());
         } else {
             m_bytes.add(0);
         }
@@ -1425,13 +1498,13 @@ class ServiceReference extends ReferenceType {
     }
     String toString() => '${get_typename_ofthe_toString(super.toString())}${this.id != null ? ': ' + Principal.oftheBytes(this.id!.bytes).text : ''}';
 
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         Map<Text, CandidType> methods_types = {}; // CandidType here is either TypeTableReference or FunctionReference
         FindLeb128BytesTuple methods_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         int methods_len = leb128.decodeUnsigned(methods_len_leb128bytes_tuple.item1).toInt();
         CandidBytes_i next_method_start_i = methods_len_leb128bytes_tuple.item2;
         for (int i=0;i<methods_len;i++) {
-            MfuncTuple method_name_m_func_tuple = Text().M(candidbytes, next_method_start_i);
+            MfuncTuple method_name_m_func_tuple = Text()._M(candidbytes, next_method_start_i);
             Text method_name = method_name_m_func_tuple.item1 as Text;
             TfuncTuple function_reference_t_func_tuple = crawl_type_table_whirlpool(candidbytes, method_name_m_func_tuple.item2);
             methods_types[method_name] = function_reference_t_func_tuple.item1; // could be a type table reference
@@ -1441,21 +1514,21 @@ class ServiceReference extends ReferenceType {
         return TfuncTuple(service_fer, next_method_start_i);
     } 
 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         if (this.isTypeStance==false) { throw Exception('this function is call on a stance with the isTypeStance==true and a Map<Text, FunctionReference> methods_types'); }
         Blob? id_value;
         late CandidBytes_i next_i;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
+            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8())._M(candidbytes, start_i + 1);
             Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
             id_value = Blob.oftheVector(id_value_vecnat8);
             next_i = id_m_func_tuple.item2;
         }
         ServiceReference service = ServiceReference(id: id_value);
         for (MapEntry func_me in this.methods_types!.entries) {
-            FunctionReference func_ref = func_me.value.M(Uint8List(1), 0).item1 as FunctionReference; // getting the FunctionReference types from the type_table without a service or method_name
+            FunctionReference func_ref = func_me.value._M(Uint8List(1), 0).item1 as FunctionReference; // getting the FunctionReference types from the type_table without a service or method_name
             service.methods[func_me.key] = FunctionReference(
                 service: service, 
                 method_name: func_me.key,     // putting this service and method_name of this method on this FunctionReference
@@ -1468,7 +1541,7 @@ class ServiceReference extends ReferenceType {
         return MfuncTuple(service, next_i);
     }
     
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         if (this.isTypeStance==true) {
             throw Exception('Cannot serialize this ServiceReference because it has a isTypeStance=true, try to do ServiceReference with an isTypeStance=false');
         }
@@ -1484,20 +1557,20 @@ class ServiceReference extends ReferenceType {
         t_bytes.addAll(leb128.encodeSigned(ServiceReference.type_code));
         t_bytes.addAll(leb128.encodeUnsigned(this.methods.keys.length));
         for (Text method_name in this.methods.keys.toList()..sort((a,b)=>a.value.compareTo(b.value))) { 
-            t_bytes.addAll(method_name.M_forward()); // Text
-            t_bytes.addAll(this.methods[method_name]!.T_forward()); // FunctionReference
+            t_bytes.addAll(method_name._M_forward()); // Text
+            t_bytes.addAll(this.methods[method_name]!._T_forward()); // FunctionReference
         } 
         int type_table_i = put_t_in_the_type_table_forward(t_bytes);
         return leb128.encodeSigned(type_table_i);
     }
 
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> m_bytes = [];
         if (this.id == null) {
             m_bytes.add(0);
         } else {
             m_bytes.add(1);
-            m_bytes.addAll(this.id!.M_forward());
+            m_bytes.addAll(this.id!._M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
@@ -1520,16 +1593,17 @@ class PrincipalReference extends ReferenceType {
     }
     String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}: ${this.principal != null ? this.principal!.text : 'opaque'}';
 
-    static TfuncTuple T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
-        return TfuncTuple(PrincipalReference(isTypeStance: true), start_i);
+    static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
+        // Do this for the now while opaque PrincipalReferences are not being used.
+        return TfuncTuple(Principal.typestance(), start_i);
     } 
-    MfuncTuple M(Uint8List candidbytes, CandidBytes_i start_i) {
+    MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         Blob? id_value;
         late CandidBytes_i next_i;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8()).M(candidbytes, start_i + 1);
+            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8())._M(candidbytes, start_i + 1);
             Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
             id_value = Blob.oftheVector(id_value_vecnat8); 
             next_i = id_m_func_tuple.item2;
@@ -1542,16 +1616,16 @@ class PrincipalReference extends ReferenceType {
         }
         
     }    
-    Uint8List T_forward() {
+    Uint8List _T_forward() {
         return leb128.encodeSigned(PrincipalReference.type_code);
     }
-    Uint8List M_forward() {
+    Uint8List _M_forward() {
         List<int> m_bytes = [];
         if (this.id == null) {
             m_bytes.add(0);
         } else {
             m_bytes.add(1);
-            m_bytes.addAll(this.id!.M_forward());
+            m_bytes.addAll(this.id!._M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
