@@ -260,13 +260,13 @@ abstract class CandidType {
     /// This function makes that check for you and returns the Option type even if the value is sent by itself for the consistency.    
     /// ```dart
     /// Uint8List candidbytes = ...;
-    /// Option<Nat> optional_nat = c_backwards_one(candidbytes).as_option<Nat>();
+    /// Option<Nat> optional_nat = CandidType.as_option<Nat>(c_backwards_one(candidbytes));
     /// ```
-    Option<T> as_option<T extends CandidType>() {
-        if (this is Option) {
-            return (this as Option).cast_option<T>();
+    static Option<T> as_option<T extends CandidType>(CandidType option) {
+        if (option is Option) {
+            return (option as Option).cast_option<T>();
         } else {
-            return Option<T>(value: this as T);
+            return Option<T>(value: option as T);
         }
     }
 }
@@ -1146,7 +1146,7 @@ class Record extends RecordAndVariantMap {
     /// [key] can be a [String] or an [int].
     T? find_option<T extends CandidType>(dynamic key) {
         if (this.containsKey(key)) {
-            return this[key]!.as_option<T>().value;   
+            return CandidType.as_option<T>(this[key]!).value;   
         }   
         return null;
     }
