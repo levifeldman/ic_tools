@@ -4,9 +4,11 @@ import 'package:tuple/tuple.dart';
 
 import './tools.dart';
 
-
+/// Functions for working with the leb128 variable-length number serialization format.
 class leb128 {
-
+    leb128._();
+    
+    /// Can serialize an [int] or a [BigInt] as a leb128 unsigned format. 
     static Uint8List encodeUnsigned(dynamic d) {
         if (d is! BigInt && d is! int) {
             throw Exception('leb128 encode parameter must be an int or a BigInt');
@@ -35,6 +37,7 @@ class leb128 {
         return Uint8List.fromList(leb128_bytes);
     }
 
+    /// De-Serializes a leb128 unsigned bytes into a [BigInt].
     static BigInt decodeUnsigned(List<int> bytes) {
         String bitstring = '';
         bitstring += bytes[bytes.length-1].toRadixString(2);
@@ -46,7 +49,8 @@ class leb128 {
         BigInt valuebigint = BigInt.parse(bitstring, radix: 2);
         return valuebigint;
     }
-
+    
+    /// Can serialize an [int] or [BigInt] as a leb128 signed format.
     static Uint8List encodeSigned(dynamic d) {
         if (d is! BigInt && d is! int) {
             throw Exception('leb128 encode parameter must be an int or a BigInt');
@@ -73,7 +77,8 @@ class leb128 {
         List<int> bytes = bytes_bitstrings.map((String byte_bitstring)=>int.parse(byte_bitstring, radix:2)).toList();
         return Uint8List.fromList(bytes.reversed.toList());        
     }
-
+    
+    /// De-Serializes a leb128 signed format into a [BigInt]
     static BigInt decodeSigned(List<int> bytes) {
         String bitstring = '';
         int first_byte = bytes[bytes.length-1];
@@ -87,8 +92,10 @@ class leb128 {
     
 }
 
-
+/// The return type of the [find_leb128bytes] function. The `item1` is the leb128 bytes, and the `item2` is the `start_i` + `item1.length`.
 typedef FindLeb128BytesTuple = Tuple2<Uint8List, int>;
+
+/// Finds where the leb128 bytes finish in a list of bytes. Returns a [FindLeb128BytesTuple]. 
 FindLeb128BytesTuple find_leb128bytes(Uint8List bytes, int start_i) {
     int c = start_i;
     while (bytes[c] >= 128) { 

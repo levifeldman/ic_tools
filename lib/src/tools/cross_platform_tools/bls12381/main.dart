@@ -5,11 +5,12 @@ import 'stub.dart'
     if (dart.library.js) 'bls12381_web.dart';
 
 
-
+/// Use the [bls12381] property in this [tools] library to get the instance of this class. 
 abstract class Bls12381Flutter {
     bool _loadtry = false;
     bool _loadsuccess = false;
     
+    /// Verify a BLS12381 signature.
     Future<bool> verify(Uint8List autograph, Uint8List message, Uint8List blskey) async {
         if (_loadtry==false) { 
             _loadsuccess = await load();
@@ -20,13 +21,16 @@ abstract class Bls12381Flutter {
         }
         return verify_ffi(autograph, message, blskey);
     }       
-
+    
+    /// For internal use.
     Future<bool> load(); //load function should return loadsuccess
+    
+    /// For internal use. Use the [verify] function to verify a BLS signature.
     bool verify_ffi(Uint8List autograph, Uint8List message, Uint8List blskey);
 
 }
 
-
+/// To verify a BLS12381 signature on a message, use the function [bls12381.verify].
 Bls12381Flutter bls12381 = getBls12381Lib(); 
 
 

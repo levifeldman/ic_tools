@@ -566,7 +566,7 @@ Uint8List icdatahash(dynamic datastructure) {
             fieldhash.addAll(icdatahash(datastructure[key]));
             datafieldshashs.add(fieldhash);
         }
-        datafieldshashs.sort((a,b) => bytesasabitstring(a).compareTo(bytesasabitstring(b)));
+        datafieldshashs.sort((a,b) => bytes_as_the_bitstring(a).compareTo(bytes_as_the_bitstring(b)));
         valueforthehash = datafieldshashs.fold(<int>[],(p,c)=>p+c); }
     else {
         throw Exception('icdatahash: check: type of the datastructure: ${datastructure.runtimeType}');    

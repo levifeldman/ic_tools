@@ -2,8 +2,15 @@ import 'dart:typed_data';
 
 export './leb128.dart';
 export './cross_platform_tools/onthewebcheck/main.dart' show isontheweb;
-export './cross_platform_tools/bls12381/main.dart' show bls12381;
 
+import './cross_platform_tools/bls12381/main.dart' as bls12381_lib;
+class bls12381 {
+    bls12381._();
+    /// Verify a BLS12381 signature.
+    static Future<bool> verify(Uint8List autograph, Uint8List message, Uint8List blskey) async {
+        return await bls12381_lib.bls12381.verify(autograph, message, blskey);
+    }
+}
 
 Uint8List hexstringasthebytes(String hex) {
     List<int> bytes = [];
@@ -88,6 +95,7 @@ BigInt twos_compliment_bitstring_as_the_bigint(String bit_string, {required int 
     return bi;
 }
 
+/// `[bitstring].length` must be a multiple of 8.
 Uint8List bitstring_as_the_bytes(String bitstring) {
     if (bitstring.length % 8 != 0) {
         throw Exception('bitstring.length must be a multiple of 8 in this funcion');
@@ -111,9 +119,6 @@ String bytes_as_the_bitstring(Iterable<int> bytes) {
 }
 
 
-String bytesasabitstring(List<int> bytes) => bytes_as_the_bitstring(bytes); 
-
-
 
 
 
@@ -126,14 +131,16 @@ BigInt get_current_time_nanoseconds() {
 }
 
 BigInt get_current_time_seconds() {
-    return BigInt.parse((BigInt.from(DateTime.now().millisecondsSinceEpoch) / BigInt.from(1000)).toString().split('.').first);
+    return BigInt.from(DateTime.now().millisecondsSinceEpoch) ~/ BigInt.from(1000);
 }
 
 BigInt seconds_of_the_nanos(BigInt nanos) {
-    return BigInt.parse((nanos / BigInt.from(1000000000)).toString().split('.').first);
+    return nanos ~/ BigInt.from(1000000000);
 }
 
-
+BigInt milliseconds_of_the_nanos(BigInt nanos) {
+    return nanos ~/ BigInt.from(1000000);
+}
 
 
 

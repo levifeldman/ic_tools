@@ -9,6 +9,8 @@ abstract class onthewebcheck {
 }
 
 onthewebcheck onthewebcheckstance = getonthewebcheckstance();
+
+/// Whether this code is running on the Web platform.
 final bool isontheweb = onthewebcheckstance.isontheweb;
 
 
