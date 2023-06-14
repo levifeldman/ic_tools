@@ -4,7 +4,7 @@
 ///
 ///
 ///
-library;
+library common;
 
 export 'src/common.dart' show 
     check_icp_balance,

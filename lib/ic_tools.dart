@@ -1,21 +1,23 @@
 
 
 /// The core library for communicating with the internet-computer.
-library;
+library ic_tools;
 
 export 'src/ic_tools.dart' show 
+    Principal,
+    Keys,
+    Ed25519Keys,
+    Legation,
+    LegationsMethods,
     Caller,
-    CallerEd25519,
     CallType,
     CallException,
     Canister,
-    Principal,
-    Legation,
-    icbaseurl,
-    icrootkey,
+    ic_base_url,
+    ic_root_key,
     ic_status,
-    icdatahash,
+    ic_data_hash,
     verify_certificate,
-    lookuppathvalueinaniccertificatetree,
-    constructicsystemstatetreeroothash
+    lookup_path_value_in_an_ic_certificate_tree,
+    construct_ic_system_state_tree_root_hash
     ;

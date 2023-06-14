@@ -1,20 +1,30 @@
 name: ic_tools
 description: "ic_tools in the dart-language."
-version: 1.1.4
+version: 2.0.0
 homepage: https://github.com/levifeldman/ic_tools
+platforms:
+  linux:
+  web:
+topics:
+  - crypto
+  - blockchain
+  - world-computer
+  - internet-computer
+  - agent
+  
 
 
 environment:
   sdk: ">=2.17.0 <4.0.0"
 
 dependencies:
-  http: ^0.13.3
+  http: 0.13.3
   #cbor: #^5.1.2 # use local package with web fix
   typed_data: ^1.3.0 
   archive: ^3.1.2 # crc32 checksum functions
   base32: 2.0.0
-  crypto: 3.0.1 
-  ffi: ^1.1.2
+  crypto: 3.0.1
+  ffi: 1.1.2
   js: ^0.6.3
   tuple: ^2.0.0
   ed25519_edwards: ^0.3.1

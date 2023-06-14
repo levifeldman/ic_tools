@@ -122,7 +122,7 @@ String bytes_as_the_bitstring(Iterable<int> bytes) {
 
 
 
-String get_typename_ofthe_toString(String str) => str.substring(13, str.length-1);
+String get_type_name_of_the_toString(String str) => str.substring(13, str.length-1);
 
 
 
