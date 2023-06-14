@@ -26,3 +26,5 @@ lib/tbytes.dart
 doc/
 
 serve_docs.py
+
+tests/

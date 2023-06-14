@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'dart:math';
 
 import 'package:tuple/tuple.dart';
+import 'package:crypto/crypto.dart'; // sha224 for the Principal.of_the_public_key_DER
 
 import './tools/tools.dart';
 import './ic_tools.dart';
@@ -15,16 +16,16 @@ final Uint8List magic_bytes = Uint8List.fromList(utf8.encode('DIDL')); //0x44494
 
 
 typedef CandidBytes_i = int;     
-typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; // T_backward gives back a CandidType-stance with isTypeStance=true for the M_backwards-function. and a Candidbytes_i for non-primitive-types
+typedef TfuncTuple = Tuple2<CandidType,CandidBytes_i>; // T_backward gives back a CandidType-stance with type_mode=true for the M_backwards-function. and a Candidbytes_i for non-primitive-types
 typedef MfuncTuple = Tuple2<CandidType,CandidBytes_i>; // M_backward gives back a CandidType-stance with the values and a Candidbytes_i
 
 
 
 
-final Map<int, PrimitiveType> backwards_primtypes_opcodes_for_the_primtype_type_stances = { //PrimitiveType is with isTypeStance = true; 
-    Null.type_code     : Null(isTypeStance: true),
-    Reserved.type_code : Reserved(isTypeStance: true),
-    Empty.type_code    : Empty(isTypeStance: true),
+final Map<int, PrimitiveType> backwards_primtypes_opcodes_for_the_primtype_type_stances = { //PrimitiveType is with type_mode = true; 
+    Null.type_code     : Null(type_mode: true),
+    Reserved.type_code : Reserved(type_mode: true),
+    Empty.type_code    : Empty(type_mode: true),
     Bool.type_code     : Bool(),
     Nat.type_code      : Nat(),
     Int.type_code      : Int(),
@@ -78,7 +79,7 @@ int candid_text_hash(String text) {
 List<CandidType> type_table = []; 
 
 class TypeTableReference extends CandidType { 
-    final bool isTypeStance = true;
+    final bool type_mode = true;
     final int type_table_i; 
     
     late MfuncTuple Function(Uint8List candidbytes, CandidBytes_i start_i) m;
@@ -124,7 +125,7 @@ TfuncTuple crawl_type_table_whirlpool(Uint8List candidbytes, CandidBytes_i type_
         throw Exception('unknown candid type_code ');
     }
 
-    if (t_func_tuple.item1.isTypeStance==false) { throw Exception('T_backwards functions need to return a CandidType with an isTypeStance=true'); }
+    if (t_func_tuple.item1.type_mode==false) { throw Exception('T_backwards functions need to return a CandidType with an type_mode=true'); }
     return t_func_tuple;
 }
 
@@ -137,7 +138,7 @@ CandidBytes_i crawl_type_table(Uint8List candidbytes) {
     for (BigInt t=BigInt.from(0);t<type_table_length;t=t+BigInt.one) {
         TfuncTuple t_func_tuple = crawl_type_table_whirlpool(candidbytes, next_type_start_candidbytes_i); // first layer should never be a type_table_reference
         CandidType ctype = t_func_tuple.item1;
-        if (ctype.isTypeStance==false) { throw Exception('T functions need to return a ctype with an isTypeStance=true'); }
+        if (ctype.type_mode==false) { throw Exception('T functions need to return a ctype with an type_mode=true'); }
         if (ctype is TypeTableReference) { throw Exception('first level type_table type cannot be a typetablereference'); }
         type_table.add(ctype);
         next_type_start_candidbytes_i = t_func_tuple.item2;
@@ -166,14 +167,14 @@ List<CandidType> crawl_memory_bytes(Uint8List candidbytes, CandidBytes_i param_c
         } else if (isPrimTypeCode(type_code)) {
             ctype = backwards_primtypes_opcodes_for_the_primtype_type_stances[type_code]!;
         } else if (type_code == PrincipalReference.type_code) {
-            ctype = PrincipalReference(isTypeStance: true);
+            ctype = PrincipalReference(type_mode: true);
         } else {
             throw Exception('params_list_types codes can either be a type_table_i or a primtypecode or a principal-reference'); // this is because a PrincipalReference even though not a primitive-type it is considered a non-composite type because its T-function has only its type_code so it is not put in the type-table.
         }
 
         MfuncTuple ctype_m_func_tuple = ctype._M(candidbytes, next_param_value_start_i);
         CandidType cvalue = ctype_m_func_tuple.item1;
-        if (cvalue.isTypeStance==true) { throw Exception('M functions need to return a CandidType with an isTypeStance=false'); }
+        if (cvalue.type_mode==true) { throw Exception('M functions need to return a CandidType with an type_mode=false'); }
         candids.add(cvalue);
         next_param_value_start_i = ctype_m_func_tuple.item2;
     }
@@ -224,7 +225,7 @@ int put_t_in_the_type_table_forward(List<int> t_bytes) {
 // forwards
 /// Serialize a List of [CandidType]s into the binary over-the-wire format.
 Uint8List c_forwards(List<CandidType> candids) {
-    candids.forEach((CandidType c){ if (c.isTypeStance==true) { throw Exception('c_forwards must be with the candids of the isTypeStance=false'); }});
+    candids.forEach((CandidType c){ if (c.type_mode==true) { throw Exception('c_forwards must be with the candids of the type_mode=false'); }});
     List<int> candidbytes = magic_bytes.toList();
     List<int> params_list_types_bytes_section = [];
     List<int> params_list_values_bytes_section = [];
@@ -248,7 +249,7 @@ Uint8List c_forwards_one(CandidType c) {
 
 
 abstract class CandidType {
-    bool get isTypeStance;
+    bool get type_mode;
     
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i);
     
@@ -264,7 +265,7 @@ abstract class CandidType {
     /// ```
     static Option<T> as_option<T extends CandidType>(CandidType option) {
         if (option is Option) {
-            return (option as Option).cast_option<T>();
+            return option.cast_option<T>();
         } else {
             return Option<T>(value: option as T);
         }
@@ -275,10 +276,10 @@ abstract class CandidType {
 abstract class PrimitiveType extends CandidType {
     final _v = null;
     dynamic get value;
-    bool get isTypeStance => this._v == null;
+    bool get type_mode => this._v == null;
 
     String toString() {
-        String s = get_typename_ofthe_toString(super.toString());
+        String s = get_type_name_of_the_toString(super.toString());
         return this._v != null ? s + ': ${this._v}' : s;
     }
 
@@ -290,9 +291,9 @@ abstract class PrimitiveType extends CandidType {
 class Null extends PrimitiveType {
     static const int type_code = -1;
     get value => throw Exception('CandidType: Null is with the lack of a value.'); 
-    final bool isTypeStance;
-    Null({this.isTypeStance = false});
-
+    final bool type_mode;
+    Null({this.type_mode = false});
+    
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         return MfuncTuple(Null(), start_i);
     }
@@ -311,8 +312,8 @@ class Null extends PrimitiveType {
 class Reserved extends PrimitiveType {
     static const int type_code = -16;
     get value => throw Exception('CandidType: Reserved is with the lack of a value.');
-    final bool isTypeStance;
-    Reserved({this.isTypeStance = false});
+    final bool type_mode;
+    Reserved({this.type_mode = false});
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         return MfuncTuple(Reserved(), start_i);      
     }
@@ -331,8 +332,8 @@ class Reserved extends PrimitiveType {
 class Empty extends PrimitiveType {
     static const int type_code = -17;
     get value => throw Exception('CandidType: Empty is with the lack of a value.');
-    final bool isTypeStance;
-    Empty({this.isTypeStance = false});
+    final bool type_mode;
+    Empty({this.type_mode = false});
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) { 
         throw Exception('_M(_ : empty) will never be called.'); 
     }
@@ -803,11 +804,11 @@ class Option<T extends CandidType?> extends ConstructType {
     static const int type_code = -18;
     /// The value within the Option. Can be set to null. When setting to null make sure the [value_type] is specified. Check the documentation on the [candid] library page for more.  
     late final T? value; 
-    /// A [CandidType] in the TypeStance mode. Check the documentation on the [candid] library page for more.
+    /// A [CandidType] in the `type_mode`. Check the documentation on the [candid] library page for more.
     late final T? value_type;
-    late final bool isTypeStance;
-    Option({this.value, this.value_type, this.isTypeStance=false}) { 
-        if (isTypeStance==true) {
+    late final bool type_mode;
+    Option({this.value, this.value_type, this.type_mode=false}) { 
+        if (type_mode==true) {
             if (value_type==null) {
                 throw Exception('for an Option as a type-stance is with the value_type-parameter-quirement by the class-rules.');
             }
@@ -816,12 +817,12 @@ class Option<T extends CandidType?> extends ConstructType {
             }
         } else {
             if (value==null && value_type==null) {
-                throw Exception('an Option needs either a CandidType value, or if the value is null: an Option needs the value_type-parameter set to a CandidType-[in]stance with the isTypeStance=true');
+                throw Exception('an Option needs either a CandidType value, or if the value is null: an Option needs the value_type-parameter set to a CandidType-[in]stance with the type_mode=true');
             }
         }
         if (value_type!=null) {
-            if (value_type!.isTypeStance==false) {
-                throw Exception('The value_type CandidType must have .isTypeStance == true');
+            if (value_type!.type_mode==false) {
+                throw Exception('The value_type CandidType must have .type_mode == true');
             }           
         }
     }
@@ -830,16 +831,16 @@ class Option<T extends CandidType?> extends ConstructType {
     /// Useful for casting the type of [this.value] into a **specific** [CandidType]
     Option<C> cast_option<C extends CandidType>() {
         return Option<C>(
-            value: this.value == null ? null : C == Blob ? Blob.oftheVector((this.value as Vector).cast_vector<Nat8>()) as C : this.value as C, 
-            value_type: this.value_type == null ? null : C == Blob ? Blob([],isTypeStance:true) as C : this.value_type as C, 
-            isTypeStance: this.isTypeStance
+            value: this.value == null ? null : this.value as C, 
+            value_type: this.value_type == null ? null : this.value_type as C, 
+            type_mode: this.type_mode
         );
     }
 
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
         // type_code-whirlpool
         TfuncTuple value_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
-        Option opt_type = Option(value_type: value_t_func_tuple.item1, isTypeStance: true);
+        Option opt_type = Option(value_type: value_t_func_tuple.item1, type_mode: true);
         return TfuncTuple(opt_type, value_t_func_tuple.item2);
     }
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
@@ -890,46 +891,33 @@ class Option<T extends CandidType?> extends ConstructType {
 /// 
 /// Creating a Vector.
 /// ```dart
-/// var vector_of_text = Vector.oftheList([Text('hi'), Text('The sky is blue')]);
-/// var empty_vector_of_text = Vector.oftheList([], values_type: Text()); 
+/// var vector_of_text = Vector.of_the_list([Text('hi'), Text('The sky is blue')]);
+/// var empty_vector_of_text = Vector.of_the_list([], values_type: Text()); 
 /// ```
 /// Check the documentation on the [candid] library page for more on creating an empty Vector with a length of 0.
 class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {         
     static const int type_code = -19;
-    final T? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/isTypeStance=true
-    final bool isTypeStance;
-    Vector({this.values_type, this.isTypeStance= false}) {
+    final T? values_type; // use if want to serialize an empty vector or when creating a type-finition/type-stance/type_mode=true
+    final bool type_mode;
+    Vector({this.values_type, this.type_mode= false}) {
         /*if (this.values_type == null && this.length == 0) {
-            throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs the type of the vector-values to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-parameter of a candidtype with isTypeStance: true, when creating this vector. Vector(values_type: Int64()/Text()/Record.oftheMap({\'key\': Nat()}, isTypeStance: true)/...)');
+            throw Exception('candid cannot conclude the type of the items in this vector. candid c_forward needs the type of the vector-values to serialize a Vector. either put a candidtype in this vector .add(Nat(548)) .  or if you want the vector to be empty, give a values_type-parameter of a candidtype with type_mode: true, when creating this vector. Vector(values_type: Int64()/Text()/Record.of_the_map({\'key\': Nat()}, type_mode: true)/...)');
         }*/
     }
 
-    static Vector<T> oftheList<T extends CandidType>(Iterable<T> list, {T? values_type}) {
+    static Vector<T> of_the_list<T extends CandidType>(Iterable<T> list, {T? values_type}) {
         Vector<T> vec = Vector<T>(values_type: values_type);
         vec.addAll(list);
         return vec;
     }
 
-    Vector<C> cast_vector<C extends CandidType>() => Vector.oftheList<C>(this.cast<C>());
+    Vector<C> cast_vector<C extends CandidType>() => Vector.of_the_list<C>(this.cast<C>());
     
     List<T> _list = <T>[];
-    _canputinthevectortypecheck(/*T new_c*/) {
-        if (this.isTypeStance == true) { 
-            throw Exception('a Vector with a isTypeStance=true is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
+    _canputinthevectortypecheck() {
+        if (this.type_mode == true) { 
+            throw Exception('a Vector with a type_mode=true is a vector-[in]stance of a vector-type(the type of the vectors values), if you want to put CandidType values in a vector, create a new Vector().');
         }
-        /*
-        if (this.values_type != null) {
-            if (this.values_type.runtimeType != new_c.runtimeType) {
-                throw Exception('if the Vector has a values_type-field , the candidtype of the vector-values must match the candidtype of the values_type-field. this.values_type.runtimeType: ${this.values_type.runtimeType}, new_c.runtimeType: ${new_c.runtimeType}');
-            }
-        }
-        if (_list.length > 0) {
-            _list.forEach((T list_c) {
-                if (list_c.runtimeType != new_c.runtimeType) { throw Exception(':CandidType-values in a Vector-list are with the quirement of the same-specific-candidtype-type. :type of the vector-values-now: ${this[0].runtimeType}.'); }
-            });
-        }
-        done by the T
-        */
     }
     int get length => _list.length;
     set length(int l) => throw Exception('why are you setting the length of the vector here?');
@@ -959,7 +947,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         TfuncTuple values_type_t_func_tuple = crawl_type_table_whirlpool(candidbytes, start_i);
-        Vector vec = Vector(values_type: values_type_t_func_tuple.item1, isTypeStance: true);
+        Vector vec = Vector(values_type: values_type_t_func_tuple.item1, type_mode: true);
         return TfuncTuple(vec, values_type_t_func_tuple.item2);
     } 
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
@@ -1012,12 +1000,13 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
 /// Blob extends Vector<Nat8> with useful functionality for direct handling of the bytes of a Blob without the [Nat8] type in between.
 class Blob extends Vector<Nat8> { 
-    Blob(Iterable<int> bytes_list, {super.isTypeStance = false}) : super(values_type: Nat8()) {
-        if (bytes_list.length > 0) {
+    Blob(Iterable<int>? bytes_list) : super(values_type: Nat8()) {
+        if (bytes_list != null && bytes_list.length > 0) {
             this.addAll_bytes(bytes_list);
         }
     }
-    static Blob oftheVector(Vector<Nat8> vecnat8) {
+    Blob.type_mode() : super(values_type: Nat8(), type_mode:true);
+    static Blob of_the_vector_nat8(Vector<Nat8> vecnat8) {
         return Blob(vecnat8.map<int>((Nat8 nat8byte)=>nat8byte.value).toList());
     }
     /// Turns this list of [Nat8]s into standard dart bytes [Uint8List].
@@ -1044,9 +1033,9 @@ class Blob extends Vector<Nat8> {
 
 
 abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, CandidType> {
-    final bool isTypeStance;
-    RecordAndVariantMap({this.isTypeStance=false});
-    Map<int, CandidType> _map = {}; // values are CandidTypes with a isTypeStance=true when this is a record_type of a type_table
+    final bool type_mode;
+    RecordAndVariantMap({this.type_mode=false});
+    Map<int, CandidType> _map = {}; // values are CandidTypes with a type_mode=true when this is a record_type of a type_table
     Iterable<int> get keys => _map.keys.toList()..sort();
     Iterable<CandidType> get values => this.keys.map((int k)=>this[k]!);
     CandidType? operator [](dynamic key) { // String or int
@@ -1075,8 +1064,8 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
         else {
             throw Exception('must pass in a String or an int as a fieldtype-id');
         }
-        if (isTypeStance != value.isTypeStance) {
-            throw Exception('A Record or Variant with an isTypeStance=${isTypeStance} can only set map-key-values that are with an isTypeStance=${isTypeStance}. You tried to set a CandidType-value with a isTypeStance=${value.isTypeStance} to the value of a Record/Variant with an isTypeStance=${isTypeStance}.');
+        if (type_mode != value.type_mode) {
+            throw Exception('A Record or Variant with an type_mode=${type_mode} can only set map-key-values that are with an type_mode=${type_mode}. You tried to set a CandidType-value with a type_mode=${value.type_mode} to the value of a Record/Variant with an type_mode=${type_mode}.');
         }
         _map[k] = value;
     }
@@ -1116,27 +1105,27 @@ abstract class RecordAndVariantMap extends ConstructType with MapMixin<int, Cand
 /// Use the [candid_text_hash] function to get the [int] representation of a [String] field-name.
 /// Creating a Record.
 /// ```dart
-/// var record = Record.oftheMap({
+/// var record = Record.of_the_map({
 ///     'greeting': Text('Hi'),
 ///     'name': Text('Bob'),
-///     'address_info': Record.oftheMap({
+///     'address_info': Record.of_the_map({
 ///         'zip_code': Nat(12345),
 ///         'street_name': Text('Mountain'),
 ///     }),
 ///     'ready': Bool(true)
 /// });
 ///
-/// var tuple_style_record = Record.oftheMap({
+/// var tuple_style_record = Record.of_the_map({
 ///     0: Nat(5),
 ///     1: Text('green')
 /// });
 /// ```
 class Record extends RecordAndVariantMap {
     static const int type_code = -20;
-    Record({isTypeStance=false}) : super(isTypeStance: isTypeStance);
+    Record({type_mode=false}) : super(type_mode: type_mode);
     
-    static oftheMap(Map<dynamic, CandidType> record_map, {isTypeStance=false}) { // Map<String or int, CandidType>
-        Record record = Record(isTypeStance: isTypeStance);
+    static of_the_map(Map<dynamic, CandidType> record_map, {type_mode=false}) { // Map<String or int, CandidType>
+        Record record = Record(type_mode: type_mode);
         for (MapEntry mkv in record_map.entries) { record[mkv.key] = mkv.value; }
         return record;
     }
@@ -1152,7 +1141,7 @@ class Record extends RecordAndVariantMap {
     }
     
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
-        Record record_type = Record(isTypeStance: true);
+        Record record_type = Record(type_mode: true);
         FindLeb128BytesTuple record_len_find_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic record_len = leb128.decodeUnsigned(record_len_find_leb128bytes_tuple.item1);
         if (record_len is int) { record_len = BigInt.from(record_len); }
@@ -1215,33 +1204,33 @@ class Record extends RecordAndVariantMap {
 ///  
 /// Only **one** field key and value is needed to specify the chosen variant and value.
 /// ```dart
-/// var variant = Variant.oftheMap({
+/// var variant = Variant.of_the_map({
 ///     'blue': Nat(555)
 /// });
 /// ```
 /// For variant types without associated values such as: `variant {install; reinstall; upgrade}`, the field value is the [Null] type.
 /// ```dart
-/// var variant = Variant.oftheMap({
+/// var variant = Variant.of_the_map({
 ///     'upgrade': Null()
 /// });
 /// ```
 class Variant extends RecordAndVariantMap {
     static const int type_code = -21;
-    Variant({isTypeStance=false}) : super(isTypeStance: isTypeStance);
+    Variant({type_mode=false}) : super(type_mode: type_mode);
     void operator []=(dynamic key, CandidType value) {
-        if (this.isTypeStance==false && this.keys.length > 0) {
-            throw Exception('A Variant can only hold one key-value. if this is a type-finition/type-stance, create the Variant(isTypeStance: true)');
+        if (this.type_mode==false && this.keys.length > 0) {
+            throw Exception('A Variant can only hold one key-value. if this is a type-finition/type-stance, create the Variant(type_mode: true)');
         }
         super[key] = value;
     }
-    static oftheMap(Map<dynamic, CandidType> variant_map, {isTypeStance=false}) { // Map<String or int, CandidType>
-        Variant variant = Variant(isTypeStance: isTypeStance);
+    static of_the_map(Map<dynamic, CandidType> variant_map, {type_mode=false}) { // Map<String or int, CandidType>
+        Variant variant = Variant(type_mode: type_mode);
         for (MapEntry mkv in variant_map.entries) { variant[mkv.key] = mkv.value; }
         return variant;
     }
     
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) { 
-        Variant variant_type = Variant(isTypeStance: true);
+        Variant variant_type = Variant(type_mode: true);
         FindLeb128BytesTuple variant_type_len_leb128bytes_tuple = find_leb128bytes(candidbytes, start_i);
         dynamic variant_len = leb128.decodeUnsigned(variant_type_len_leb128bytes_tuple.item1);
         if (variant_len is int) { variant_len = BigInt.from(variant_len); }
@@ -1310,7 +1299,8 @@ class Variant extends RecordAndVariantMap {
 
 
 abstract class ReferenceType extends CandidType {
-    bool get isOpaque;
+    // not using because Principal Reference type is not being used and Principal type does not want this method.
+    //bool get isOpaque;
 }
 
 
@@ -1325,7 +1315,7 @@ CandidType type_table_ference_as_a_type_stance(TypeTableReference type_table_fer
     if (type_table_type is TypeTableReference) {
         throw Exception('something is wrong');
     }
-    if (type_table_type.isTypeStance==false) {
+    if (type_table_type.type_mode==false) {
         throw Exception('this should be true');
     }
     return type_table_type;
@@ -1336,11 +1326,11 @@ CandidType type_table_ference_as_a_type_stance(TypeTableReference type_table_fer
 class FunctionReference extends ReferenceType {
     static const int type_code = -22;
 
-    final bool isTypeStance;
+    final bool type_mode;
 
     bool get isOpaque {
-        if (this.isTypeStance==true) {
-            throw Exception('CandidType: FunctionReference .isOpaque is not known on this FunctionReference-stance because isTypeStance==true');
+        if (this.type_mode==true) {
+            throw Exception('CandidType: FunctionReference .isOpaque is not known on this FunctionReference-stance because type_mode==true');
         }
         return service == null; 
     }
@@ -1354,22 +1344,22 @@ class FunctionReference extends ReferenceType {
     final ServiceReference? service;
     final Text? method_name;
 
-    FunctionReference({required this.in_types, required this.out_types, this.isQuery=false, this.isOneWay=false, this.service, this.method_name, this.isTypeStance=false}) {
+    FunctionReference({required this.in_types, required this.out_types, this.isQuery=false, this.isOneWay=false, this.service, this.method_name, this.type_mode=false}) {
         for (List<CandidType> types_list in [in_types, out_types]) {
             for (CandidType typestance in types_list) {
-                if (typestance.isTypeStance==false) {
-                    throw Exception('CandidType: FunctionReference in_types & out_types lists needs each type-stance/finition with the isTypeStance=true, since these are the type-finitions for the function, not values.');
+                if (typestance.type_mode==false) {
+                    throw Exception('CandidType: FunctionReference in_types & out_types lists needs each type-stance/finition with the type_mode=true, since these are the type-finitions for the function, not values.');
                 }
             }
         }
         if ( (this.service != null && this.method_name == null) || (this.service == null && this.method_name != null)) {
             throw Exception('CandidType: FunctionReference service and method_name must be given both together or both null.');
         }
-        if (this.isTypeStance==true && this.service != null) {
-            throw Exception('CandidType: FunctionReference service & method_name must be null when isTypeStance==true');
+        if (this.type_mode==true && this.service != null) {
+            throw Exception('CandidType: FunctionReference service & method_name must be null when type_mode==true');
         }
     }
-    String toString() => '${get_typename_ofthe_toString(super.toString())}: (${this.in_types.toString().substring(1, this.in_types.toString().length - 1)}) -> (${this.out_types.toString().substring(1, this.out_types.toString().length - 1)})${isQuery ? ' query' : ''}${isOneWay ? ' oneway' : ''}, service: ${this.service}, method_name: ${this.method_name}.';
+    String toString() => '${get_type_name_of_the_toString(super.toString())}: (${this.in_types.toString().substring(1, this.in_types.toString().length - 1)}) -> (${this.out_types.toString().substring(1, this.out_types.toString().length - 1)})${isQuery ? ' query' : ''}${isOneWay ? ' oneway' : ''}, service: ${this.service}, method_name: ${this.method_name}.';
 
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         List<CandidType> in_types = [];
@@ -1402,7 +1392,7 @@ class FunctionReference extends ReferenceType {
             }
             next_func_mark_start_i = next_func_mark_start_i + 1;
         }
-        FunctionReference func_fer = FunctionReference(in_types: in_types, out_types: out_types, isQuery: isQuery, isOneWay: isOneWay, isTypeStance: true);
+        FunctionReference func_fer = FunctionReference(in_types: in_types, out_types: out_types, isQuery: isQuery, isOneWay: isOneWay, type_mode: true);
         return TfuncTuple(func_fer, next_func_mark_start_i);
     } 
 
@@ -1413,7 +1403,7 @@ class FunctionReference extends ReferenceType {
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple service_m_func_tuple = ServiceReference(isTypeStance: true, methods_types: {})._M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the istypestance=false
+            MfuncTuple service_m_func_tuple = ServiceReference(type_mode: true, methods_types: {})._M(candidbytes, start_i + 1); // .M on a type-stance gives-back a with the type_mode=false
             service_value = service_m_func_tuple.item1 as ServiceReference; 
             MfuncTuple method_name_text_m_func_tuple = Text()._M(candidbytes, service_m_func_tuple.item2);
             method_name_value = method_name_text_m_func_tuple.item1 as Text;
@@ -1475,30 +1465,30 @@ class FunctionReference extends ReferenceType {
 class ServiceReference extends ReferenceType {
     static const int type_code = -23;
 
-    final bool isTypeStance;
+    final bool type_mode;
     final Blob? id; 
     bool get isOpaque => id == null;
     Map<Text, FunctionReference> methods = {}; 
     final Map<Text, CandidType>? methods_types; // for the [de]coding of the methtypes  when some may be TypeTableReferences at this point
 
-    ServiceReference({this.id,  Map<Text, FunctionReference>? put_methods, this.isTypeStance=false, this.methods_types}) {
-        if (isTypeStance==true) {
+    ServiceReference({this.id,  Map<Text, FunctionReference>? put_methods, this.type_mode=false, this.methods_types}) {
+        if (type_mode==true) {
             if (this.id != null) {
-                throw Exception('id must be null when isTypeStance==true'); // because if its a type-stance that means we only have its data of the type_table and havent called M_backwards() on it yet so we dont know if it has a blob id or not  
+                throw Exception('id must be null when type_mode==true'); // because if its a type-stance that means we only have its data of the type_table and havent called M_backwards() on it yet so we dont know if it has a blob id or not  
             }
             if (this.methods_types == null) { 
-                throw Exception('when isTypeStance==true on a ServiceReference it needs a methods_types = {}'); 
+                throw Exception('when type_mode==true on a ServiceReference it needs a methods_types = {}'); 
             }
         } else {
             if (this.methods_types != null) {
-                throw Exception('methods_types can only be given when isTypeStance==true');
+                throw Exception('methods_types can only be given when type_mode==true');
             }
         }
         if (put_methods != null) {
             this.methods = put_methods;
         }
     }
-    String toString() => '${get_typename_ofthe_toString(super.toString())}${this.id != null ? ': ' + Principal.oftheBytes(this.id!.bytes).text : ''}';
+    String toString() => '${get_type_name_of_the_toString(super.toString())}${this.id != null ? ': ' + Principal.bytes(this.id!.bytes).text : ''}';
 
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         Map<Text, CandidType> methods_types = {}; // CandidType here is either TypeTableReference or FunctionReference
@@ -1512,20 +1502,20 @@ class ServiceReference extends ReferenceType {
             methods_types[method_name] = function_reference_t_func_tuple.item1; // could be a type table reference
             next_method_start_i = function_reference_t_func_tuple.item2;
         }
-        ServiceReference service_fer = ServiceReference(isTypeStance: true, methods_types: methods_types);
+        ServiceReference service_fer = ServiceReference(type_mode: true, methods_types: methods_types);
         return TfuncTuple(service_fer, next_method_start_i);
     } 
 
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
-        if (this.isTypeStance==false) { throw Exception('this function is call on a stance with the isTypeStance==true and a Map<Text, FunctionReference> methods_types'); }
+        if (this.type_mode==false) { throw Exception('this function is call on a stance with the type_mode==true and a Map<Text, FunctionReference> methods_types'); }
         Blob? id_value;
         late CandidBytes_i next_i;
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8())._M(candidbytes, start_i + 1);
-            Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
-            id_value = Blob.oftheVector(id_value_vecnat8);
+            MfuncTuple id_m_func_tuple = Vector(type_mode: true, values_type: Nat8())._M(candidbytes, start_i + 1);
+            Vector<Nat8> id_value_vecnat8 = Vector.of_the_list<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
+            id_value = Blob.of_the_vector_nat8(id_value_vecnat8);
             next_i = id_m_func_tuple.item2;
         }
         ServiceReference service = ServiceReference(id: id_value);
@@ -1544,15 +1534,15 @@ class ServiceReference extends ReferenceType {
     }
     
     Uint8List _T_forward() {
-        if (this.isTypeStance==true) {
-            throw Exception('Cannot serialize this ServiceReference because it has a isTypeStance=true, try to do ServiceReference with an isTypeStance=false');
+        if (this.type_mode==true) {
+            throw Exception('Cannot serialize this ServiceReference because it has a type_mode=true, try to do ServiceReference with an type_mode=false');
         }
         for (MapEntry<Text, FunctionReference> method_ref in this.methods.entries) {
-            if (method_ref.key.isTypeStance == true) {
+            if (method_ref.key.type_mode == true) {
                 throw Exception('Cannot serialize this ServiceReference because it has a method with a name: CandidType: Text with an empty String, try setting the method-name to a Text(\'sampletext\')');
             }
-            if (method_ref.value.isTypeStance == true) {
-                throw Exception('Cannot serialize this ServiceReference because it has a method-FunctionReference with an isTypeStance=true, try to make the methods-FunctionReferences with the isTypeStance=false');
+            if (method_ref.value.type_mode == true) {
+                throw Exception('Cannot serialize this ServiceReference because it has a method-FunctionReference with an type_mode=true, try to make the methods-FunctionReferences with the type_mode=false');
             }
         }
         List<int> t_bytes = [];
@@ -1582,22 +1572,25 @@ class ServiceReference extends ReferenceType {
 class PrincipalReference extends ReferenceType {
     static const int type_code = -24;
 
-    final bool isTypeStance;
-    bool get isOpaque => id == null;
-    Principal? get principal => this.id == null ? null : Principal.oftheBytes(this.id!.bytes);
+    final bool type_mode;
+    // private because unused at the moment.
+    bool get _isOpaque => _id == null;
+    // private because unused at the moment.
+    Principal? get _principal => this._id == null ? null : Principal.bytes(this._id!.bytes);
 
-    final Blob? id; 
+    // private because unused at the moment.    
+    final Blob? _id; 
 
-    PrincipalReference({this.id, this.isTypeStance=false}) {
-        if (this.isTypeStance==true && this.id != null) {
-            throw Exception('if isTypeStance == true then that means that we dont know if this is an opaque reference or not yet.');
+    PrincipalReference({Blob? id, this.type_mode=false}) : _id = id {
+        if (this.type_mode==true && this._id != null) {
+            throw Exception('if type_mode == true then that means that we dont know if this is an opaque reference or not yet.');
         } 
     }
-    String toString() => 'CandidType: ' + '${get_typename_ofthe_toString(super.toString())}: ${this.principal != null ? this.principal!.text : 'opaque'}';
+    String toString() => 'CandidType: ' + '${get_type_name_of_the_toString(super.toString())}: ${this._principal != null ? this._principal!.text : 'opaque'}';
 
     static TfuncTuple _T_backward(Uint8List candidbytes, CandidBytes_i start_i) {
         // Do this for the now while opaque PrincipalReferences are not being used.
-        return TfuncTuple(Principal.typestance(), start_i);
+        return TfuncTuple(Principal.type_mode(), start_i);
     } 
     MfuncTuple _M(Uint8List candidbytes, CandidBytes_i start_i) {
         Blob? id_value;
@@ -1605,16 +1598,16 @@ class PrincipalReference extends ReferenceType {
         if (candidbytes[start_i] == 0) {
             next_i = start_i + 1;
         } else if (candidbytes[start_i] == 1) {
-            MfuncTuple id_m_func_tuple = Vector(isTypeStance: true, values_type: Nat8())._M(candidbytes, start_i + 1);
-            Vector<Nat8> id_value_vecnat8 = Vector.oftheList<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
-            id_value = Blob.oftheVector(id_value_vecnat8); 
+            MfuncTuple id_m_func_tuple = Vector(type_mode: true, values_type: Nat8())._M(candidbytes, start_i + 1);
+            Vector<Nat8> id_value_vecnat8 = Vector.of_the_list<Nat8>((id_m_func_tuple.item1 as Vector).cast<Nat8>());
+            id_value = Blob.of_the_vector_nat8(id_value_vecnat8); 
             next_i = id_m_func_tuple.item2;
         }
         PrincipalReference principal_fer = PrincipalReference(id: id_value);
-        if (principal_fer.isOpaque) {
+        if (principal_fer._isOpaque) {
             return MfuncTuple(principal_fer, next_i); 
         } else {
-            return MfuncTuple(Principal.oftheBytes(principal_fer.id!.bytes), next_i);
+            return MfuncTuple(Principal.bytes(principal_fer._id!.bytes), next_i);
         }
         
     }    
@@ -1623,15 +1616,62 @@ class PrincipalReference extends ReferenceType {
     }
     Uint8List _M_forward() {
         List<int> m_bytes = [];
-        if (this.id == null) {
+        if (this._id == null) {
             m_bytes.add(0);
         } else {
             m_bytes.add(1);
-            m_bytes.addAll(this.id!._M_forward());
+            m_bytes.addAll(this._id!._M_forward());
         }
         return Uint8List.fromList(m_bytes);
     }
 }
+
+
+
+
+
+
+/// Identifier for a [Canister] or [Caller].
+/// 
+/// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#principal> 
+class Principal extends PrincipalReference {
+    /// The bytes of this [Principal] 
+    Uint8List get bytes => super._id!.bytes;
+    
+    /// The textual-representation of this [Principal]
+    ///
+    /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#textual-ids>
+    final String text;
+    
+    //Principal._();
+    
+    /// The [text] is the textual-representation of a [Principal].
+    Principal.text(this.text) : super(id: Blob(icidtextasabytes(text))); 
+    
+    Principal.bytes(Uint8List bytes) : text = icidbytesasatext(bytes), super(id: Blob(bytes));
+    
+    /// The [candid] library uses this constructor when creating a [Principal] in **`type_mode`**. 
+    /// Check the [candid] library main page documentation for more on the **`type_mode`** mode of a [CandidType].
+    /// 
+    /// Calling the [bytes] getter on a Principal created with this constructor will throw an error.
+    Principal.type_mode() : text = '', super(type_mode: true);
+    
+    static Principal of_the_public_key_DER(Uint8List pub_key_der) {
+        List<int> principal_bytes = [];
+        principal_bytes.addAll(sha224.convert(pub_key_der).bytes);
+        principal_bytes.add(2);
+        return Principal.bytes(Uint8List.fromList(principal_bytes));
+    }
+    /// Same as [this.text]
+    String toString() => '${this.text}';
+    
+    @override
+    bool operator ==(covariant Principal other) => /*other is Principal && */aresamebytes(other.bytes, this.bytes);
+
+    @override
+    int get hashCode => this.bytes.first + this.bytes.last;
+}
+
 
 
 
@@ -1661,16 +1701,7 @@ class MatchVariantUnknown<T> implements Exception {
     MatchVariantUnknown({required this.variant, required this.match_map});
     String toString() {
         return 'unknown variant: ${variant}\nmatch tries: ${match_map.keys}';
-    }
-}
-
-
-
-extension PrincipalCandid on Principal{
-    Principal get candid => this; 
-    Principal get c => this; 
-    
-}
+    }}
 
 
 

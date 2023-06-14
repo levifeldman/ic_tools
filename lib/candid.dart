@@ -16,11 +16,11 @@
 /// String name = 'Wonder';
 /// List<String> fruits = ['apple', 'banana', 'strawberry', 'blueberry']; 
 /// 
-/// var record = Record.oftheMap({
+/// var record = Record.of_the_map({
 ///     'size': Nat(size),
-///     'color': Variant.oftheMap({ color.name: Null() }),
+///     'color': Variant.of_the_map({ color.name: Null() }),
 ///     'name': Text(name),
-///     'fruits': Vector.oftheList(fruits.map((f)=>Text(f)))
+///     'fruits': Vector.of_the_list(fruits.map((f)=>Text(f)))
 /// });
 ///
 /// Uint8List serialization = c_forwards_one(record);
@@ -42,14 +42,17 @@
 /// 
 /// ```
 /// 
-/// ## TypeStance mode.
-/// In this library, each [CandidType] has a mode called a TypeStance mode. 
-/// A TypeStance of a particular [CandidType] represents that specific candid **type** without holding a value. 
-/// The TypeStance mode is needed in scenarios when encoding an [Option] with a null value, or an empty [Vector]. 
+///
+/// ## Type-Mode.
+/// In this library, each [CandidType] has a mode called a `type_mode`. 
+/// A `type_mode` of a particular [CandidType] represents that specific candid **type** without holding a value. 
+/// The `type_mode` is needed in scenarios when encoding an [Option] with a null value, or an empty [Vector]. 
 /// In the Option scenario, the serializer needs to know the type within the Option, even though the value within the Option is null.
 /// In the Vector scenario, the serializer needs to known the type of the values in the Vector even though the length of the Vector is 0.
-/// For this reason, when creating an [Option] with a null value, the caller needs to specify the [value_type](Option.value_type) of the Option. This [value_type](Option.value_type) is a particular [CandidType] in the TypeStance mode.
-/// For the same reasen, when creating a [Vector] with a length of 0, the caller needs to specify the [values_type](Vector.values_type) of the values within the Vector. This [values_type](Vector.values_type) is a particular [CandidType] in the TypeStance mode.
+/// For this reason, when creating an [Option] with a null value, the caller needs to specify the [value_type](Option.value_type) of the Option. 
+/// This [value_type](Option.value_type) is a particular [CandidType] in the `type_mode`.
+/// For the same reason, when creating a [Vector] with a length of 0, the caller needs to specify the [values_type](Vector.values_type) of the values in the Vector. 
+/// This [values_type](Vector.values_type) is a particular [CandidType] in the `type_mode`.
 /// 
 /// Creating an [Option] with a null value.
 /// ```dart
@@ -61,43 +64,43 @@
 /// var vector_of_bools = Vector(values_type: Bool());
 /// ```
 /// 
-/// ### Creating a [CandidType] in a TypeStance mode.
+/// ### Creating a [CandidType] in the `type_mode`.
 /// 
-/// Creating a [PrimitiveType] in a TypeStance mode is straigtforward. Initialize the [PrimitiveType] without passing a value.
+/// Creating a [PrimitiveType] in the `type_mode` is straightforward. Initialize the [PrimitiveType] without passing a value.
 /// ```dart
-/// var nat_typestance = Nat(); 
-/// var int_typestance = Int(); 
-/// var nat32_typestance = Nat32(); 
-/// var text_typestance = Text(); 
-/// var bool_typestance = Bool(); 
+/// var nat_type_mode = Nat(); 
+/// var int_type_mode = Int(); 
+/// var nat32_type_mode = Nat32(); 
+/// var text_type_mode = Text(); 
+/// var bool_type_mode = Bool(); 
 /// // ...
 /// ```
-/// Creating an [Option] in TypeStance mode.
+/// Creating an [Option] in `type_mode`.
 /// ```dart 
-/// var optional_nat_typestance = Option(value_type: Nat(), isTypeStance:true);
+/// var optional_nat_type_mode = Option(value_type: Nat(), type_mode:true);
 /// ```
-/// Creating a [Vector] in TypeStance mode.
+/// Creating a [Vector] in `type_mode`.
 /// ```dart 
-/// var vector_of_texts_typestance = Vector(values_type: Text(), isTypeStance:true);
+/// var vector_of_texts_type_mode = Vector(values_type: Text(), type_mode:true);
 /// ```
-/// Creating a [Record] in TypeStance mode. Each field value in a [Record] in TypeStance mode must also be a TypeStance.
+/// Creating a [Record] in `type_mode`. Each field value in a [Record] in `type_mode` must also be in `type_mode`.
 /// ```dart 
-/// var record_typestance = Record.oftheMap({
+/// var record_type_mode = Record.of_the_map({
 ///     'sample_field_one': Nat(),
-///     'sample_field_two': Vector(values_type: Text(), isTypeStance:true);        
-/// }, isTypeStance:true);
+///     'sample_field_two': Vector(values_type: Text(), type_mode:true);        
+/// }, type_mode:true);
 /// ```
-/// Creating a [Variant] in TypeStance mode. The variant value in a [Variant] in TypeStance mode must also be a TypeStance.
+/// Creating a [Variant] in `type_mode`. The variant value in a [Variant] in `type_mode` must also be in `type_mode`.
 /// ```dart 
-/// var variant_typestance = Variant.oftheMap({
+/// var variant_type_mode = Variant.of_the_map({
 ///     'blue': Nat(),
-/// }, isTypeStance:true);
+/// }, type_mode:true);
 /// ```
-/// Creating a [Principal] in TypeStance mode.
+/// Creating a [Principal] in `type_mode`.
 /// ```dart
-/// var principal_typestance = Principal.typestance();
+/// var principal_type_mode = Principal.type_mode();
 /// ```
-library;
+library candid;
 
 
 export 'src/candid.dart' show 
@@ -128,14 +131,14 @@ export 'src/candid.dart' show
     Variant,
     FunctionReference,
     ServiceReference,
-    //PrincipalReference,
+    Principal,
     Blob,
-    //PrincipalCandid,
     magic_bytes,
     c_forwards,
     c_forwards_one,
     c_backwards,
     c_backwards_one,
     candid_text_hash,
-    match_variant
+    match_variant,
+    MatchVariantUnknown
     ;
