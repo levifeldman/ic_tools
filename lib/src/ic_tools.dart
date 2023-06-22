@@ -36,6 +36,18 @@ Future<Map> ic_status() async {
     return r as Map;
 }
 
+/// For use in a local environment.
+/// This function fetches and sets the [ic_root_key] from the local replica. 
+///
+/// The [ic_base_url] host must be set to either `127.0.0.1` or `localhost`, otherwise this function throws an error. 
+Future<void> fetch_root_key() async {
+    if (['localhost', '127.0.0.1'].contains(ic_base_url.host)) {
+        Map m = await ic_status();
+        ic_root_key = Uint8List.fromList(m['root_key']);
+    } else {
+        throw Exception('fetch_root_key can be called when the ic_base_url.host is set to 127.0.0.1 or localhost.');
+    }
+}
 
 
 
@@ -351,12 +363,15 @@ class Canister {
     }) async {
         Principal? fective_canister_id; // since fective_canister_id is not a per-canister thing it is a per-call-thing, the fective_canister_id in the url of a call is create on each call 
         if (this.principal.text == 'aaaaa-aa') { 
-            try {
-                Record put_record = c_backwards(put_bytes!)[0] as Record;
-                fective_canister_id = put_record['canister_id'] as Principal;
-                // print('fective-cid as a PrincipalReference in a "canister_id" field');
-            } catch(e) {
-                throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a PrincipalReference.');   
+            if (method_name == 'provisional_create_canister_with_cycles') {
+                fective_canister_id = Principal.text('aaaaa-aa');
+            } else {
+                try {
+                    Record put_record = c_backwards(put_bytes!)[0] as Record;
+                    fective_canister_id = put_record['canister_id'] as Principal;
+                } catch(e) {
+                    throw Exception('Calls to the management-canister must contain a Record with a key: "canister_id" and a value of a Principal.');   
+                }
             }
         } else {
             fective_canister_id = this.principal;

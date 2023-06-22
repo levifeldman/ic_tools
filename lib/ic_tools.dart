@@ -16,6 +16,7 @@ export 'src/ic_tools.dart' show
     ic_base_url,
     ic_root_key,
     ic_status,
+    fetch_root_key,
     ic_data_hash,
     verify_certificate,
     lookup_path_value_in_an_ic_certificate_tree,

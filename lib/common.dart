@@ -16,6 +16,8 @@ export 'src/common.dart' show
     check_canister_status,
     CanisterInstallMode,
     put_code_on_the_canister,
+    provisional_create_canister_with_cycles,
+    provisional_top_up_canister,
     IcpTokens,
     Icrc1Ledger,
     Icrc1Ledgers,

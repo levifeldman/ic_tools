@@ -337,6 +337,46 @@ Future<void> put_code_on_the_canister(Caller caller, Principal canister_id, Uint
 
 
 
+/// Create a canister in the local environment.
+///
+/// https://internetcomputer.org/docs/current/references/ic-interface-spec/#ic-provisional_create_canister_with_cycles
+Future<Principal> provisional_create_canister_with_cycles({required Caller caller, BigInt? cycles, Record? canister_settings, Principal? specified_id}) async {
+    return (c_backwards_one(await SYSTEM_CANISTERS.management.call(
+        method_name: 'provisional_create_canister_with_cycles',
+        caller: caller,
+        calltype: CallType.call,
+        put_bytes: c_forwards_one(
+            Record.of_the_map({
+                if (cycles != null) 'amount': Option(value: Nat(cycles)),
+                if (canister_settings != null) 'settings': Option(value: canister_settings),
+                if (specified_id != null) 'specified_id': Option(value: specified_id),
+            })
+        ),
+    )) as Record)['canister_id'] as Principal;
+}
+
+/// Top up the cycles of a canister in the local environment.
+///
+/// https://internetcomputer.org/docs/current/references/ic-interface-spec/#ic-provisional_top_up_canister 
+Future<void> provisional_top_up_canister(Principal canister_id, BigInt cycles) async {
+    await SYSTEM_CANISTERS.management.call(
+        method_name: 'provisional_top_up_canister',
+        calltype: CallType.call,
+        put_bytes: c_forwards_one(
+            Record.of_the_map({
+                'canister_id': canister_id,
+                'amount': Nat(cycles),
+            })
+        ),
+    );
+}
+
+
+
+
+
+
+
 class IcpTokens extends Record {
     final BigInt e8s;
     IcpTokens({required this.e8s}) { 

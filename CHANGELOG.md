@@ -1,3 +1,10 @@
+## 2.0.1
+* `fetch_root_key` function for a local replica.
+* `provisional_create_canister_with_cycles` function for a local replica.
+* `provisional_top_up_canister` function for a local replica.
+* Set the [effective-canister-id](https://internetcomputer.org/docs/current/references/ic-interface-spec/#http-effective-canister-id) as the management-canister-id when calling the `provisional_create_canister_with_cycles` function. 
+ 
+
 ## 2.0.0
 * New documentation for the libraries.
 * Make some library items private.
