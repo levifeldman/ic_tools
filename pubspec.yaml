@@ -24,7 +24,7 @@ dependencies:
   archive: ^3.1.2 # crc32 checksum functions
   base32: 2.0.0
   crypto: 3.0.1
-  ffi: 1.1.2
+  ffi: 2.1.0 #1.1.2
   js: ^0.6.3
   tuple: ^2.0.0
   ed25519_edwards: ^0.3.1
