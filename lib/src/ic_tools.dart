@@ -438,7 +438,7 @@ class Canister {
                 }
                 
                 // print(':poll of the system-state.');
-                await Future.delayed(Duration(seconds:2));
+                await Future.delayed(const Duration(seconds: 1));
                 pathsvalues = await _state( 
                     paths: [
                         ['time'],
