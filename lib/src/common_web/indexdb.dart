@@ -2,6 +2,7 @@
 import 'dart:html';
 //import 'dart:js' as js;
 //import 'dart:js_util';
+import 'dart:async';
 
 import 'package:js/js.dart';
 import 'package:js/js_util.dart';
@@ -47,22 +48,33 @@ class IndexDB {
             })
         );
         
-        bool onsuccessorerror = false;
+        //bool onsuccessorerror = false;
+        Completer<IndexDB> completer = Completer<IndexDB>();
+        
         setProperty(q, 
             'onsuccess',
             allowInterop((event) {
                 idb_database = getProperty(q, 'result');
-                onsuccessorerror = true;
-                
+                //onsuccessorerror = true;
+                IndexDB idb = IndexDB(
+                    name: db_name, 
+                    idb_database: idb_database, 
+                    idb_open_db_quest: q,
+                );
+                completer.complete(idb);
             })
         );
         setProperty(q, 
             'onerror',
             allowInterop((event) {
-                onsuccessorerror = true;
+                completer.completeError('IndexDB open error: ${getProperty(q, 'error').toString()}');
+                //onsuccessorerror = true;
             })
         );
         
+        return completer.future;
+        
+        /*
         // poll the result
         while (onsuccessorerror == false || getProperty(q, 'readyState') == 'pending') {
             await Future.delayed(Duration(milliseconds: 100));
@@ -77,8 +89,8 @@ class IndexDB {
             );
         } else {
             throw getProperty(q, 'error');
-            //throw Exception('idb open request error');
         }
+        */
     
     }    
     
@@ -108,31 +120,35 @@ class IndexDB {
         Object/*IDBRequest*/ idb_quest_object_store_open_cursor = callMethod(object_store, 'openCursor', []);
         late Object?/*IDBCursorWithValue*/ object_store_cursor_with_value; 
         
-        bool onsuccess_cursor_complete_orerror = false;
-        Object? value;
+        //bool onsuccess_cursor_complete_orerror = false;
+        Completer<dynamic> completer = Completer();
         setProperty(idb_quest_object_store_open_cursor, 
             'onsuccess',
             allowInterop((event) {
                 object_store_cursor_with_value = getProperty(getProperty(event, 'target'), 'result');
                 if (object_store_cursor_with_value != null) {
                     if (getProperty(object_store_cursor_with_value!, 'key') == key) {
-                        value = getProperty(object_store_cursor_with_value!, 'value');
-                        onsuccess_cursor_complete_orerror = true;
+                        Object? value = getProperty(object_store_cursor_with_value!, 'value');
+                        //onsuccess_cursor_complete_orerror = true;
+                        completer.complete(value);
                     } else {
                         callMethod(object_store_cursor_with_value!, 'continue', []); // continue must be call within the onsuccess handler before any awaits
                     }
                 } else {
-                    onsuccess_cursor_complete_orerror = true;
+                    //onsuccess_cursor_complete_orerror = true;
+                    completer.complete(null);
                 }
             })
         );
         setProperty(idb_quest_object_store_open_cursor, 
             'onerror',
             allowInterop((event) {
-                onsuccess_cursor_complete_orerror = true;
+                //onsuccess_cursor_complete_orerror = true;
+                completer.completeError('IndexDB get_object error: ${getProperty(idb_quest_object_store_open_cursor, 'error').toString()}');
             })
         );
-        
+        return completer.future;
+        /*
         while (onsuccess_cursor_complete_orerror == false || getProperty(idb_quest_object_store_open_cursor, 'readyState') == 'pending') {
             await Future.delayed(Duration(milliseconds: 100));
         }
@@ -141,6 +157,7 @@ class IndexDB {
         } else {
             throw getProperty(idb_quest_object_store_open_cursor, 'error');
         }
+        */
         
     }
     
@@ -159,31 +176,34 @@ class IndexDB {
         
         late Object?/*can be null if 0 objects*//*IDBCursorWithValue*/ object_store_cursor_with_value; 
         
-        bool onsuccess_cursor_complete_orerror = false;
-        bool is_key_in_the_object_store = false;
+        Completer<bool> completer = Completer();
+        //bool onsuccess_cursor_complete_orerror = false;
         setProperty(idb_quest_object_store_open_cursor, 
             'onsuccess',
             allowInterop((event) {
                 object_store_cursor_with_value = getProperty(getProperty(event, 'target'), 'result');
                 if (object_store_cursor_with_value != null) {
                     if (getProperty(object_store_cursor_with_value!, 'key') == key) {
-                        is_key_in_the_object_store = true;
-                        onsuccess_cursor_complete_orerror = true;
+                        bool is_key_in_the_object_store = true;
+                        completer.complete(false);
+                        //onsuccess_cursor_complete_orerror = true;
                     } else {
                         callMethod(object_store_cursor_with_value!, 'continue', []); // continue must be call within the onsuccess handler before any awaits
                     }
                 } else {
-                    onsuccess_cursor_complete_orerror = true;
+                    //onsuccess_cursor_complete_orerror = true;
+                    // the key does not exist yet. good. we can add it.
                 }
             })
         );
         setProperty(idb_quest_object_store_open_cursor, 
             'onerror',
             allowInterop((event) {
-                onsuccess_cursor_complete_orerror = true;
+                //onsuccess_cursor_complete_orerror = true;
+                completer.completeError('IndexDB add_object open-cursor error: ${getProperty(idb_quest_object_store_open_cursor, 'error')}');
             })
         );
-        
+        /*
         while (onsuccess_cursor_complete_orerror == false || getProperty(idb_quest_object_store_open_cursor, 'readyState') == 'pending') {
             await Future.delayed(Duration(milliseconds: 100));
         }
@@ -196,6 +216,7 @@ class IndexDB {
             throw getProperty(idb_quest_object_store_open_cursor, 'error');
 
         }
+        */
 
         
         Object/*IDBTransaction)*/ transaction2 = callMethod(this.idb_database, 'transaction', [
@@ -205,7 +226,7 @@ class IndexDB {
         ]);
         
         Object/*IDBObjectStore*/ object_store2 = callMethod(transaction2, 'objectStore', [object_store_name]);
-        
+        /*
         bool transaction_complete = false;
         callMethod(transaction2, 'addEventListener', [
             'complete',
@@ -213,9 +234,25 @@ class IndexDB {
                 transaction_complete = true;
             })
         ]);
-        
+        */
         Object/*IDBRequest*/ idb_quest_object_store_add = callMethod(object_store2, 'add', [value, key]);
-
+        setProperty(idb_quest_object_store_add, 
+            'onsuccess',
+            allowInterop((event) {
+                completer.complete(true);
+            })
+        );
+        setProperty(idb_quest_object_store_add, 
+            'onerror',
+            allowInterop((event) {
+                //onsuccess_cursor_complete_orerror = true;
+                completer.completeError('IndexDB add_object error: ${getProperty(idb_quest_object_store_add, 'error')}');
+            })
+        );
+        
+        return completer.future;
+        
+        /*
         while (getProperty(idb_quest_object_store_add, 'readyState') == 'pending') {
             await Future.delayed(Duration(milliseconds: 100));
         }
@@ -226,7 +263,7 @@ class IndexDB {
         } else {
             throw getProperty(idb_quest_object_store_add, 'error');
         }
-        
+        */
         
     }
     
@@ -244,8 +281,9 @@ class IndexDB {
         Object/*IDBRequest*/ idb_quest_object_store_open_cursor = callMethod(object_store, 'openCursor', []);
         late Object?/*IDBCursorWithValue*/ object_store_cursor_with_value; 
         
-        bool onsuccess_cursor_complete_orerror = false;
-        bool is_key_in_the_object_store = false;
+        //bool onsuccess_cursor_complete_orerror = false;
+        Completer<bool> completer = Completer();
+        //bool is_key_in_the_object_store = false;
         setProperty(idb_quest_object_store_open_cursor, 
             'onsuccess',
             allowInterop((event) async {
@@ -254,29 +292,49 @@ class IndexDB {
                     if (getProperty(object_store_cursor_with_value!, 'key') == key) {
                         // update
                         Object/*IDBRequest*/ idb_quest_update = callMethod(object_store_cursor_with_value!, 'update', [value]);
+                        setProperty(idb_quest_update, 
+                            'onsuccess',
+                            allowInterop((event) async {
+                                completer.complete(true);
+                            }),
+                        );
+                        setProperty(idb_quest_update, 
+                            'onerror',
+                            allowInterop((event) async {
+                                completer.completeError('IndexDB update error: ${getProperty(idb_quest_update, 'error')}');
+                            }),
+                        );
+                        
+                        /*
                         // await here is ok bc we call cursor.update before this await and we wont call cursor.continue after this
                         while (getProperty(idb_quest_update, 'readyState') == 'pending') { await Future.delayed(Duration(milliseconds: 100)); } 
                         if (getProperty(idb_quest_update, 'error') == null) {
-                            is_key_in_the_object_store = true;
-                            onsuccess_cursor_complete_orerror = true;
+                            //is_key_in_the_object_store = true;
+                            //onsuccess_cursor_complete_orerror = true;
                         } else {
-                            throw getProperty(idb_quest_update, 'error');
+                            //throw getProperty(idb_quest_update, 'error');
                         }
+                        */
                     } else {
                         callMethod(object_store_cursor_with_value!, 'continue', []); // continue must be call within the onsuccess handler before any awaits
                     }
                 } else {
-                    onsuccess_cursor_complete_orerror = true;
+                    //onsuccess_cursor_complete_orerror = true;
+                    completer.complete(false);
                 }
             })
         );
         setProperty(idb_quest_object_store_open_cursor, 
             'onerror',
             allowInterop((event) {
-                onsuccess_cursor_complete_orerror = true;
+                //onsuccess_cursor_complete_orerror = true;
+                completer.completeError('IndexDB put_object open-cursor error: ${getProperty(idb_quest_object_store_open_cursor, 'error')}');
             })
         );
         
+        return completer.future; 
+        
+        /*
         while (onsuccess_cursor_complete_orerror == false || getProperty(idb_quest_object_store_open_cursor, 'readyState') == 'pending') {
             await Future.delayed(Duration(milliseconds: 100));
         }
@@ -289,7 +347,7 @@ class IndexDB {
         } else {
             throw getProperty(idb_quest_object_store_open_cursor, 'error');
         }
-        
+        */
         
     }
     
