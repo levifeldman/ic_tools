@@ -402,7 +402,7 @@ class IcpTokens extends Record {
             return this;
         }
         String decimal_places_split_at_round = decimal_places_string.substring(0, round_decimal_places);
-        return IcpTokens.of_the_double_string('${icp_string_split[0]}.${BigInt.parse(decimal_places_split_at_round)+BigInt.from(1)}');
+        return IcpTokens.of_the_double_string('${icp_string_split[0]}.${decimal_places_split_at_round}');
     }
     static IcpTokens of_the_record(CandidType icptokensrecord) {
         Nat64 e8s_nat64 = (icptokensrecord as Record)['e8s'] as Nat64; 
@@ -476,7 +476,6 @@ class Icrc1Ledger {
     BigInt fee;
     Tokens get fee_tokens => Tokens(quantums: fee, decimal_places: decimals);
     final String? logo_data_url;
-    final Canister? index;
     
     Icrc1Ledger({
         required this.ledger, 
@@ -485,14 +484,13 @@ class Icrc1Ledger {
         required this.decimals, 
         required this.fee, 
         this.logo_data_url,
-        this.index
     });
     
-    static Future<Icrc1Ledger> load(Principal icrc1_ledger_id) async {
+    static Future<Icrc1Ledger> load(Principal icrc1_ledger_id, [CallType calltype = CallType.query]) async {
         Canister icrc1_ledger = Canister(icrc1_ledger_id);
         Vector<Record> metadata = (c_backwards(await icrc1_ledger.call(
             method_name: 'icrc1_metadata',
-            calltype: CallType.call,
+            calltype: calltype,
         ))[0] as Vector).cast_vector<Record>();
         late final String symbol;
         late final String name;
@@ -577,6 +575,9 @@ class Tokens extends Nat {
         }
         String decimal_places_split_at_round = decimal_places_string.substring(0, round_decimal_places);
         return Tokens.of_the_double_string('${tokens_string_split[0]}.${decimal_places_split_at_round}', decimal_places: this.decimal_places);
+    }
+    Tokens add_quantums(BigInt add_quantums) {
+        return Tokens(quantums: this.quantums + add_quantums, decimal_places: this.decimal_places);
     }
     static Tokens of_the_nat(CandidType tokens_nat, {required int decimal_places}) {
         return Tokens(quantums: (tokens_nat as Nat).value, decimal_places: decimal_places);
