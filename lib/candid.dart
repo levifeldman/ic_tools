@@ -49,18 +49,6 @@
 /// Text? text = record.find_option<Text>(0);
 /// ```
 /// 
-/// 
-/// When 
-/// 
-/// ```dart
-/// 
-/// 
-/// 
-/// 
-/// 
-/// 
-/// ```
-/// 
 ///
 /// ## Type-Mode.
 /// In this library, each [CandidType] has a mode called a `type_mode`. 
