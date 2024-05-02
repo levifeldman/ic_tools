@@ -19,7 +19,7 @@ class IICaller extends Caller {
     // extend the type of the Caller.keys
     SubtleCryptoECDSAP256Keys keys;
     
-    IICaller._({
+    IICaller({
         required SubtleCryptoECDSAP256Keys keys,
         required List<Legation> legations,
     }) : keys = keys, super(keys:keys, legations:legations);
@@ -35,7 +35,7 @@ class IICaller extends Caller {
             derivation_origin: derivation_origin,
             ii_url: ii_url
         );
-        return IICaller._(
+        return IICaller(
             keys: session_keys,
             legations: legations
         );
@@ -108,7 +108,7 @@ class IICaller extends Caller {
                 && user_crypto_key_private != null
                 && user_legations != null
             ) {
-                user = IICaller._(
+                user = IICaller(
                     keys: await SubtleCryptoECDSAP256Keys.of_the_cryptokeys(
                         public_key: user_crypto_key_public,
                         private_key: user_crypto_key_private
@@ -123,7 +123,11 @@ class IICaller extends Caller {
         return user;
                 
     }
-
     
+    void indexdb_delete() {
+        if (IndexDB.is_support_here()) {
+            IndexDB.delete_database(_indexdb_name);
+        }
+    }
     
 }

@@ -69,6 +69,8 @@ Future<List<Legation>> ii_login({required Uint8List session_public_key_DER, requ
             }
             
             if (message_event.data['kind'] == 'authorize-client-failure') {
+                identityWindow.close();
+                
                 print('authorize-client-failure:\n${message_event.data['text']}');
                 completer.completeError(AuthorizeClientFailure('${message_event.data['text']}'));
             }

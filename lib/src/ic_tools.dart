@@ -232,7 +232,7 @@ class CallException implements Exception {
     CallException({required this.reject_code, required this.reject_message, this.error_code});
     
     String toString() {
-        return 'CallException: \nreject_code: ${reject_code}, ${system_call_reject_codes[reject_code]}\nreject_message: ${reject_message}${error_code != null ? '\nerror_code: ${error_code}' : ''}';    
+        return 'CallException: \nreject_code: ${reject_code}, ${system_call_reject_codes[reject_code.toInt()]}\nreject_message: ${reject_message}${error_code != null ? '\nerror_code: ${error_code}' : ''}';    
     }
 }
 
@@ -261,14 +261,14 @@ class Canister {
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<Uint8List?> module_hash() async {
-        List<Uint8List?> paths_values = await _state(paths: [_pathbytes(['canister', this.principal.bytes, 'module_hash'])]);
+        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'module_hash'])]);
         return paths_values[0];
     }
     /// Returns the controller [Principal]s of this Canister.
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<List<Principal>> controllers() async {
-        List<Uint8List?> paths_values = await _state(paths: [_pathbytes(['canister', this.principal.bytes, 'controllers'])]);
+        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'controllers'])]);
         List<dynamic> controllers_list = cbor_simple.cbor.decode(paths_values[0]!) as List<dynamic>;
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.bytes(controller_bytes)).toList();
@@ -280,7 +280,7 @@ class Canister {
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<Uint8List?> metadata(String name, {Caller? caller}) async {
-        List<Uint8List?> paths_values = await _state(paths: [_pathbytes(['canister', this.principal.bytes, 'metadata', name])], caller:caller);
+        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'metadata', name])], caller:caller);
         return paths_values[0];
     }
     /// The metadata of the standardized `candid:service` custom section which holds a canister's can.did service definition file.
@@ -438,7 +438,7 @@ class Canister {
                 }
                 
                 // print(':poll of the system-state.');
-                await Future.delayed(Duration(seconds:2));
+                await Future.delayed(const Duration(seconds: 1));
                 pathsvalues = await _state( 
                     paths: [
                         ['time'],
@@ -447,7 +447,7 @@ class Canister {
                         ['request_status', questId, 'reject_code'],
                         ['request_status', questId, 'reject_message'],
                         ['request_status', questId, 'error_code'],
-                    ].map(_pathbytes).toList(),
+                    ].map(pathbytes).toList(),
                     httpclient: httpclient,
                     caller: caller,
                     fective_canister_id: fective_canister_id 
@@ -471,6 +471,8 @@ class Canister {
                 );
             }
             Map canister_query_sponse_map = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map; 
+            // signatures = canister_query_sponse_map['signatures'];
+            
             callstatus = canister_query_sponse_map['status'];
             if (callstatus == 'replied') { 
                 canistersponse = Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer);
@@ -527,7 +529,7 @@ const Map<int, String> system_call_reject_codes = {
 
 
 
-List<Uint8List> _pathbytes(List<dynamic> path) {
+List<Uint8List> pathbytes(List<dynamic> path) {
     // a path is a list of labels, see the ic-spec. 
     // this function converts string labels to utf8 blobs in a new-list for the convenience. 
     List<dynamic> pathb = [];
@@ -645,7 +647,7 @@ Future<void> verify_certificate(Map certificate) async {
     if (certificate.containsKey('delegation')) {
         Map legation_certificate = cbor_simple.cbor.decode(Uint8List.fromList(certificate['delegation']['certificate'])) as Map;
         await verify_certificate(legation_certificate);
-        derKey = lookup_path_value_in_an_ic_certificate_tree(legation_certificate['tree'], _pathbytes(['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']))!;
+        derKey = lookup_path_value_in_an_ic_certificate_tree(legation_certificate['tree'], pathbytes(['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']))!;
     } else {
         derKey = ic_root_key; }
     Uint8List blskey = derkeyasablskey(derKey);

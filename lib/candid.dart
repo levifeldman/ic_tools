@@ -41,6 +41,13 @@
 /// }
 /// 
 /// ```
+/// ## Type upgrading (subtyping) rules.
+/// 
+/// When looking for an optional field in a Record, use the [Record.find_option] method.
+/// ```dart
+/// Nat? number = record.find_option<Nat>('field_name');
+/// Text? text = record.find_option<Text>(0);
+/// ```
 /// 
 ///
 /// ## Type-Mode.

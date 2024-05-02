@@ -124,6 +124,7 @@ String bytes_as_the_bitstring(Iterable<int> bytes) {
 
 String get_type_name_of_the_toString(String str) => str.substring(13, str.length-1);
 
+const int NANOS_IN_A_SECOND = 1000000000;
 
 
 BigInt get_current_time_nanoseconds() {
@@ -147,7 +148,7 @@ BigInt milliseconds_of_the_nanos(BigInt nanos) {
 
 
 extension NullMap<T> on T? {
-    F? nullmap<F>(F Function(T) f) {
+    F? nullmap<F>(F? Function(T) f) {
         if (this != null) {
             return f(this!);
         } else {

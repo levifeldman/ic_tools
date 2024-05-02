@@ -1,3 +1,9 @@
+## 2.0.2
+* use Completer for the indexdb api. 
+* IICaller .indexdx_delete
+* common update
+
+
 ## 2.0.1
 * `fetch_root_key` function for a local replica.
 * `provisional_create_canister_with_cycles` function for a local replica.

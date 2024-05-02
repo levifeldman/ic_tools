@@ -1000,7 +1000,7 @@ class Vector<T extends CandidType> extends ConstructType with ListMixin<T> {
 
 /// Blob extends Vector<Nat8> with useful functionality for direct handling of the bytes of a Blob without the [Nat8] type in between.
 class Blob extends Vector<Nat8> { 
-    Blob(Iterable<int>? bytes_list) : super(values_type: Nat8()) {
+    Blob([Iterable<int>? bytes_list]) : super(values_type: Nat8()) {
         if (bytes_list != null && bytes_list.length > 0) {
             this.addAll_bytes(bytes_list);
         }
