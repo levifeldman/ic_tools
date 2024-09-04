@@ -1,3 +1,7 @@
+## 2.1.1
+* Fix README sample
+
+
 ## 2.1.0
 * Verify that the certificate is valid for the canister and subnet
 * Verify query signatures
