@@ -14,7 +14,7 @@ import 'package:typed_data/typed_buffers.dart';
 import '../utils/utils.dart';
 import 'stage2.dart';
 
-class CborSink extends Sink<RawValueTagged> {
+class CborSink implements Sink<RawValueTagged> {
   CborSink(this._sink);
 
   final Sink<CborValue> _sink;

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:crypto/crypto.dart';
-import 'package:ed25519_edwards/ed25519_edwards.dart' as ed;
+import 'package:cryptography/cryptography.dart' as cryptography;
 import 'package:archive/archive.dart';
 import 'package:base32/base32.dart';
 import './cbor/cbor.dart';
@@ -86,15 +86,7 @@ Future<Uint8List> keys_authorize_legation_hash(Keys keys, Uint8List legation_has
 /// [Keys] using the [Ed25519](https://ed25519.cr.yp.to/index.html) signature scheme.
 class Ed25519Keys extends Keys {
     /// The DER prefix for the DER encoding of the ed25519 [public_key].
-    static Uint8List DER_public_key_start = Uint8List.fromList([
-        ...[48, 42],
-        ...[48, 5],
-        ...[6, 3],
-        ...[43, 101, 112],
-        ...[3], 
-        ...[32 + 1],
-        ...[0],
-    ]);
+    static Uint8List DER_public_key_start = Uint8List.fromList([48, 42, 48, 5, 6, 3, 43, 101, 112, 3, 33, 0]);
 
     /// The ed25519 public-key of these keys without the DER prefix. 
     Uint8List get public_key => this.public_key_DER.sublist(Ed25519Keys.DER_public_key_start.length);
@@ -108,21 +100,45 @@ class Ed25519Keys extends Keys {
         }
     }
     /// Generates a new pair of ed25519 keys.
-    static Ed25519Keys new_keys() {
-        ed.KeyPair ed_key_pair = ed.generateKey();
+    static Future<Ed25519Keys> new_keys() async {
+        cryptography.Ed25519 ed = cryptography.Ed25519(); 
+        cryptography.SimpleKeyPairData keypair = await (await ed.newKeyPair()).extract();
+        Uint8List private_key = Uint8List.fromList(await keypair.extractPrivateKeyBytes());
+        Uint8List public_key = Uint8List.fromList((await keypair.extractPublicKey()).bytes);
         return Ed25519Keys(
-            public_key  : Uint8List.fromList(ed_key_pair.publicKey.bytes), 
-            private_key : ed.seed(ed_key_pair.privateKey)
+            public_key  : public_key, 
+            private_key : private_key
         );
     }
     
     Future<Uint8List> authorize(Uint8List message) async {
-        return ed.sign(ed.newKeyFromSeed(this.private_key), message);
+        cryptography.Ed25519 ed = cryptography.Ed25519(); 
+        return Uint8List.fromList((await ed.sign(
+            message,
+            keyPair: cryptography.SimpleKeyPairData(
+                this.private_key, 
+                publicKey: cryptography.SimplePublicKey(
+                    this.public_key,
+                    type: cryptography.KeyPairType.ed25519,
+                ),
+                type: cryptography.KeyPairType.ed25519,
+            ) 
+        )).bytes);
     }
 
     /// Verifies a message signed by an Ed25519 key-pair.
-    static bool verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) {
-        return ed.verify(ed.PublicKey(pubkey), message, signature);
+    static Future<bool> verify({ required Uint8List message, required Uint8List signature, required Uint8List pubkey}) async {
+        cryptography.Ed25519 ed = cryptography.Ed25519(); 
+        return await ed.verify(
+            message,
+            signature: cryptography.Signature(
+                signature,
+                publicKey: cryptography.SimplePublicKey(
+                    pubkey,
+                    type: cryptography.KeyPairType.ed25519
+                )
+            )
+        );
     }
 }
 
@@ -250,7 +266,6 @@ class Http4xx5xxCallException implements Exception {
 
 /// A Canister on the internet-computer.
 class Canister {
-    static final List<String> _base_path_segments = ['api', 'v2', 'canister'];
     
     /// The [Principal] of this [Canister].
     final Principal principal; 
@@ -261,14 +276,22 @@ class Canister {
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<Uint8List?> module_hash() async {
-        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'module_hash'])]);
+        List<Uint8List?> paths_values = await read_state_return_paths_values(
+            subnet_or_canister: SubnetOrCanister.canister,    
+            url_id: this.principal, 
+            paths: [pathbytes(['canister', this.principal.bytes, 'module_hash'])]
+        );
         return paths_values[0];
     }
     /// Returns the controller [Principal]s of this Canister.
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<List<Principal>> controllers() async {
-        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'controllers'])]);
+        List<Uint8List?> paths_values = await read_state_return_paths_values(
+            subnet_or_canister: SubnetOrCanister.canister,    
+            url_id: this.principal, 
+            paths: [pathbytes(['canister', this.principal.bytes, 'controllers'])]
+        );
         List<dynamic> controllers_list = cbor_simple.cbor.decode(paths_values[0]!) as List<dynamic>;
         List<Uint8List> controllers_list_uint8list = controllers_list.map((controller_buffer)=>Uint8List.fromList(controller_buffer.toList())).toList();
         List<Principal> controllers_list_principals = controllers_list_uint8list.map((Uint8List controller_bytes)=>Principal.bytes(controller_bytes)).toList();
@@ -280,74 +303,18 @@ class Canister {
     ///
     /// <https://internetcomputer.org/docs/current/references/ic-interface-spec/#state-tree-canister-information>
     Future<Uint8List?> metadata(String name, {Caller? caller}) async {
-        List<Uint8List?> paths_values = await _state(paths: [pathbytes(['canister', this.principal.bytes, 'metadata', name])], caller:caller);
+        List<Uint8List?> paths_values = await read_state_return_paths_values(
+            subnet_or_canister: SubnetOrCanister.canister, 
+            url_id: this.principal, 
+            paths: [pathbytes(['canister', this.principal.bytes, 'metadata', name])], 
+            caller:caller
+        );
         return paths_values[0];
     }
     /// The metadata of the standardized `candid:service` custom section which holds a canister's can.did service definition file.
     Future<String?> candid_service_metadata({Caller? caller}) async {
         return (await this.metadata('candid:service', caller:caller)).nullmap(utf8.decode);
     }
-
-
-    Future<List<Uint8List?>> _state({required List<List<Uint8List>> paths, http.Client? httpclient, Caller? caller, Principal? fective_canister_id}) async {        
-        fective_canister_id ??= this.principal;
-        http.Request systemstatequest = http.Request('POST', 
-            ic_base_url.replace(
-                pathSegments: Canister._base_path_segments + [fective_canister_id.text, 'read_state']
-            )
-        );
-        systemstatequest.headers['Content-Type'] = 'application/cbor';
-                
-        Map getstatequestbodymap = {
-            "content": { 
-                "request_type": 'read_state',
-                "paths": paths,  
-                "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
-                "nonce": createicquestnonce(),
-                "ingress_expiry": createicquestingressexpiry()
-            }
-        };
-        if (caller != null) {
-            getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
-            if (caller.legations.length > 0) {
-                getstatequestbodymap['sender_delegation'] = caller.legations.map<Map>((Legation legation)=>legation._as_signed_legation_map()).toList();
-            }
-            Uint8List questId = ic_data_hash(getstatequestbodymap['content']);
-            getstatequestbodymap['sender_sig'] = await keys_authorize_call_quest_id(caller.keys, questId);
-        }
-        systemstatequest.bodyBytes = cbor.encode(CborMap(dart_value_as_a_cbor_value(getstatequestbodymap) as CborMap, tags: [CborTag.selfDescribeCbor]));
-        bool need_close_httpclient = false;
-        if (httpclient==null) {
-            httpclient = http.Client();
-            need_close_httpclient = true;
-        }
-
-        late List<Uint8List?> pathsvalues;
-        int i = 4;
-        while ( i > 0 ) {
-            i -= 1;
-            http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
-            if (statesponse.statusCode==200) {
-                if (need_close_httpclient) { httpclient.close(); }
-                Map systemstatesponsemap = cbor_simple.cbor.decode(statesponse.bodyBytes) as Map;
-                Map certificate = cbor_simple.cbor.decode(Uint8List.fromList(systemstatesponsemap['certificate'].toList())) as Map;
-                await verify_certificate(certificate);
-                pathsvalues = paths.map((path)=>lookup_path_value_in_an_ic_certificate_tree(certificate['tree'], path)).toList();
-                break;
-            } else {
-                print(':readstatesponse status-code: ${statesponse.statusCode}, body:\n${statesponse.body}');
-                if ( i == 1 ) {
-                    if (need_close_httpclient) { httpclient.close(); }
-                    throw Exception('read_state calls unknown sponse');
-                }
-                
-            } 
-        }
-        
-        return pathsvalues;
-    }
-
-    
 
     /// Call a method on this Canister.
     /// 
@@ -378,7 +345,7 @@ class Canister {
         }
         var canistercallquest = http.Request('POST', 
             ic_base_url.replace(
-                pathSegments: Canister._base_path_segments + [fective_canister_id.text, calltype.name]
+                pathSegments: ['api', 'v2', 'canister', fective_canister_id.text, calltype.name]
             )
         );
         canistercallquest.headers['content-type'] = 'application/cbor';
@@ -439,7 +406,9 @@ class Canister {
                 
                 // print(':poll of the system-state.');
                 await Future.delayed(const Duration(seconds: 1));
-                pathsvalues = await _state( 
+                pathsvalues = await read_state_return_paths_values( 
+                    subnet_or_canister: SubnetOrCanister.canister,
+                    url_id: fective_canister_id, 
                     paths: [
                         ['time'],
                         ['request_status', questId, 'status'], 
@@ -450,7 +419,6 @@ class Canister {
                     ].map(pathbytes).toList(),
                     httpclient: httpclient,
                     caller: caller,
-                    fective_canister_id: fective_canister_id 
                 ); 
                 BigInt certificate_time_nanoseconds = leb128.decodeUnsigned(pathsvalues[0]!);
                 if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.\ncertificate-timestamp: ${certificate_time_nanoseconds}'); } // // time-check,  
@@ -471,8 +439,7 @@ class Canister {
                 );
             }
             Map canister_query_sponse_map = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map; 
-            // signatures = canister_query_sponse_map['signatures'];
-            
+            await verify_query_signatures(fective_canister_id, questId, canister_query_sponse_map);
             callstatus = canister_query_sponse_map['status'];
             if (callstatus == 'replied') { 
                 canistersponse = Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer);
@@ -514,6 +481,245 @@ class Canister {
 
 }
 
+// --- read_state ---
+enum SubnetOrCanister {
+    subnet,
+    canister,
+}
+
+Future<List<Uint8List?>> read_state_return_paths_values({required List<List<Uint8List>> paths, http.Client? httpclient, Caller? caller, required SubnetOrCanister subnet_or_canister, required Principal url_id}) async {        
+    var certificate_tree = await read_state_return_certificate_tree(paths: paths, httpclient: httpclient, caller: caller, subnet_or_canister: subnet_or_canister, url_id: url_id);   
+    return paths.map((path)=>lookup_path_value_in_an_ic_certificate_tree(certificate_tree, path)).toList();
+}
+
+Future<List> read_state_return_certificate_tree({required List<List<Uint8List>> paths, http.Client? httpclient, Caller? caller, required SubnetOrCanister subnet_or_canister, required Principal url_id}) async {        
+    http.Request systemstatequest = http.Request('POST', 
+        ic_base_url.replace(
+            pathSegments: ['api', 'v2', subnet_or_canister.name, url_id.text, 'read_state']
+        )
+    );
+    systemstatequest.headers['Content-Type'] = 'application/cbor';
+            
+    Map getstatequestbodymap = {
+        "content": { 
+            "request_type": 'read_state',
+            "paths": paths,  
+            "sender": caller != null ? caller.principal.bytes : Uint8List.fromList([4]), 
+            "nonce": createicquestnonce(),
+            "ingress_expiry": createicquestingressexpiry()
+        }
+    };
+    if (caller != null) {
+        getstatequestbodymap['sender_pubkey'] = caller.public_key_DER;
+        if (caller.legations.length > 0) {
+            getstatequestbodymap['sender_delegation'] = caller.legations.map<Map>((Legation legation)=>legation._as_signed_legation_map()).toList();
+        }
+        Uint8List questId = ic_data_hash(getstatequestbodymap['content']);
+        getstatequestbodymap['sender_sig'] = await keys_authorize_call_quest_id(caller.keys, questId);
+    }
+    systemstatequest.bodyBytes = cbor.encode(CborMap(dart_value_as_a_cbor_value(getstatequestbodymap) as CborMap, tags: [CborTag.selfDescribeCbor]));
+    bool need_close_httpclient = false;
+    if (httpclient==null) {
+        httpclient = http.Client();
+        need_close_httpclient = true;
+    }
+
+    int i = 4;
+    while ( i > 0 ) {
+        i -= 1;
+        http.Response statesponse = await http.Response.fromStream(await httpclient.send(systemstatequest));
+        if (statesponse.statusCode==200) {
+            Map systemstatesponsemap = cbor_simple.cbor.decode(statesponse.bodyBytes) as Map;
+            Map certificate = cbor_simple.cbor.decode(Uint8List.fromList(systemstatesponsemap['certificate'].toList())) as Map;
+            try {
+                await verify_certificate(certificate, subnet_or_canister, url_id);
+            } catch(e) {
+                print('Error verifying certificate: ${e}. Will maybe try again.');
+                continue;
+            }
+            if (need_close_httpclient) { httpclient.close(); }
+            return certificate['tree'];
+        } else {
+            print(':readstatesponse status-code: ${statesponse.statusCode}, body:\n${statesponse.body}');
+        } 
+    }    
+    if (need_close_httpclient) { httpclient.close(); }
+    throw Exception('read_state calls unknown sponse');
+}
+
+
+
+
+
+
+
+// --- query signatures ---
+
+final Principal root_subnet_id = Principal.text('tdb26-jop6k-aogll-7ltgs-eruif-6kk7m-qpktf-gdiqx-mxtrf-vb5e6-eqe');
+
+class SubnetData {
+    final Principal subnet_id;    
+    final Uint8List public_key_DER;
+    final List<(Principal, Principal)> canister_ranges;
+    final List<NodeData> nodes;
+    
+    SubnetData({
+        required this.subnet_id,
+        required this.public_key_DER,
+        required this.canister_ranges,
+        required this.nodes,
+    });
+}
+
+class NodeData {
+    final Principal node_id;
+    final Uint8List public_key_DER;
+    NodeData({
+        required this.node_id,
+        required this.public_key_DER,
+    });
+}
+
+extension IsCanisterWithinRanges on List<(Principal, Principal)> {
+    bool is_canister_here(Principal canister_id) {
+        String canister_id_bitstring = bytes_as_the_bitstring(canister_id.bytes);
+        for (var (Principal start, Principal end) in this) {
+            String start_bitstring = bytes_as_the_bitstring(start.bytes);
+            String end_bitstring = bytes_as_the_bitstring(end.bytes);
+            if (start_bitstring.compareTo(canister_id_bitstring) <= 0
+            && end_bitstring.compareTo(canister_id_bitstring) >= 0) {
+                return true;    
+            }
+        }
+        return false;
+    }
+}
+
+List<(Principal, Principal)> decode_canister_ranges(Uint8List canister_ranges_raw) {
+    return (cbor_simple.cbor.decode(canister_ranges_raw) as List) 
+        .map((range)=>(Principal.bytes(Uint8List.fromList(range[0])), Principal.bytes(Uint8List.fromList(range[1]))))
+        .toList();
+}
+
+Map<Principal, SubnetData> subnets_cache = {};
+
+// will use a cache // null means not found
+Future<SubnetData?> get_subnet_data_for_canister(Principal canister_id) async {
+    // check cache
+    for (SubnetData subnet_data in subnets_cache.values) {
+        if (subnet_data.canister_ranges.is_canister_here(canister_id)) {
+            return subnet_data;        
+        }
+    }
+    print('filling subnets_cache');
+    // fill cache 
+    List certificate_tree = await read_state_return_certificate_tree(
+        subnet_or_canister: SubnetOrCanister.subnet,      
+        url_id: root_subnet_id,
+        paths: [
+            ['time'],
+            ['subnet'],
+        ].map(pathbytes).toList(),
+    );
+    
+    BigInt time = leb128.decodeUnsigned(lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['time']))!);   
+    if (time < get_current_time_nanoseconds() - BigInt.from(NANOS_IN_A_SECOND * 60 * 5)) {
+        throw Exception('Timestamp too old on the certificate.');
+    }
+        
+    List<Principal> subnet_ids = lookup_path_branches_in_an_ic_certificate_tree(certificate_tree, [utf8.encode('subnet')])  
+        .map(Principal.bytes).toList();
+    //print(subnet_ids);
+    for (Principal subnet_id in subnet_ids) {
+        subnets_cache[subnet_id] = SubnetData(
+            subnet_id: subnet_id,
+            public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'public_key']))!,    
+            canister_ranges: decode_canister_ranges(lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'canister_ranges']))!),
+            nodes: lookup_path_branches_in_an_ic_certificate_tree(
+                certificate_tree, 
+                pathbytes(['subnet', subnet_id.bytes, 'node']),
+            )
+            .map(Principal.bytes)
+            .map((node_id){
+                return NodeData(
+                    node_id: node_id,    
+                    public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'node', node_id.bytes, 'public_key']))!,
+                );
+            }).toList(),
+        );
+    }
+    
+    // check cache
+    for (SubnetData subnet_data in subnets_cache.values) {
+        if (subnet_data.canister_ranges.is_canister_here(canister_id)) {
+            return subnet_data;        
+        }
+    }
+    
+    return null;
+}
+
+// will throw if signature is invalid
+Future<void> verify_query_signatures(Principal fective_canister_id, Uint8List quest_id, Map sponse) async {
+    SubnetData? subnet_data_for_canister = await get_subnet_data_for_canister(fective_canister_id);
+    if (subnet_data_for_canister == null) {
+        throw Exception('Error when trying to verify query signature. Did not find subnet data for the canister ${fective_canister_id}.');
+    }
+    if ((sponse['signatures'] as List).isEmpty) {
+        throw Exception('There must be at least 1 query response signature.');
+    }
+    for (Map node_signature in sponse['signatures'] as List) {
+        BigInt timestamp = node_signature['timestamp'] is BigInt ? node_signature['timestamp'] as BigInt : BigInt.from(node_signature['timestamp'] as int);
+        Uint8List signature = Uint8List.fromList(node_signature['signature']);
+        Principal node_id = Principal.bytes(Uint8List.fromList(node_signature['identity']));
+        
+        if (timestamp < get_current_time_nanoseconds() - BigInt.from(NANOS_IN_A_SECOND * 60 * 5)) {
+            throw Exception('Node signature timestamp too old.');
+        }
+        
+        Uint8List? node_public_key_DER;
+        for (SubnetData subnet_data in subnets_cache.values) {
+            for (NodeData node_data in subnet_data.nodes) {
+                if (node_data.node_id == node_id) {
+                    node_public_key_DER = node_data.public_key_DER;
+                    break;
+                }
+            }
+        }
+        if (node_public_key_DER == null) {
+            throw Exception('Error verifying query signature. Did not find node-signature-identity in the system-state-tree.');
+        }
+        
+        String callstatus = sponse['status']!;
+        Map m = {
+            'status': callstatus,
+            'timestamp': timestamp,
+            'request_id': quest_id,
+        };
+        if (callstatus == 'replied') { 
+            m['reply'] = { 'arg': Uint8List.view(sponse['reply']['arg'].buffer) };
+        } else if (callstatus == 'rejected') {
+            m['reject_code'] = sponse['reject_code'] is int ? BigInt.from(sponse['reject_code']) : sponse['reject_code'] as BigInt;  
+            m['reject_message'] = sponse['reject_message'] as String;
+            m['error_code'] = sponse['error_code'] as String;
+        }
+                
+        Uint8List message = Uint8List.fromList([
+            ...utf8.encode('\x0Bic-response'),
+            ...ic_data_hash(m)
+        ]);
+        
+        bool verify_result = await Ed25519Keys.verify(
+            message: message,
+            signature: signature,
+            pubkey: node_public_key_DER.sublist(Ed25519Keys.DER_public_key_start.length),
+        );         
+        if (verify_result == false) {
+            throw Exception('Node signature verification failed.');
+        }
+    }
+}
+
 
 
 /// What each [CallException.reject_code] in a [CallException] represents.
@@ -528,10 +734,8 @@ const Map<int, String> system_call_reject_codes = {
 };
 
 
-
+/// A path is a list of labels. This function converts string labels to utf8 blobs in a new list for the convenience. 
 List<Uint8List> pathbytes(List<dynamic> path) {
-    // a path is a list of labels, see the ic-spec. 
-    // this function converts string labels to utf8 blobs in a new-list for the convenience. 
     List<dynamic> pathb = [];
     for (int i=0;i<path.length;i++) { 
         pathb.add(path[i]);
@@ -641,20 +845,36 @@ Uint8List derkeyasablskey(Uint8List derkey) {
 
 
 /// Verifies that a [certificate](https://internetcomputer.org/docs/current/references/ic-interface-spec/#certificate) is by the [ic_root_key]. Throws an Exception if the certificate is invalid.
-Future<void> verify_certificate(Map certificate) async {
+Future<void> verify_certificate(Map certificate, SubnetOrCanister subnet_or_canister, Principal url_id) async {
     Uint8List treeroothash = construct_ic_system_state_tree_root_hash(certificate['tree']);
     Uint8List derKey;
     if (certificate.containsKey('delegation')) {
         Map legation_certificate = cbor_simple.cbor.decode(Uint8List.fromList(certificate['delegation']['certificate'])) as Map;
-        await verify_certificate(legation_certificate);
-        derKey = lookup_path_value_in_an_ic_certificate_tree(legation_certificate['tree'], pathbytes(['subnet', Uint8List.fromList(certificate['delegation']['subnet_id'].toList()), 'public_key']))!;
+        Uint8List legationtreeroothash = construct_ic_system_state_tree_root_hash(legation_certificate['tree']);
+        bool legationcertificatevalidity = await bls12381.verify(Uint8List.fromList(legation_certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(legationtreeroothash)), derkeyasablskey(ic_root_key));
+        if (legationcertificatevalidity == false) { 
+            throw Exception('CERTIFICATE IS VOID.'); 
+        }
+        Uint8List legation_subnet_id_bytes = Uint8List.fromList(certificate['delegation']['subnet_id'].toList());
+        switch (subnet_or_canister) {
+            case SubnetOrCanister.subnet: 
+                if (aresamebytes(url_id.bytes, legation_subnet_id_bytes) == false) {
+                    throw Exception('CERTIFICATE IS VOID. Target subnet-id does not match the delegation');
+                }
+            case SubnetOrCanister.canister:
+                List<(Principal, Principal)> canister_ranges = decode_canister_ranges(lookup_path_value_in_an_ic_certificate_tree(legation_certificate['tree'], pathbytes(['subnet', legation_subnet_id_bytes, 'canister_ranges']))!);  
+                if (canister_ranges.is_canister_here(url_id) == false) {
+                    throw Exception('CERTIFICATE IS VOID. Target canister-id is not within the delegated canister-ranges.');
+                }
+        }
+        derKey = lookup_path_value_in_an_ic_certificate_tree(legation_certificate['tree'], pathbytes(['subnet', legation_subnet_id_bytes, 'public_key']))!;
     } else {
-        derKey = ic_root_key; }
+        derKey = ic_root_key; 
+    }
     Uint8List blskey = derkeyasablskey(derKey);
     bool certificatevalidity = await bls12381.verify(Uint8List.fromList(certificate['signature'].toList()), Uint8List.fromList(createdomainseparatorbytes('ic-state-root').toList()..addAll(treeroothash)), blskey);
-    // print(certificatevalidity);
     if (certificatevalidity == false) { 
-        throw Exception(':CERTIFICATE IS: VOID.'); 
+        throw Exception('CERTIFICATE IS VOID.');
     }
 }
 
@@ -706,6 +926,31 @@ Uint8List? lookup_path_value_in_an_ic_certificate_tree(
 }
 
 
+List<Uint8List> lookup_path_branches_in_an_ic_certificate_tree(
+    List tree,
+    List<Uint8List> path,
+) {
+    List<Uint8List> list = [];
+    if (path.length > 0) {
+        List flattrees = flattentreeforks(tree);
+        for (List flattree in flattrees) {
+            if (flattree[0]==2) {
+                if (aresamebytes(flattree[1], path[0]) == true) {
+                    return lookup_path_branches_in_an_ic_certificate_tree(flattree[2], path.sublist(1));
+                }
+            }
+        }
+    }
+    else {
+        List flattrees = flattentreeforks(tree);
+        for (List flattree in flattrees) {
+            if (flattree[0]==2) {
+                list.add(Uint8List.fromList(flattree[1]));    
+            }
+        }
+    }
+    return list;
+}
 
 
 
@@ -765,7 +1010,3 @@ CborValue dart_value_as_a_cbor_value(dynamic dart_value) {
         throw Exception('unknown dart value type: ${dart_value.runtimeType}');
     }
 }
-
-
-
-

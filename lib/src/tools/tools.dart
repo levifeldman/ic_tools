@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+import 'dart:math';
 export './leb128.dart';
 export './cross_platform_tools/onthewebcheck/main.dart' show isontheweb;
 
@@ -158,6 +158,18 @@ extension NullMap<T> on T? {
 }
 
 
+
+
+extension Chunks<T extends List> on T {
+    List<T> chunks(int chunk_size) {
+        var b_len = this.length;
+        List<T> chunks = [];
+        for(int i = 0; i < b_len; i += chunk_size) {    
+            chunks.add(this.sublist(i,min(i+chunk_size, b_len)) as T);
+        }
+        return chunks;
+    }
+} 
 
 
 
