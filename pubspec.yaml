@@ -1,6 +1,6 @@
 name: ic_tools
 description: "Tools for communicating with the world-computer."
-version: 2.1.0,
+version: 2.1.0
 homepage: https://github.com/levifeldman/ic_tools
 platforms:
   linux:
