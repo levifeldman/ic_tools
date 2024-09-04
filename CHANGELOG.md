@@ -1,12 +1,5 @@
-## 2.1.2
+## 2.1.3
 * Make public SubnetOrCanister
-
-
-## 2.1.1
-* Fix README sample
-
-
-## 2.1.0
 * Verify that the certificate is valid for the canister and subnet
 * Verify query signatures
 * `verify_certificate` now takes a SubnetOrCanister and subnet_id_or_canister_id
