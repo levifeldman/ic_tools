@@ -22,5 +22,6 @@ export 'src/ic_tools.dart' show
     lookup_path_value_in_an_ic_certificate_tree,
     lookup_path_branches_in_an_ic_certificate_tree,
     construct_ic_system_state_tree_root_hash,
-    pathbytes
+    pathbytes,
+    SubnetOrCanister
     ;
