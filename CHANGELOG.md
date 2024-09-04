@@ -1,3 +1,11 @@
+## 2.1.0
+* Verify that the certificate is valid for the canister and subnet
+* Verify query signatures
+* `verify_certificate` now takes a SubnetOrCanister and subnet_id_or_canister_id
+* Make public `lookup_path_branches_in_an_ic_certificate_tree`
+* New method extension method `chunks` on T extends List.
+
+
 ## 2.0.2
 * use Completer for the indexdb api. 
 * IICaller .indexdx_delete
@@ -187,5 +195,3 @@ icbaseurl = Uri.parse('http://127.0.0.1:8000');
 ## 0.9.28
 
 * :fix: exports of the common.dart.
-
-
