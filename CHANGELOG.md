@@ -1,3 +1,7 @@
+## 2.1.2
+* Make public SubnetOrCanister
+
+
 ## 2.1.1
 * Fix README sample
 
