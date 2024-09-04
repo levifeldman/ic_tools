@@ -15,7 +15,7 @@ topics:
 
 
 environment:
-  sdk: ">=2.17.0 <4.0.0"
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   http: 0.13.3
@@ -23,11 +23,11 @@ dependencies:
   typed_data: ^1.3.0 
   archive: ^3.1.2 # crc32 checksum functions
   base32: 2.0.0
-  crypto: 3.0.1
+  crypto: 3.0.3
   ffi: 2.1.0 #1.1.2
   js: ^0.6.3
   tuple: ^2.0.0
-  ed25519_edwards: ^0.3.1
+  cryptography: ^2.7.0
   
   # for the local cbor package  
   collection: "^1.15.0"
@@ -36,4 +36,3 @@ dependencies:
   convert: "^3.0.0"
   ieee754: "^1.0.3"
   meta: "^1.3.0"
-

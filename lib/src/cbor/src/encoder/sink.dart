@@ -12,7 +12,7 @@ import 'package:typed_data/typed_buffers.dart';
 
 import '../utils/arg.dart';
 
-abstract class EncodeSink extends Sink<List<int>> {
+abstract class EncodeSink implements Sink<List<int>> {
   EncodeSink();
 
   final Set<Object> _references = {};
@@ -122,4 +122,3 @@ Uint8List u64BytesHelper(int x) {
   }
   return Uint8List.fromList(bytes);
 }
-
