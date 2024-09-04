@@ -734,10 +734,8 @@ const Map<int, String> system_call_reject_codes = {
 };
 
 
-
+/// A path is a list of labels. This function converts string labels to utf8 blobs in a new list for the convenience. 
 List<Uint8List> pathbytes(List<dynamic> path) {
-    // a path is a list of labels, see the ic-spec. 
-    // this function converts string labels to utf8 blobs in a new-list for the convenience. 
     List<dynamic> pathb = [];
     for (int i=0;i<path.length;i++) { 
         pathb.add(path[i]);
