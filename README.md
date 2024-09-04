@@ -12,7 +12,7 @@ import 'package:ic_tools/common.dart';
 
 main() async {
     
-    Caller caller = Caller(keys: Ed25519Keys.new_keys());
+    Caller caller = Caller(keys: await Ed25519Keys.new_keys());
     print(caller.principal);
     
     Canister icp_ledger = Canister(Principal.text('ryjl3-tyaaa-aaaaa-aaaba-cai'));
