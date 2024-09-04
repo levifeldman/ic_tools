@@ -439,7 +439,9 @@ class Canister {
                 );
             }
             Map canister_query_sponse_map = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map; 
-            await verify_query_signatures(fective_canister_id, questId, canister_query_sponse_map);
+            if (ic_base_url.host != '127.0.0.1' && ic_base_url.host != 'localhost') {
+                await verify_query_signatures(fective_canister_id, questId, canister_query_sponse_map);
+            }
             callstatus = canister_query_sponse_map['status'];
             if (callstatus == 'replied') { 
                 canistersponse = Uint8List.view(canister_query_sponse_map['reply']['arg'].buffer);
@@ -603,68 +605,96 @@ List<(Principal, Principal)> decode_canister_ranges(Uint8List canister_ranges_ra
 
 Map<Principal, SubnetData> subnets_cache = {};
 
-// will use a cache // null means not found
-Future<SubnetData?> get_subnet_data_for_canister(Principal canister_id) async {
+// will use a cache // will throw if not found
+Future<SubnetData> get_subnet_data_for_canister(Principal canister_id) async {
     // check cache
-    for (SubnetData subnet_data in subnets_cache.values) {
-        if (subnet_data.canister_ranges.is_canister_here(canister_id)) {
-            return subnet_data;        
+    if (subnets_cache.isEmpty) {
+        // call root subnet and get the ranges of every subnet
+        List certificate_tree = await read_state_return_certificate_tree(
+            subnet_or_canister: SubnetOrCanister.subnet,      
+            url_id: root_subnet_id,
+            paths: [
+                ['time'],
+                ['subnet'],
+            ].map(pathbytes).toList(),
+        );
+        check_time_is_less_than_5_minutes_old_in_certificate_tree(certificate_tree);
+        
+        List<Principal> subnet_ids = lookup_path_branches_in_an_ic_certificate_tree(certificate_tree, [utf8.encode('subnet')])  
+        .map(Principal.bytes).toList();
+        
+        for (Principal subnet_id in subnet_ids) {
+            // the subnets besidses the root subnet don't contain the data for their nodes but they do for the canister-ranges.
+            subnets_cache[subnet_id] = parse_certificate_tree_for_subnet_data(certificate_tree, subnet_id);
         }
     }
-    print('filling subnets_cache');
-    // fill cache 
+    
+    Principal? read_state_of_subnet_id;
+    
+    for (SubnetData subnet_data in subnets_cache.values) {
+        if (subnet_data.canister_ranges.is_canister_here(canister_id)) {
+            if (subnet_data.nodes.isNotEmpty) {
+                return subnet_data;
+            } else {
+                read_state_of_subnet_id = subnet_data.subnet_id;
+                break;
+            }
+        }
+    }
+    
+    if (read_state_of_subnet_id == null) {
+        throw Exception('Error verifying query signature. Canister not found within subnets\' ranges.');
+    }
+    
     List certificate_tree = await read_state_return_certificate_tree(
         subnet_or_canister: SubnetOrCanister.subnet,      
-        url_id: root_subnet_id,
+        url_id: read_state_of_subnet_id,
         paths: [
             ['time'],
             ['subnet'],
         ].map(pathbytes).toList(),
     );
-    
+    check_time_is_less_than_5_minutes_old_in_certificate_tree(certificate_tree);
+        
+    SubnetData subnet_data = parse_certificate_tree_for_subnet_data(certificate_tree, read_state_of_subnet_id);
+    subnets_cache[read_state_of_subnet_id] = subnet_data;
+    return subnet_data;
+}
+
+// helper
+SubnetData parse_certificate_tree_for_subnet_data(List certificate_tree, Principal subnet_id) {
+    return SubnetData(
+        subnet_id: subnet_id,
+        public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'public_key']))!,    
+        canister_ranges: decode_canister_ranges(lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'canister_ranges']))!),
+        nodes: lookup_path_branches_in_an_ic_certificate_tree(
+            certificate_tree, 
+            pathbytes(['subnet', subnet_id.bytes, 'node']),
+        )
+        .map(Principal.bytes)
+        .map((node_id){
+            return NodeData(
+                node_id: node_id,    
+                public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'node', node_id.bytes, 'public_key']))!,
+            );
+        }).toList(),
+    );
+}
+
+// helper
+// will throw if more than 5 minutes old.
+check_time_is_less_than_5_minutes_old_in_certificate_tree(List certificate_tree) {
     BigInt time = leb128.decodeUnsigned(lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['time']))!);   
     if (time < get_current_time_nanoseconds() - BigInt.from(NANOS_IN_A_SECOND * 60 * 5)) {
         throw Exception('Timestamp too old on the certificate.');
     }
-        
-    List<Principal> subnet_ids = lookup_path_branches_in_an_ic_certificate_tree(certificate_tree, [utf8.encode('subnet')])  
-        .map(Principal.bytes).toList();
-    //print(subnet_ids);
-    for (Principal subnet_id in subnet_ids) {
-        subnets_cache[subnet_id] = SubnetData(
-            subnet_id: subnet_id,
-            public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'public_key']))!,    
-            canister_ranges: decode_canister_ranges(lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'canister_ranges']))!),
-            nodes: lookup_path_branches_in_an_ic_certificate_tree(
-                certificate_tree, 
-                pathbytes(['subnet', subnet_id.bytes, 'node']),
-            )
-            .map(Principal.bytes)
-            .map((node_id){
-                return NodeData(
-                    node_id: node_id,    
-                    public_key_DER: lookup_path_value_in_an_ic_certificate_tree(certificate_tree, pathbytes(['subnet', subnet_id.bytes, 'node', node_id.bytes, 'public_key']))!,
-                );
-            }).toList(),
-        );
-    }
-    
-    // check cache
-    for (SubnetData subnet_data in subnets_cache.values) {
-        if (subnet_data.canister_ranges.is_canister_here(canister_id)) {
-            return subnet_data;        
-        }
-    }
-    
-    return null;
 }
+
 
 // will throw if signature is invalid
 Future<void> verify_query_signatures(Principal fective_canister_id, Uint8List quest_id, Map sponse) async {
-    SubnetData? subnet_data_for_canister = await get_subnet_data_for_canister(fective_canister_id);
-    if (subnet_data_for_canister == null) {
-        throw Exception('Error when trying to verify query signature. Did not find subnet data for the canister ${fective_canister_id}.');
-    }
+    SubnetData subnet_data_for_canister = await get_subnet_data_for_canister(fective_canister_id);
+    
     if ((sponse['signatures'] as List).isEmpty) {
         throw Exception('There must be at least 1 query response signature.');
     }
@@ -684,6 +714,9 @@ Future<void> verify_query_signatures(Principal fective_canister_id, Uint8List qu
                     node_public_key_DER = node_data.public_key_DER;
                     break;
                 }
+            }
+            if (node_public_key_DER != null) {
+                break;
             }
         }
         if (node_public_key_DER == null) {
