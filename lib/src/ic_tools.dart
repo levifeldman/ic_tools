@@ -693,8 +693,6 @@ check_time_is_less_than_5_minutes_old_in_certificate_tree(List certificate_tree)
 
 // will throw if signature is invalid
 Future<void> verify_query_signatures(Principal fective_canister_id, Uint8List quest_id, Map sponse) async {
-    SubnetData subnet_data_for_canister = await get_subnet_data_for_canister(fective_canister_id);
-    
     if ((sponse['signatures'] as List).isEmpty) {
         throw Exception('There must be at least 1 query response signature.');
     }
@@ -708,14 +706,9 @@ Future<void> verify_query_signatures(Principal fective_canister_id, Uint8List qu
         }
         
         Uint8List? node_public_key_DER;
-        for (SubnetData subnet_data in subnets_cache.values) {
-            for (NodeData node_data in subnet_data.nodes) {
-                if (node_data.node_id == node_id) {
-                    node_public_key_DER = node_data.public_key_DER;
-                    break;
-                }
-            }
-            if (node_public_key_DER != null) {
+        for (NodeData node_data in (await get_subnet_data_for_canister(fective_canister_id)).nodes) {
+            if (node_data.node_id == node_id) {
+                node_public_key_DER = node_data.public_key_DER;
                 break;
             }
         }
