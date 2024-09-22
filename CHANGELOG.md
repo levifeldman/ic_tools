@@ -1,3 +1,6 @@
+## 2.1.4
+* Perfect optimization with locks when calling multiple queries in parallel.
+
 ## 2.1.3
 * Make public SubnetOrCanister
 * Verify that the certificate is valid for the canister and subnet
