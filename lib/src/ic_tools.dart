@@ -345,7 +345,13 @@ class Canister {
         }
         var canistercallquest = http.Request('POST', 
             ic_base_url.replace(
-                pathSegments: ['api', 'v2', 'canister', fective_canister_id.text, calltype.name]
+                pathSegments: [
+                    'api', 
+                    switch (calltype) { CallType.call => 'v3', CallType.query => 'v2' }, 
+                    'canister', 
+                    fective_canister_id.text, 
+                    calltype.name
+                ]
             )
         );
         canistercallquest.headers['content-type'] = 'application/cbor';
@@ -373,59 +379,77 @@ class Canister {
         canistercallquest.bodyBytes = quest_bytes;
         //print(bytesasahexstring(canistercallquest.bodyBytes));
         var httpclient = http.Client();
-        BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds brcause of the time-syncronization of the nodes. 
+        BigInt certificate_time_check_nanoseconds = get_current_time_nanoseconds() - BigInt.from(Duration(seconds: 30).inMilliseconds * 1000000); // - 30 seconds because of the time-syncronization of the nodes. 
         http.Response canistercallsponse = await http.Response.fromStream(await httpclient.send(canistercallquest));
+        
         String? callstatus;
         Uint8List? canistersponse;
         BigInt? reject_code;
         String? reject_message;
         String? error_code;
+        
         if (calltype.name == 'call') {
-            if (canistercallsponse.statusCode != 202) {
-                if (canistercallsponse.statusCode == 200) {
+            
+            List<List<Uint8List>> paths = [
+                ['time'],
+                ['request_status', questId, 'status'], 
+                ['request_status', questId, 'reply'],
+                ['request_status', questId, 'reject_code'],
+                ['request_status', questId, 'reject_message'],
+                ['request_status', questId, 'error_code'],
+            ].map(pathbytes).toList();
+            
+            List<Uint8List?> pathsvalues = [];
+
+            switch (canistercallsponse.statusCode) {
+                case 200:
                     Map bodymap = cbor_simple.cbor.decode(canistercallsponse.bodyBytes) as Map;
-                    throw CallException(
-                        reject_code: bodymap['reject_code'] is int ? BigInt.from(bodymap['reject_code']) : bodymap['reject_code'] as BigInt,
-                        reject_message: bodymap['reject_message'] as String,
-                        error_code: bodymap['error_code'] as String?
-                    );
-                } else {
+                    switch (bodymap['status']) {
+                        case 'replied':
+                            Map certificate = cbor_simple.cbor.decode(Uint8List.fromList(bodymap['certificate'].toList())) as Map;
+                            await verify_certificate(certificate, SubnetOrCanister.canister, fective_canister_id);
+                            List certificate_tree = certificate['tree'];
+                            pathsvalues = paths.map((path)=>lookup_path_value_in_an_ic_certificate_tree(certificate_tree, path)).toList();
+                            BigInt certificate_time_nanoseconds = leb128.decodeUnsigned(pathsvalues[0]!);
+                            if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.\ncertificate-timestamp: ${certificate_time_nanoseconds}'); }
+                            callstatus = pathsvalues[1].nullmap(utf8.decode);
+                            
+                        case 'non_replicated_rejection':
+                            throw CallException(
+                                reject_code: bodymap['reject_code'] is int ? BigInt.from(bodymap['reject_code']) : bodymap['reject_code'] as BigInt,
+                                reject_message: bodymap['reject_message'] as String,
+                                error_code: bodymap['error_code'] as String?
+                            );    
+                        default: 
+                            throw Exception('Unknown 200 map status field: ${bodymap['status']}');
+                    }
+                case 202:
+                    BigInt timeout_duration_check_nanoseconds = get_current_time_nanoseconds() + BigInt.from(timeout_duration.inMilliseconds * 1000000);
+                    while (!['replied','rejected','done'].contains(callstatus)) {
+                        
+                        if (get_current_time_nanoseconds() > timeout_duration_check_nanoseconds ) {
+                            throw Exception('timeout duration time limit');
+                        }
+                        
+                        await Future.delayed(const Duration(seconds: 1));
+                        pathsvalues = await read_state_return_paths_values( 
+                            subnet_or_canister: SubnetOrCanister.canister,
+                            url_id: fective_canister_id, 
+                            paths: paths,
+                            httpclient: httpclient,
+                            caller: caller,
+                        ); 
+                        BigInt certificate_time_nanoseconds = leb128.decodeUnsigned(pathsvalues[0]!);
+                        if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.\ncertificate-timestamp: ${certificate_time_nanoseconds}'); }  
+                        callstatus = pathsvalues[1].nullmap(utf8.decode);
+                    }
+                default:
                     throw Http4xx5xxCallException(
                         http_status_code: canistercallsponse.statusCode,
                         response_body: utf8.decode(canistercallsponse.bodyBytes)
                     );
-                }
-            }
-            List<Uint8List?> pathsvalues = [];
-            BigInt timeout_duration_check_nanoseconds = get_current_time_nanoseconds() + BigInt.from(timeout_duration.inMilliseconds * 1000000);
-            while (!['replied','rejected','done'].contains(callstatus)) {
-                
-                if (get_current_time_nanoseconds() > timeout_duration_check_nanoseconds ) {
-                    throw Exception('timeout duration time limit');
-                }
-                
-                // print(':poll of the system-state.');
-                await Future.delayed(const Duration(seconds: 1));
-                pathsvalues = await read_state_return_paths_values( 
-                    subnet_or_canister: SubnetOrCanister.canister,
-                    url_id: fective_canister_id, 
-                    paths: [
-                        ['time'],
-                        ['request_status', questId, 'status'], 
-                        ['request_status', questId, 'reply'],
-                        ['request_status', questId, 'reject_code'],
-                        ['request_status', questId, 'reject_message'],
-                        ['request_status', questId, 'error_code'],
-                    ].map(pathbytes).toList(),
-                    httpclient: httpclient,
-                    caller: caller,
-                ); 
-                BigInt certificate_time_nanoseconds = leb128.decodeUnsigned(pathsvalues[0]!);
-                if (certificate_time_nanoseconds < certificate_time_check_nanoseconds) { throw Exception('IC got back certificate that has an old timestamp: ${(certificate_time_check_nanoseconds - certificate_time_nanoseconds) / BigInt.from(1000000000) / 60} minutes ago.\ncertificate-timestamp: ${certificate_time_nanoseconds}'); } // // time-check,  
-                
-                callstatus = pathsvalues[1].nullmap(utf8.decode);
-            }
-            //print(pathsvalues);
+            } 
+            
             canistersponse = pathsvalues[2];
             reject_code = pathsvalues[3].nullmap(leb128.decodeUnsigned);
             reject_message = pathsvalues[4].nullmap(utf8.decode);
@@ -540,7 +564,7 @@ Future<List> read_state_return_certificate_tree({required List<List<Uint8List>> 
             if (need_close_httpclient) { httpclient.close(); }
             return certificate['tree'];
         } else {
-            print(':readstatesponse status-code: ${statesponse.statusCode}, body:\n${statesponse.body}');
+            print('read-state status-code: ${statesponse.statusCode},\nbody: ${statesponse.body}');
         } 
     }    
     if (need_close_httpclient) { httpclient.close(); }

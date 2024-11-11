@@ -1,3 +1,6 @@
+## 2.1.5
+* Api v3 for update calls 
+
 ## 2.1.4
 * Perfect optimization with locks when calling multiple queries in parallel.
 
